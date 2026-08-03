@@ -36,47 +36,86 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             return;
         }
 
-        $payload = $this->storeOrderPayload($shipment);
-        $storeResponse = $delivery->storeOrder($payload);
-        $deliveryOrderNo = $this->firstScalar($storeResponse, [
-            'data.order_no',
-            'data.order_number',
-            'order_no',
-            'order_number',
-        ]) ?? $payload['order_no'];
-
-        $awb = $this->firstScalar($storeResponse, [
-            'data.awb',
-            'data.airway_bill',
-            'data.tracking_number',
-            'data.resi',
-            'awb',
-            'airway_bill',
-            'tracking_number',
-            'resi',
+        $metadata = $this->decodeMetadata($shipment->metadata);
+        $deliveryOrderNo = $this->firstScalar($metadata, ['komerce.order_no']);
+        $storeResponse = $this->arrayAt($metadata, 'komerce.store_order_response');
+        $awb = $this->firstScalar($metadata, [
+            'komerce.awb',
+            'komerce.store_order_response.data.awb',
+            'komerce.store_order_response.data.airway_bill',
+            'komerce.store_order_response.data.tracking_number',
+            'komerce.store_order_response.data.resi',
+            'komerce.store_order_response.awb',
+            'komerce.store_order_response.airway_bill',
+            'komerce.store_order_response.tracking_number',
+            'komerce.store_order_response.resi',
         ]);
-        $trackingNumber = $this->firstScalar($storeResponse, [
-            'data.tracking_number',
-            'data.awb',
-            'data.airway_bill',
-            'data.resi',
-            'tracking_number',
-            'awb',
-            'airway_bill',
-            'resi',
+        $trackingNumber = $this->firstScalar($metadata, [
+            'komerce.tracking_number',
+            'komerce.awb',
+            'komerce.store_order_response.data.tracking_number',
+            'komerce.store_order_response.data.awb',
+            'komerce.store_order_response.data.airway_bill',
+            'komerce.store_order_response.data.resi',
+            'komerce.store_order_response.tracking_number',
+            'komerce.store_order_response.awb',
+            'komerce.store_order_response.airway_bill',
+            'komerce.store_order_response.resi',
         ]);
 
-        $pickupResponse = $delivery->requestPickup([
+        if ($deliveryOrderNo === null) {
+            $payload = $this->storeOrderPayload($shipment);
+            $storeResponse = $delivery->storeOrder($payload);
+            $deliveryOrderNo = $this->firstScalar($storeResponse, [
+                'data.order_no',
+                'data.order_number',
+                'order_no',
+                'order_number',
+            ]) ?? $payload['order_no'];
+
+            $awb = $this->firstScalar($storeResponse, [
+                'data.awb',
+                'data.airway_bill',
+                'data.tracking_number',
+                'data.resi',
+                'awb',
+                'airway_bill',
+                'tracking_number',
+                'resi',
+            ]);
+            $trackingNumber = $this->firstScalar($storeResponse, [
+                'data.tracking_number',
+                'data.awb',
+                'data.airway_bill',
+                'data.resi',
+                'tracking_number',
+                'awb',
+                'airway_bill',
+                'resi',
+            ]);
+
+            $shipment->forceFill([
+                'metadata' => $this->metadataAfterStore($shipment, $deliveryOrderNo, $awb, $trackingNumber, $storeResponse),
+            ])->save();
+        }
+
+        $pickupResponse = $delivery->requestPickup(array_filter([
             'order_no' => $deliveryOrderNo,
             'awb' => $awb,
-            'order_shipment_id' => $shipment->id,
-        ]);
+        ], static fn (mixed $value): bool => $value !== null));
 
         $shipment->forceFill([
             'awb' => $awb,
             'tracking_number' => $trackingNumber,
             'status' => $this->statusAfterPickup($pickupResponse),
-            'metadata' => $this->metadata($shipment, $deliveryOrderNo, $storeResponse, $pickupResponse),
+            'metadata' => $this->metadataAfterPickup(
+                $shipment,
+                $deliveryOrderNo,
+                $awb,
+                $trackingNumber,
+                $storeResponse,
+                $pickupResponse,
+            ),
         ])->save();
     }
 
@@ -260,24 +299,62 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
 
     /**
      * @param  array<string, mixed>  $storeResponse
+     * @return array<string, mixed>
+     */
+    private function metadataAfterStore(
+        OrderShipment $shipment,
+        string $deliveryOrderNo,
+        ?string $awb,
+        ?string $trackingNumber,
+        array $storeResponse,
+    ): array {
+        $metadata = $this->decodeMetadata($shipment->metadata);
+        $komerce = data_get($metadata, 'komerce', []);
+
+        if (! is_array($komerce)) {
+            $komerce = [];
+        }
+
+        $metadata['komerce'] = array_filter(array_merge($komerce, [
+            'order_no' => $deliveryOrderNo,
+            'awb' => $awb,
+            'tracking_number' => $trackingNumber,
+            'store_order_response' => $storeResponse,
+        ]), static fn (mixed $value): bool => $value !== null);
+
+        return $metadata;
+    }
+
+    /**
+     * @param  array<string, mixed>  $storeResponse
      * @param  array<string, mixed>  $pickupResponse
      * @return array<string, mixed>
      */
-    private function metadata(
+    private function metadataAfterPickup(
         OrderShipment $shipment,
         string $deliveryOrderNo,
+        ?string $awb,
+        ?string $trackingNumber,
         array $storeResponse,
         array $pickupResponse,
     ): array {
-        $metadata = $this->decodeMetadata($shipment->metadata);
+        $metadata = $this->metadataAfterStore($shipment, $deliveryOrderNo, $awb, $trackingNumber, $storeResponse);
 
-        $metadata['komerce'] = array_filter([
-            'order_no' => $deliveryOrderNo,
-            'store_order_response' => $storeResponse,
+        $metadata['komerce'] = array_filter(array_merge($metadata['komerce'], [
             'pickup_response' => $pickupResponse,
-        ], static fn (mixed $value): bool => $value !== null);
+        ]), static fn (mixed $value): bool => $value !== null);
 
         return $metadata;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function arrayAt(array $metadata, string $path): array
+    {
+        $value = data_get($metadata, $path);
+
+        return is_array($value) ? $value : [];
     }
 
     /**

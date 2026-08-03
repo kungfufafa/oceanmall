@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Services\Komerce\ShippingDeliveryClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Shopper\Core\Enum\OrderStatus;
@@ -129,7 +130,99 @@ final class ShippingDeliveryTest extends TestCase
         Http::assertSent(function (Request $request): bool {
             return $request->method() === 'POST'
                 && $request->url() === 'https://delivery.example.test/order/api/v1/pickup/request'
-                && data_get($request->data(), 'order_no') === 'RO-ORDER-001';
+                && data_get($request->data(), 'order_no') === 'RO-ORDER-001'
+                && ! array_key_exists('order_shipment_id', $request->data());
+        });
+    }
+
+    public function test_delivery_job_persists_komerce_order_metadata_before_pickup(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [, $shipment] = $this->createShipmentReadyForDelivery();
+
+        Http::fake([
+            'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
+                'success' => true,
+                'data' => [
+                    'order_no' => 'RO-ORDER-BEFORE-PICKUP',
+                    'awb' => 'JNE-BEFORE-PICKUP',
+                ],
+            ]),
+            'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
+                'success' => false,
+            ], 500),
+        ]);
+
+        try {
+            resolve(CreateRajaOngkirDeliveryForShipment::class, [
+                'orderShipmentId' => $shipment->id,
+            ])->handle(resolve(ShippingDeliveryClient::class));
+
+            $this->fail('Expected pickup request failure.');
+        } catch (RequestException) {
+            $shipment->refresh();
+        }
+
+        $this->assertSame('RO-ORDER-BEFORE-PICKUP', data_get($shipment->metadata, 'komerce.order_no'));
+        $this->assertSame('JNE-BEFORE-PICKUP', data_get($shipment->metadata, 'komerce.awb'));
+        $this->assertNull($shipment->awb);
+    }
+
+    public function test_delivery_job_retry_uses_existing_komerce_order_no_without_storing_again(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [, $shipment] = $this->createShipmentReadyForDelivery([
+            'metadata' => [
+                'komerce' => [
+                    'order_no' => 'RO-ORDER-RETRY',
+                    'awb' => 'JNE-RETRY-AWB',
+                    'store_order_response' => [
+                        'success' => true,
+                        'data' => [
+                            'order_no' => 'RO-ORDER-RETRY',
+                            'awb' => 'JNE-RETRY-AWB',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        Http::fake([
+            'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
+                'success' => true,
+                'data' => ['order_no' => 'RO-SHOULD-NOT-BE-USED'],
+            ]),
+            'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
+                'success' => true,
+                'data' => ['pickup_code' => 'PICKUP-RETRY'],
+            ]),
+        ]);
+
+        resolve(CreateRajaOngkirDeliveryForShipment::class, [
+            'orderShipmentId' => $shipment->id,
+        ])->handle(resolve(ShippingDeliveryClient::class));
+
+        $shipment->refresh();
+        $this->assertSame('JNE-RETRY-AWB', $shipment->awb);
+        $this->assertSame('JNE-RETRY-AWB', $shipment->tracking_number);
+        $this->assertSame('RO-ORDER-RETRY', data_get($shipment->metadata, 'komerce.order_no'));
+
+        Http::assertNotSent(function (Request $request): bool {
+            return $request->method() === 'POST'
+                && $request->url() === 'https://delivery.example.test/order/api/v1/orders/store';
+        });
+
+        Http::assertSent(function (Request $request): bool {
+            $payload = $request->data();
+
+            return $request->method() === 'POST'
+                && $request->url() === 'https://delivery.example.test/order/api/v1/pickup/request'
+                && $payload === [
+                    'order_no' => 'RO-ORDER-RETRY',
+                    'awb' => 'JNE-RETRY-AWB',
+                ];
         });
     }
 
