@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { X } from 'lucide-vue-next';
 import { ref } from 'vue';
-import Container from './Container.vue';
+import Container from './container.vue';
 
 defineProps<{
     message?: string | null;
