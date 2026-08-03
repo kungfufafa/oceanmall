@@ -1,0 +1,15 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use App\Concerns\InteractsWithStorefrontMedia;
+use App\Traits\HasProductPricing;
+use Shopper\Models\ProductVariant as Model;
+
+final class ProductVariant extends Model
+{
+    use HasProductPricing;
+    use InteractsWithStorefrontMedia;
+}

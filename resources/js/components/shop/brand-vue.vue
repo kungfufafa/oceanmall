@@ -1,0 +1,23 @@
+<script setup lang="ts">
+defineProps<{
+    class?: string;
+}>();
+</script>
+
+<template>
+    <svg
+        :class="$props.class"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 261.76 226.69"
+        aria-hidden="true"
+    >
+        <path
+            d="m161.096.001-30.225 52.351L100.647.001H-.005l130.877 226.688L261.749.001z"
+            fill="#41b883"
+        />
+        <path
+            d="M161.096.001l-30.225 52.351L100.647.001H52.346l78.526 135.998L209.398.001z"
+            fill="#34495e"
+        />
+    </svg>
+</template>
