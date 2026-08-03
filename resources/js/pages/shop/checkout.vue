@@ -13,13 +13,7 @@ import { Label } from '@/components/ui/label';
 import { useShop } from '@/composables/useShop';
 import { formatMoney } from '@/lib/format';
 import * as checkout from '@/routes/shop/checkout';
-import type {
-    Address,
-    Cart,
-    CartContext,
-    DeliveryOption,
-    PaymentMethod,
-} from '@/types/shop';
+import type { Address, Cart, CartContext, DeliveryOption } from '@/types/shop';
 
 type ShippingAddressForm = {
     first_name: string;
@@ -62,8 +56,14 @@ const { currency, taxLabel, zone } = useShop();
 const step = computed<1 | 2 | 3>(() => props.step);
 
 const maxStep = computed<1 | 2 | 3>(() => {
-    if (props.selectedDeliveryOption !== null) return 3;
-    if (props.shippingAddress) return 2;
+    if (props.selectedDeliveryOption !== null) {
+        return 3;
+    }
+
+    if (props.shippingAddress) {
+        return 2;
+    }
+
     return 1;
 });
 
@@ -81,7 +81,10 @@ const addressForm = useForm<ShippingAddressForm>({
 });
 
 const shippingForm = useForm<{ service_code: string }>({
-    service_code: props.selectedDeliveryOption ?? '',
+    service_code:
+        props.selectedDeliveryOption !== null
+            ? String(props.selectedDeliveryOption)
+            : '',
 });
 
 const paymentForm = useForm<{ payment_method_id: number | null }>({
@@ -103,10 +106,16 @@ const currentPaymentMethod = computed(
 );
 
 const isStripeSelected = computed<boolean>(
-    () => currentPaymentMethod.value?.driver === 'stripe' && Boolean(props.stripeData),
+    () => currentPaymentMethod.value?.driver === 'stripe',
 );
 const isKomerceSelected = computed<boolean>(
     () => currentPaymentMethod.value?.driver === 'komerce',
+);
+const canPlaceOrder = computed<boolean>(
+    () =>
+        Boolean(currentPaymentMethod.value) &&
+        !isStripeSelected.value &&
+        (!isKomerceSelected.value || !props.komercePayment),
 );
 const preparingStripe = ref<boolean>(false);
 const stripeMounted = ref<boolean>(false);
@@ -114,7 +123,9 @@ const stripeMounted = ref<boolean>(false);
 watch(
     () => isStripeSelected.value && Boolean(props.stripeData),
     (active) => {
-        if (active) stripeMounted.value = true;
+        if (active) {
+            stripeMounted.value = true;
+        }
     },
     { immediate: true },
 );
@@ -122,9 +133,15 @@ watch(
 watch(
     () => paymentForm.payment_method_id,
     (id) => {
-        if (!id) return;
+        if (!id) {
+            return;
+        }
+
         const method = props.paymentOptions.find((m) => m.id === id) ?? null;
-        if (!method) return;
+
+        if (!method) {
+            return;
+        }
 
         if (method.driver === 'stripe' && !props.stripeData) {
             preparingStripe.value = true;
@@ -143,12 +160,13 @@ watch(
 const total = computed<number>(() => {
     const sub = props.cartContext?.total ?? 0;
     const delivery = selectedDelivery.value?.amount ?? 0;
+
     return sub + delivery;
 });
 
 function selectAddress(address: Address): void {
     selectedAddressId.value = address.id;
-    addressForm.first_name = address.first_name;
+    addressForm.first_name = address.first_name ?? '';
     addressForm.last_name = address.last_name;
     addressForm.street_address = address.street_address;
     addressForm.street_address_plus = address.street_address_plus ?? '';
@@ -164,8 +182,14 @@ function clearAddress(): void {
 }
 
 function goToStep(target: 1 | 2 | 3): void {
-    if (target === step.value) return;
-    if (target > maxStep.value) return;
+    if (target === step.value) {
+        return;
+    }
+
+    if (target > maxStep.value) {
+        return;
+    }
+
     router.get(
         checkout.index.url(),
         { step: target },
@@ -666,12 +690,12 @@ const steps = [
                                 v-if="isKomerceSelected && komercePayment"
                                 class="pt-2"
                             >
-                                <KomercePaymentPanel :payment="komercePayment" />
+                                <KomercePaymentPanel
+                                    :payment="komercePayment"
+                                />
                             </div>
 
-                            <template
-                                v-if="currentPaymentMethod && !isStripeSelected && !isKomerceSelected"
-                            >
+                            <template v-if="canPlaceOrder">
                                 <div
                                     class="flex flex-col gap-3 border-t border-zinc-200 pt-5 dark:border-zinc-700"
                                 >

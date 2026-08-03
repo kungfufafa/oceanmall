@@ -4,18 +4,24 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Checkout;
 
+use App\Actions\Checkout\BuildShippingPackages;
 use App\Actions\Checkout\CreateKomercePayment;
+use App\Actions\Checkout\FetchDeliveryRates;
 use App\Actions\Checkout\FetchPaymentMethods;
 use App\Actions\CreateOrder;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\Http;
+use Shopper\Cart\CartManager;
+use Shopper\Cart\Models\Cart;
+use Shopper\Cart\Models\CartLine;
 use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Country;
 use Shopper\Core\Models\Order;
 use Shopper\Core\Models\PaymentMethod;
+use Shopper\Core\Models\Product;
 use Shopper\Core\Models\Zone;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Enum\TransactionType;
@@ -88,6 +94,95 @@ final class KomerceCheckoutTest extends TestCase
         ];
     }
 
+    public function test_checkout_keeps_komerce_place_order_available_before_payment_instructions(): void
+    {
+        $checkoutPage = file_get_contents(resource_path('js/pages/shop/checkout.vue'));
+
+        $this->assertIsString($checkoutPage);
+        $this->assertStringContainsString('const canPlaceOrder = computed<boolean>', $checkoutPage);
+        $this->assertMatchesRegularExpression(
+            '/!isKomerceSelected\.value\s*\|\|\s*!props\.komercePayment/s',
+            $checkoutPage,
+        );
+        $this->assertStringContainsString('v-if="canPlaceOrder"', $checkoutPage);
+        $this->assertStringContainsString('v-if="isKomerceSelected && komercePayment"', $checkoutPage);
+        $this->assertMatchesRegularExpression(
+            '/currentPaymentMethod\.value\?\.driver === \'stripe\'\s*,/s',
+            $checkoutPage,
+        );
+    }
+
+    public function test_checkout_renders_selected_komerce_without_payment_instructions(): void
+    {
+        $this->komerceFakeConfig();
+
+        $user = User::factory()->create();
+        [$country, , $paymentMethod] = $this->seedCountryZoneAndPaymentMethod();
+
+        $cart = Cart::query()->create([
+            'currency_code' => 'IDR',
+            'customer_id' => $user->id,
+        ]);
+        $product = Product::factory()->standard()->create(['name' => 'Batik Shirt']);
+        CartLine::query()->create([
+            'cart_id' => $cart->id,
+            'purchasable_type' => $product->getMorphClass(),
+            'purchasable_id' => $product->id,
+            'quantity' => 1,
+            'unit_price_amount' => 100000,
+        ]);
+
+        $this->app->instance(BuildShippingPackages::class, new class
+        {
+            public function handle(): array
+            {
+                return [];
+            }
+        });
+        $this->app->instance(FetchDeliveryRates::class, new class
+        {
+            public function handle(): array
+            {
+                return [[
+                    'id' => 'JNE-REG',
+                    'service_code' => 'JNE-REG',
+                    'service_name' => 'JNE Reguler',
+                    'carrier_code' => 'JNE',
+                    'carrier_name' => 'JNE',
+                    'carrier_logo' => null,
+                    'description' => null,
+                    'estimated_days' => 3,
+                    'amount' => 15000,
+                    'currency' => 'IDR',
+                ]];
+            }
+        });
+        $this->app->instance(CartManager::class, new class
+        {
+            public function calculate(Cart $cart): array
+            {
+                return [
+                    'total' => 100000,
+                    'taxTotal' => 0,
+                    'discountTotal' => 0,
+                ];
+            }
+        });
+
+        $this->actingAs($user)
+            ->withSession([
+                config('shopper.cart.session.key', 'shopper_cart') => $cart->id,
+                'checkout' => $this->makeCheckoutSession($country->id, $paymentMethod->id),
+            ])
+            ->get(route('shop.checkout.index', ['step' => 3]), ['X-Inertia' => 'true'])
+            ->assertOk()
+            ->assertHeader('X-Inertia', 'true')
+            ->assertJsonPath('component', 'shop/checkout')
+            ->assertJsonPath('props.selectedPaymentMethod', $paymentMethod->id)
+            ->assertJsonPath('props.komercePayment', null)
+            ->assertJsonPath('props.stripeData', null);
+    }
+
     public function test_place_order_creates_komerce_va_and_pending_transaction(): void
     {
         $this->komerceFakeConfig();
@@ -110,7 +205,8 @@ final class KomerceCheckoutTest extends TestCase
             'status' => OrderStatus::New,
         ]);
 
-        $this->app->instance(CreateOrder::class, new class ($order) {
+        $this->app->instance(CreateOrder::class, new class($order)
+        {
             public function __construct(private readonly Order $order) {}
 
             public function handle(): Order
@@ -184,7 +280,8 @@ final class KomerceCheckoutTest extends TestCase
             'status' => OrderStatus::New,
         ]);
 
-        $this->app->instance(CreateOrder::class, new class ($order) {
+        $this->app->instance(CreateOrder::class, new class($order)
+        {
             public function __construct(private readonly Order $order) {}
 
             public function handle(): Order
@@ -249,7 +346,8 @@ final class KomerceCheckoutTest extends TestCase
             'status' => OrderStatus::New,
         ]);
 
-        $this->app->instance(CreateOrder::class, new class ($order) {
+        $this->app->instance(CreateOrder::class, new class($order)
+        {
             public function __construct(private readonly Order $order) {}
 
             public function handle(): Order
