@@ -294,6 +294,58 @@ final class ShippingDeliveryTest extends TestCase
         );
     }
 
+    public function test_already_processed_still_dispatches_delivery_jobs_for_unlabeled_shipments(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [$order, $unlabeledShipment] = $this->createShipmentReadyForDelivery();
+
+        // A second shipment that already has tracking — should NOT be re-dispatched
+        $labeledShipment = OrderShipment::query()->create([
+            'order_id' => $order->id,
+            'inventory_id' => $unlabeledShipment->inventory_id,
+            'carrier_code' => 'jnt',
+            'service_code' => 'EZ',
+            'status' => 'labeled',
+            'awb' => 'EXISTING-AWB',
+            'tracking_number' => 'EXISTING-TRK',
+        ]);
+
+        // Mark order as already Paid
+        $order->update(['payment_status' => PaymentStatus::Paid]);
+
+        Bus::fake();
+
+        PaymentTransaction::query()->create([
+            'order_id' => $order->id,
+            'driver' => 'komerce',
+            'type' => TransactionType::Capture,
+            'status' => TransactionStatus::Success,
+            'amount' => 100000,
+            'currency_code' => 'IDR',
+            'reference' => 'KOMPAY-ALREADY',
+        ]);
+
+        // No remote HTTP call needed since we return 'already_processed' before fetching remote status
+        $status = resolve(MarkOrderPaidFromKomerce::class)->handle('KOMPAY-ALREADY');
+
+        $this->assertSame('already_processed', $status);
+
+        // Only the unlabeled shipment should be dispatched
+        Bus::assertDispatched(
+            CreateRajaOngkirDeliveryForShipment::class,
+            1,
+        );
+        Bus::assertDispatched(
+            CreateRajaOngkirDeliveryForShipment::class,
+            fn (CreateRajaOngkirDeliveryForShipment $job): bool => $job->orderShipmentId === $unlabeledShipment->id,
+        );
+        Bus::assertNotDispatched(
+            CreateRajaOngkirDeliveryForShipment::class,
+            fn (CreateRajaOngkirDeliveryForShipment $job): bool => $job->orderShipmentId === $labeledShipment->id,
+        );
+    }
+
     /**
      * @param  array<string, mixed>  $shipmentOverrides
      * @return array{0: Order, 1: OrderShipment}

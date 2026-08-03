@@ -9,6 +9,7 @@ use App\CheckoutSession;
 use App\DTO\AllocationPlan;
 use App\DTO\ShipmentDraft;
 use App\Models\OrderShipment;
+use App\Support\CheckoutAllocationContext;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -51,7 +52,15 @@ final class CreateOrder
         try {
             return DB::transaction(function () use ($cart, $checkout): Order {
                 $allocationPlan = $this->resolveAllocationPlan($cart, $checkout);
-                $order = resolve(CreateOrderFromCartAction::class)->execute($cart);
+
+                $context = resolve(CheckoutAllocationContext::class);
+                $context->set($allocationPlan);
+
+                try {
+                    $order = resolve(CreateOrderFromCartAction::class)->execute($cart);
+                } finally {
+                    $context->clear();
+                }
 
                 $shipmentTotal = $this->storeShipments($order, $allocationPlan, $checkout);
                 $shippingPrice = $shipmentTotal ?? (int) data_get($checkout, 'shipping_option.0.price', 0);

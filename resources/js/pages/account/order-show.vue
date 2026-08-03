@@ -66,7 +66,9 @@ type Shipment = {
 
 const props = defineProps<{ order: Order; shipments: Shipment[] }>();
 
-const shippingPrice = props.order.shipping_option?.price ?? 0;
+const shippingPrice = props.shipments.length > 0
+    ? props.shipments.reduce((sum, s) => sum + s.cost, 0)
+    : (props.order.shipping_option?.price ?? 0);
 const itemsTotal =
     props.order.price_amount - (props.order.tax_amount ?? 0) - shippingPrice;
 

@@ -39,6 +39,8 @@ final class MarkOrderPaidFromKomerce
         }
 
         if ($order->payment_status === PaymentStatus::Paid) {
+            $this->dispatchPendingDeliveries($order);
+
             return 'already_processed';
         }
 
@@ -88,14 +90,21 @@ final class MarkOrderPaidFromKomerce
             ]);
         });
 
+        $this->dispatchPendingDeliveries($order);
+
+        return 'handled';
+    }
+
+    private function dispatchPendingDeliveries(Order $order): void
+    {
         OrderShipment::query()
             ->where('order_id', $order->id)
+            ->whereNull('awb')
+            ->whereNull('tracking_number')
             ->pluck('id')
             ->each(static function (mixed $shipmentId): void {
                 CreateRajaOngkirDeliveryForShipment::dispatch((int) $shipmentId);
             });
-
-        return 'handled';
     }
 
     private function findOrderByPaymentReference(string $paymentId): ?Order

@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Schema;
 use Shopper\Cart\Models\Cart;
 use Shopper\Cart\Models\CartLine;
 use Shopper\Core\Models\Inventory;
+use Shopper\Core\Models\InventoryHistory;
 use Shopper\Core\Models\PaymentMethod;
 use Tests\TestCase;
 
@@ -134,5 +135,110 @@ final class SplitShipmentOrderTest extends TestCase
                 'qty' => 2,
             ],
         ], $shipments[1]->lines->map->only(['purchasable_type', 'purchasable_id', 'qty'])->all());
+    }
+
+    /**
+     * Critical 1: Stock reservation must follow the AllocationPlan — each inventory should show
+     * a decrease matching its allocated qty, not just the default inventory.
+     */
+    public function test_create_order_decreases_stock_per_allocation_plan_inventories(): void
+    {
+        $user = User::factory()->create();
+        $paymentMethod = PaymentMethod::factory()->create(['driver' => 'manual', 'is_enabled' => true]);
+        $defaultInventory = Inventory::factory()->create(['is_default' => true]);
+        $secondaryInventory = Inventory::factory()->create(['is_default' => false]);
+
+        /** @var Product $product */
+        $product = Product::factory()->standard()->create(['name' => 'Allocation Stock Product']);
+        $product->mutateStock($defaultInventory->id, 3);
+        $product->mutateStock($secondaryInventory->id, 2);
+
+        $cart = Cart::query()->create([
+            'currency_code' => 'IDR',
+            'customer_id' => $user->id,
+        ]);
+
+        CartLine::query()->create([
+            'cart_id' => $cart->id,
+            'purchasable_type' => $product->getMorphClass(),
+            'purchasable_id' => $product->id,
+            'quantity' => 5,
+            'unit_price_amount' => 50000,
+        ]);
+
+        $this->actingAs($user);
+        session()->put(config('shopper.cart.session.key', 'shopper_cart'), $cart->id);
+        session()->put(CheckoutSession::KEY, [
+            'shipping_address' => [
+                'first_name' => 'Budi',
+                'last_name' => 'Santoso',
+                'street_address' => 'Jl. Merdeka 1',
+                'postal_code' => '10110',
+                'city' => 'Jakarta',
+                'country_id' => $defaultInventory->country_id,
+                'phone_number' => '081234567890',
+                'rajaongkir_destination_id' => '152',
+            ],
+            'shipping_option' => [[
+                'id' => 'split-shipment',
+                'name' => 'Split shipment',
+                'price' => 0,
+            ]],
+            'shipping_options_by_shipment' => [
+                $defaultInventory->id => [
+                    'id' => 'jne:REG', 'carrier_code' => 'jne', 'service_code' => 'REG',
+                    'service_name' => 'Reguler', 'amount' => 10000, 'currency' => 'IDR',
+                ],
+                $secondaryInventory->id => [
+                    'id' => 'jnt:EZ', 'carrier_code' => 'jnt', 'service_code' => 'EZ',
+                    'service_name' => 'Regular', 'amount' => 8000, 'currency' => 'IDR',
+                ],
+            ],
+            'allocation_plan' => [
+                'shipments' => [
+                    [
+                        'inventory_id' => $defaultInventory->id,
+                        'lines' => [
+                            ['purchasable_type' => $product->getMorphClass(), 'purchasable_id' => $product->id, 'qty' => 3],
+                        ],
+                    ],
+                    [
+                        'inventory_id' => $secondaryInventory->id,
+                        'lines' => [
+                            ['purchasable_type' => $product->getMorphClass(), 'purchasable_id' => $product->id, 'qty' => 2],
+                        ],
+                    ],
+                ],
+            ],
+            'payment' => [[
+                'id' => $paymentMethod->id,
+                'driver' => 'manual',
+                'title' => 'Manual',
+            ]],
+        ]);
+
+        resolve(CreateOrder::class)->handle();
+
+        // Each inventory must show a decrease matching its plan qty
+        $this->assertSame(0, $product->stockInventory($defaultInventory->id), 'Default inventory stock should be 0 after reserving 3 from 3');
+        $this->assertSame(0, $product->stockInventory($secondaryInventory->id), 'Secondary inventory stock should be 0 after reserving 2 from 2');
+
+        // InventoryHistory must record reservation events for both inventories
+        $defaultHistory = InventoryHistory::query()
+            ->where('stockable_type', $product->getMorphClass())
+            ->where('stockable_id', $product->id)
+            ->where('inventory_id', $defaultInventory->id)
+            ->where('quantity', -3)
+            ->exists();
+
+        $secondaryHistory = InventoryHistory::query()
+            ->where('stockable_type', $product->getMorphClass())
+            ->where('stockable_id', $product->id)
+            ->where('inventory_id', $secondaryInventory->id)
+            ->where('quantity', -2)
+            ->exists();
+
+        $this->assertTrue($defaultHistory, 'InventoryHistory must record -3 for default inventory');
+        $this->assertTrue($secondaryHistory, 'InventoryHistory must record -2 for secondary inventory');
     }
 }

@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models\User;
+use App\Stock\AllocationPlanStockAllocator;
+use App\Support\CheckoutAllocationContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Shopper\Core\Contracts\StockAllocator;
 use Shopper\Core\Models\Order;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,7 +23,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(CheckoutAllocationContext::class);
+        $this->app->bind(StockAllocator::class, AllocationPlanStockAllocator::class);
     }
 
     /**

@@ -428,6 +428,8 @@ final class CheckoutController extends Controller
      */
     private function placeKomerceOrder(array $selectedMethod): RedirectResponse
     {
+        $order = null;
+
         try {
             $order = resolve(CreateOrder::class)->handle();
             $instructions = resolve(CreateKomercePayment::class)->handle($order, $selectedMethod);
@@ -440,6 +442,15 @@ final class CheckoutController extends Controller
             return redirect()->route('shop.checkout.success', ['order' => $order->id]);
         } catch (Throwable $e) {
             report($e);
+
+            if ($order !== null) {
+                session()->forget(CheckoutSession::KEY);
+                resolve(CartSessionManager::class)->forget();
+
+                return redirect()
+                    ->route('shop.checkout.success', ['order' => $order->id])
+                    ->with('error', __('Your order was placed but payment setup failed. Please contact support or try again.'));
+            }
 
             return back()->withErrors(['order' => __('An error occurred while placing your order. Please try again.')]);
         }

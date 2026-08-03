@@ -28,6 +28,19 @@ final class OrderShipmentTrackingTest extends TestCase
         $this->assertStringContainsString('shipment.tracking_number', $orderShowPage);
     }
 
+    public function test_order_show_vue_source_computes_shipping_price_from_shipments_when_present(): void
+    {
+        $orderShowPage = file_get_contents(resource_path('js/pages/account/order-show.vue'));
+
+        $this->assertIsString($orderShowPage);
+        // Must sum shipment costs when shipments are present
+        $this->assertStringContainsString('props.shipments.length > 0', $orderShowPage);
+        $this->assertStringContainsString('props.shipments.reduce', $orderShowPage);
+        $this->assertStringContainsString('sum + s.cost', $orderShowPage);
+        // Must fall back to shipping_option price when no shipments
+        $this->assertStringContainsString('props.order.shipping_option?.price ?? 0', $orderShowPage);
+    }
+
     public function test_customer_order_show_includes_per_shipment_tracking_details(): void
     {
         $this->withoutVite();

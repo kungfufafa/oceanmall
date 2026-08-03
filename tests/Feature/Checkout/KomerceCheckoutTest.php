@@ -580,6 +580,52 @@ final class KomerceCheckoutTest extends TestCase
         });
     }
 
+    public function test_place_order_komerce_payment_failure_redirects_to_success_with_pending_order(): void
+    {
+        $this->komerceFakeConfig();
+
+        $user = User::factory()->create(['first_name' => 'Test', 'last_name' => 'User', 'email' => 'fail@example.test']);
+
+        [$country, , $paymentMethod] = $this->seedCountryZoneAndPaymentMethod();
+
+        $order = Order::factory()->create([
+            'number' => 'ORD-PAYFAIL-001',
+            'price_amount' => 120000,
+            'currency_code' => 'IDR',
+            'customer_id' => $user->id,
+            'payment_method_id' => $paymentMethod->id,
+            'payment_status' => PaymentStatus::Pending,
+            'status' => OrderStatus::New,
+        ]);
+
+        $this->app->instance(CreateOrder::class, new class($order)
+        {
+            public function __construct(private readonly Order $order) {}
+
+            public function handle(): Order { return $this->order; }
+        });
+
+        // Komerce payment creation fails (e.g. gateway error)
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
+                'meta' => ['status' => 'error', 'code' => 500, 'message' => 'Gateway unavailable.'],
+                'data' => ['payment_id' => ''],
+            ], 200),
+        ]);
+
+        $session = ['checkout' => $this->makeCheckoutSession($country->id, $paymentMethod->id)];
+
+        $response = $this->actingAs($user)
+            ->withSession($session)
+            ->post(route('shop.checkout.place-order'), [
+                'payment_method_id' => $paymentMethod->id,
+            ]);
+
+        // Must redirect to success page (order exists) — NOT back to checkout
+        $response->assertRedirect(route('shop.checkout.success', ['order' => $order->id]));
+        $response->assertSessionHas('error');
+    }
+
     public function test_create_komerce_payment_rejects_failed_response_without_payment_id(): void
     {
         $this->komerceFakeConfig();
