@@ -10,6 +10,7 @@ use App\Models\OrderShipment;
 use Illuminate\Http\RedirectResponse;
 use RuntimeException;
 use Shopper\Core\Models\Order;
+use Throwable;
 
 final class TrackShipmentController extends Controller
 {
@@ -22,6 +23,10 @@ final class TrackShipmentController extends Controller
             $refreshTracking->handle($shipment);
         } catch (RuntimeException $e) {
             return back()->withErrors(['tracking' => $e->getMessage()]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()->withErrors(['tracking' => __('Unable to fetch tracking updates right now. Please try again later.')]);
         }
 
         return back()->with('status', __('Tracking updated.'));
