@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import Card from '@/components/shop/card.vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { ref } from 'vue';
 import OrderStatusBadge from '@/components/account/order-status-badge.vue';
+import Card from '@/components/shop/card.vue';
 import { formatMoney } from '@/lib/format';
 import { dashboard } from '@/routes';
 import { orders as accountOrders } from '@/routes/account';
@@ -52,6 +53,12 @@ type Order = {
     shipping_option?: OrderShipping | null;
 };
 
+type TrackingEvent = {
+    description: string;
+    datetime: string | null;
+    location: string | null;
+};
+
 type Shipment = {
     id: number;
     inventory_name: string | null;
@@ -62,6 +69,7 @@ type Shipment = {
     service: string | null;
     cost: number;
     currency: string;
+    tracking_history: TrackingEvent[];
 };
 
 const props = defineProps<{ order: Order; shipments: Shipment[] }>();
@@ -92,6 +100,22 @@ function formatShipmentStatus(value: string): string {
 
 function shipmentCarrierService(shipment: Shipment): string | null {
     return [shipment.carrier, shipment.service].filter(Boolean).join(' / ') || null;
+}
+
+const trackingShipmentId = ref<number | null>(null);
+
+function trackShipment(shipment: Shipment): void {
+    trackingShipmentId.value = shipment.id;
+    router.post(
+        `/account/orders/${props.order.id}/shipments/${shipment.id}/track`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                trackingShipmentId.value = null;
+            },
+        },
+    );
 }
 </script>
 
@@ -320,6 +344,47 @@ function shipmentCarrierService(shipment: Shipment): string | null {
                             </dd>
                         </div>
                     </dl>
+
+                    <div v-if="shipment.awb" class="mt-4">
+                        <button
+                            type="button"
+                            :disabled="trackingShipmentId === shipment.id"
+                            class="inline-flex items-center rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                            @click="trackShipment(shipment)"
+                        >
+                            {{
+                                trackingShipmentId === shipment.id
+                                    ? 'Tracking…'
+                                    : 'Track package'
+                            }}
+                        </button>
+
+                        <ol
+                            v-if="shipment.tracking_history.length"
+                            class="mt-4 space-y-3 border-l border-zinc-200 pl-4 dark:border-white/10"
+                        >
+                            <li
+                                v-for="(event, eventIndex) in shipment.tracking_history"
+                                :key="eventIndex"
+                                class="relative"
+                            >
+                                <span
+                                    class="absolute -left-[21px] top-1 size-2 rounded-full bg-zinc-400 dark:bg-zinc-500"
+                                />
+                                <p class="text-sm text-zinc-900 dark:text-white">
+                                    {{ event.description }}
+                                </p>
+                                <p
+                                    v-if="event.datetime || event.location"
+                                    class="mt-0.5 text-xs text-zinc-500"
+                                >
+                                    <span v-if="event.datetime">{{ event.datetime }}</span>
+                                    <span v-if="event.datetime && event.location"> · </span>
+                                    <span v-if="event.location">{{ event.location }}</span>
+                                </p>
+                            </li>
+                        </ol>
+                    </div>
                 </div>
             </div>
         </Card>

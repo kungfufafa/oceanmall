@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Account\AddressController;
 use App\Http\Controllers\Account\OrderController as AccountOrderController;
+use App\Http\Controllers\Account\TrackShipmentController;
 use App\Http\Controllers\Admin\OverrideAllocationController;
+use App\Http\Controllers\Admin\PrintShipmentLabelController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CategoryController;
 use App\Http\Controllers\Shop\CheckoutController;
@@ -65,6 +67,8 @@ Route::post('webhooks/komerce/payment', KomercePaymentWebhookController::class)
 Route::middleware(['auth', 'verified'])->prefix('account')->name('account.')->group(function (): void {
     Route::get('orders', [AccountOrderController::class, 'index'])->name('orders');
     Route::get('orders/{order}', [AccountOrderController::class, 'show'])->name('orders.show');
+    Route::post('orders/{order}/shipments/{shipment}/track', TrackShipmentController::class)
+        ->name('orders.shipments.track');
 
     Route::get('addresses', [AddressController::class, 'index'])->name('addresses');
     Route::post('addresses', [AddressController::class, 'store'])->name('addresses.store');
@@ -77,6 +81,8 @@ Route::middleware(['auth', 'verified'])->prefix('account')->name('account.')->gr
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function (): void {
     Route::post('orders/{order}/override-allocation', OverrideAllocationController::class)
         ->name('orders.override-allocation');
+    Route::get('orders/{order}/label', PrintShipmentLabelController::class)
+        ->name('orders.print-label');
 });
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
