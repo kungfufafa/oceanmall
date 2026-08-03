@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Account\AddressController;
 use App\Http\Controllers\Account\OrderController as AccountOrderController;
+use App\Http\Controllers\Admin\OverrideAllocationController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CategoryController;
 use App\Http\Controllers\Shop\CheckoutController;
@@ -71,6 +72,11 @@ Route::middleware(['auth', 'verified'])->prefix('account')->name('account.')->gr
     Route::delete('addresses/{address}', [AddressController::class, 'destroy'])->name('addresses.destroy');
     Route::patch('addresses/{address}/default-shipping', [AddressController::class, 'setDefaultShipping'])->name('addresses.default-shipping');
     Route::patch('addresses/{address}/default-billing', [AddressController::class, 'setDefaultBilling'])->name('addresses.default-billing');
+});
+
+Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function (): void {
+    Route::post('orders/{order}/override-allocation', OverrideAllocationController::class)
+        ->name('orders.override-allocation');
 });
 
 Route::middleware(['auth', 'verified'])->group(function (): void {

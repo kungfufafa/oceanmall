@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Shopper\Core\Models\Order;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureAuthorization();
     }
 
     /**
@@ -48,6 +52,14 @@ class AppServiceProvider extends ServiceProvider
                 ->symbols()
                 ->uncompromised()
             : null,
+        );
+    }
+
+    protected function configureAuthorization(): void
+    {
+        Gate::define(
+            'override-allocation',
+            static fn (User $user, ?Order $order = null): bool => $user->isAdmin(),
         );
     }
 }
