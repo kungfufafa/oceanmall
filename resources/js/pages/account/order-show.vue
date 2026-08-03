@@ -103,14 +103,24 @@ function shipmentCarrierService(shipment: Shipment): string | null {
 }
 
 const trackingShipmentId = ref<number | null>(null);
+const trackingError = ref<{ id: number; message: string } | null>(null);
 
 function trackShipment(shipment: Shipment): void {
     trackingShipmentId.value = shipment.id;
+    trackingError.value = null;
     router.post(
         `/account/orders/${props.order.id}/shipments/${shipment.id}/track`,
         {},
         {
             preserveScroll: true,
+            onError: (errors) => {
+                trackingError.value = {
+                    id: shipment.id,
+                    message:
+                        errors.tracking ??
+                        'Unable to update tracking right now.',
+                };
+            },
             onFinish: () => {
                 trackingShipmentId.value = null;
             },
@@ -358,6 +368,13 @@ function trackShipment(shipment: Shipment): void {
                                     : 'Track package'
                             }}
                         </button>
+
+                        <p
+                            v-if="trackingError?.id === shipment.id"
+                            class="mt-2 text-sm text-red-600 dark:text-red-400"
+                        >
+                            {{ trackingError.message }}
+                        </p>
 
                         <ol
                             v-if="shipment.tracking_history.length"
