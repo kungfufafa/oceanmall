@@ -17,4 +17,8 @@ final class CheckoutSession
     public const string SHIPPING_OPTION = 'checkout.shipping_option';
 
     public const string PAYMENT = 'checkout.payment';
+
+    public const string ALLOCATION_PLAN = 'checkout.allocation_plan';
+
+    public const string SHIPPING_OPTIONS_BY_SHIPMENT = 'checkout.shipping_options_by_shipment';
 }

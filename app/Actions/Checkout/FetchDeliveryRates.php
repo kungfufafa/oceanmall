@@ -21,9 +21,9 @@ final class FetchDeliveryRates
      * @param  array<int, Package>  $packages
      * @return array<int, array<string, mixed>>
      */
-    public function handle(array $shippingAddress, array $packages): array
+    public function handle(array $shippingAddress, array $packages, ?int $originInventoryId = null): array
     {
-        $rajaOngkirRates = $this->rajaOngkirRates($shippingAddress, $packages);
+        $rajaOngkirRates = $this->rajaOngkirRates($shippingAddress, $packages, $originInventoryId);
 
         if ($rajaOngkirRates !== null) {
             return $rajaOngkirRates;
@@ -67,13 +67,15 @@ final class FetchDeliveryRates
      * @param  array<int, Package>  $packages
      * @return array<int, array<string, mixed>>|null
      */
-    private function rajaOngkirRates(array $shippingAddress, array $packages): ?array
+    private function rajaOngkirRates(array $shippingAddress, array $packages, ?int $originInventoryId = null): ?array
     {
         if ((string) config('komerce.api_key', '') === '') {
             return null;
         }
 
-        $originId = $this->defaultInventoryOriginId();
+        $originId = $originInventoryId !== null
+            ? $this->inventoryOriginId($originInventoryId)
+            : $this->defaultInventoryOriginId();
         $destinationId = $shippingAddress['rajaongkir_destination_id']
             ?? $shippingAddress['destination_id']
             ?? null;
@@ -104,6 +106,14 @@ final class FetchDeliveryRates
             ->where('is_default', true)
             ->first();
 
+        $originId = $inventory?->getAttribute('rajaongkir_origin_id');
+
+        return $originId ? (string) $originId : null;
+    }
+
+    private function inventoryOriginId(int $inventoryId): ?string
+    {
+        $inventory = Inventory::query()->find($inventoryId);
         $originId = $inventory?->getAttribute('rajaongkir_origin_id');
 
         return $originId ? (string) $originId : null;

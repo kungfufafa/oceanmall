@@ -6,6 +6,7 @@ import Card from '@/components/shop/card.vue';
 import Container from '@/components/shop/container.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
 import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
+import ShipmentRatePicker from '@/components/shop/shipment-rate-picker.vue';
 import StripePaymentForm from '@/components/shop/stripe-payment-form.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,16 @@ import { useShop } from '@/composables/useShop';
 import { formatMoney } from '@/lib/format';
 import * as checkout from '@/routes/shop/checkout';
 import type { Address, Cart, CartContext, DeliveryOption } from '@/types/shop';
+
+type ShipmentPackage = {
+    inventory_id: number;
+    inventory_name: string;
+    lines: Array<{
+        purchasable_type: string;
+        purchasable_id: number;
+        qty: number;
+    }>;
+};
 
 type ShippingAddressForm = {
     first_name: string;
@@ -34,6 +45,9 @@ const props = defineProps<{
     shippingAddress: ShippingAddressForm | null;
     deliveryOptions: DeliveryOption[];
     selectedDeliveryOption: string | number | null;
+    allocation: ShipmentPackage[] | null;
+    deliveryOptionsByShipment: Record<number | string, DeliveryOption[]>;
+    selectedRatesByShipment: Record<number | string, string>;
     paymentOptions: Array<{
         id: number;
         title: string;
@@ -50,7 +64,7 @@ const props = defineProps<{
         return_url: string;
     } | null;
     komercePayment: KomercePaymentInstructions | null;
-}>();
+}>(); 
 
 const { currency, taxLabel, zone } = useShop();
 
@@ -89,6 +103,51 @@ const shippingForm = useForm<{ service_code: string }>({
             ? String(props.selectedDeliveryOption)
             : '',
 });
+
+const isMultiPackage = computed<boolean>(
+    () => (props.allocation?.length ?? 0) > 1,
+);
+
+const ratesByShipment = ref<Record<number | string, string>>(
+    { ...props.selectedRatesByShipment },
+);
+
+const multiShippingTotal = computed<number>(() => {
+    let sum = 0;
+    for (const pkg of props.allocation ?? []) {
+        const code = ratesByShipment.value[pkg.inventory_id];
+        if (!code) continue;
+        const options = props.deliveryOptionsByShipment[pkg.inventory_id] ?? [];
+        const opt = options.find((o) => String(o.service_code) === String(code));
+        if (opt) sum += opt.amount;
+    }
+    return sum;
+});
+
+const multiShippingCurrency = computed<string>(() => {
+    for (const pkg of props.allocation ?? []) {
+        const code = ratesByShipment.value[pkg.inventory_id];
+        if (!code) continue;
+        const options = props.deliveryOptionsByShipment[pkg.inventory_id] ?? [];
+        const opt = options.find((o) => String(o.service_code) === String(code));
+        if (opt?.currency) return opt.currency;
+    }
+    return 'IDR';
+});
+
+const allPackagesSelected = computed<boolean>(() =>
+    (props.allocation ?? []).every((pkg) =>
+        Boolean(ratesByShipment.value[pkg.inventory_id]),
+    ),
+);
+
+function submitMultiShipping(): void {
+    router.post(
+        checkout.shippingOption.url(),
+        { rates: ratesByShipment.value },
+        { preserveScroll: true },
+    );
+}
 
 const paymentForm = useForm<{ payment_method_id: number | null }>({
     payment_method_id: props.selectedPaymentMethod ?? null,
@@ -162,7 +221,9 @@ watch(
 
 const total = computed<number>(() => {
     const sub = props.cartContext?.total ?? 0;
-    const delivery = selectedDelivery.value?.amount ?? 0;
+    const delivery = isMultiPackage.value
+        ? multiShippingTotal.value
+        : (selectedDelivery.value?.amount ?? 0);
 
     return sub + delivery;
 });
@@ -485,112 +546,151 @@ const steps = [
                 </template>
 
                 <template v-else-if="step === 2">
-                    <div v-if="!deliveryOptions.length">
-                        <div
-                            class="flex items-center gap-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700"
-                        >
-                            <ShoppingBag
-                                class="size-5 text-zinc-400"
-                                aria-hidden="true"
-                            />
-                            <p class="text-sm text-zinc-600 dark:text-zinc-400">
-                                No delivery option available for your address.
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            class="mt-4 text-sm text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white"
-                            @click="goToStep(1)"
-                        >
-                            ← Return to shipping
-                        </button>
-                    </div>
-
-                    <form
-                        v-else
-                        class="space-y-5"
-                        @submit.prevent="submitShipping"
-                    >
-                        <h2
-                            class="text-lg font-semibold text-zinc-900 dark:text-white"
-                        >
-                            Delivery Method
-                        </h2>
-                        <p
-                            v-if="shippingForm.errors.service_code"
-                            class="text-xs text-red-600"
-                        >
-                            {{ shippingForm.errors.service_code }}
-                        </p>
-
-                        <div class="flex flex-col gap-3">
-                            <label
-                                v-for="option in deliveryOptions"
-                                :key="option.service_code"
-                                :class="[
-                                    'flex cursor-pointer items-center justify-between gap-4 rounded-xl p-4 transition',
-                                    shippingForm.service_code ===
-                                    option.service_code
-                                        ? 'ring-2 ring-zinc-900 dark:ring-white'
-                                        : 'ring-1 ring-zinc-200 hover:ring-zinc-300 dark:ring-zinc-700',
-                                ]"
+                    <template v-if="isMultiPackage">
+                        <div class="space-y-5">
+                            <h2
+                                class="text-lg font-semibold text-zinc-900 dark:text-white"
                             >
-                                <input
-                                    v-model="shippingForm.service_code"
-                                    type="radio"
-                                    :value="option.service_code"
-                                    name="service_code"
-                                    class="sr-only"
-                                />
-                                <div class="flex items-start gap-3">
-                                    <img
-                                        v-if="option.carrier_logo"
-                                        :src="option.carrier_logo"
-                                        :alt="option.carrier_name ?? ''"
-                                        class="mt-0.5 size-6 rounded-full object-cover"
-                                    />
-                                    <div class="flex flex-col">
-                                        <span
-                                            class="font-heading text-sm font-medium text-zinc-900 dark:text-white"
-                                            >{{ option.service_name }}</span
-                                        >
-                                        <span
-                                            v-if="option.estimated_days"
-                                            class="text-sm text-zinc-500"
-                                            >{{ option.estimated_days }} days
-                                            delivery</span
-                                        >
-                                        <span
-                                            v-else-if="option.description"
-                                            class="text-sm text-zinc-500"
-                                            >{{ option.description }}</span
-                                        >
-                                    </div>
-                                </div>
-                                <span
-                                    class="text-sm font-medium text-zinc-900 dark:text-white"
-                                    >{{
-                                        formatMoney(
-                                            option.amount,
-                                            option.currency,
-                                        )
-                                    }}</span
-                                >
-                            </label>
-                        </div>
+                                Delivery Method
+                            </h2>
 
-                        <div class="flex">
-                            <Button
-                                type="submit"
-                                :disabled="
-                                    !shippingForm.service_code ||
-                                    shippingForm.processing
+                            <ShipmentRatePicker
+                                v-model="ratesByShipment"
+                                :packages="allocation!"
+                                :delivery-options-by-shipment="
+                                    deliveryOptionsByShipment
                                 "
-                            >
-                                Continue to Payment
-                            </Button>
+                            />
+
+                            <div class="flex">
+                                <Button
+                                    type="button"
+                                    :disabled="!allPackagesSelected"
+                                    @click="submitMultiShipping"
+                                >
+                                    Continue to Payment
+                                </Button>
+                            </div>
                         </div>
-                    </form>
+                    </template>
+
+                    <template v-else>
+                        <div v-if="!deliveryOptions.length">
+                            <div
+                                class="flex items-center gap-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700"
+                            >
+                                <ShoppingBag
+                                    class="size-5 text-zinc-400"
+                                    aria-hidden="true"
+                                />
+                                <p
+                                    class="text-sm text-zinc-600 dark:text-zinc-400"
+                                >
+                                    No delivery option available for your
+                                    address.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                class="mt-4 text-sm text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white"
+                                @click="goToStep(1)"
+                            >
+                                ← Return to shipping
+                            </button>
+                        </div>
+
+                        <form
+                            v-else
+                            class="space-y-5"
+                            @submit.prevent="submitShipping"
+                        >
+                            <h2
+                                class="text-lg font-semibold text-zinc-900 dark:text-white"
+                            >
+                                Delivery Method
+                            </h2>
+                            <p
+                                v-if="shippingForm.errors.service_code"
+                                class="text-xs text-red-600"
+                            >
+                                {{ shippingForm.errors.service_code }}
+                            </p>
+
+                            <div class="flex flex-col gap-3">
+                                <label
+                                    v-for="option in deliveryOptions"
+                                    :key="option.service_code"
+                                    :class="[
+                                        'flex cursor-pointer items-center justify-between gap-4 rounded-xl p-4 transition',
+                                        shippingForm.service_code ===
+                                        option.service_code
+                                            ? 'ring-2 ring-zinc-900 dark:ring-white'
+                                            : 'ring-1 ring-zinc-200 hover:ring-zinc-300 dark:ring-zinc-700',
+                                    ]"
+                                >
+                                    <input
+                                        v-model="shippingForm.service_code"
+                                        type="radio"
+                                        :value="option.service_code"
+                                        name="service_code"
+                                        class="sr-only"
+                                    />
+                                    <div class="flex items-start gap-3">
+                                        <img
+                                            v-if="option.carrier_logo"
+                                            :src="option.carrier_logo"
+                                            :alt="option.carrier_name ?? ''"
+                                            class="mt-0.5 size-6 rounded-full object-cover"
+                                        />
+                                        <div class="flex flex-col">
+                                            <span
+                                                class="font-heading text-sm font-medium text-zinc-900 dark:text-white"
+                                                >{{
+                                                    option.service_name
+                                                }}</span
+                                            >
+                                            <span
+                                                v-if="option.estimated_days"
+                                                class="text-sm text-zinc-500"
+                                                >{{
+                                                    option.estimated_days
+                                                }}
+                                                days delivery</span
+                                            >
+                                            <span
+                                                v-else-if="option.description"
+                                                class="text-sm text-zinc-500"
+                                                >{{
+                                                    option.description
+                                                }}</span
+                                            >
+                                        </div>
+                                    </div>
+                                    <span
+                                        class="text-sm font-medium text-zinc-900 dark:text-white"
+                                        >{{
+                                            formatMoney(
+                                                option.amount,
+                                                option.currency,
+                                            )
+                                        }}</span
+                                    >
+                                </label>
+                            </div>
+
+                            <div class="flex">
+                                <Button
+                                    type="submit"
+                                    :disabled="
+                                        !shippingForm.service_code ||
+                                        shippingForm.processing
+                                    "
+                                >
+                                    Continue to Payment
+                                </Button>
+                            </div>
+                        </form>
+                    </template>
                 </template>
 
                 <template v-else>
@@ -846,7 +946,21 @@ const steps = [
                         >
                             <dt>Delivery</dt>
                             <dd class="text-base text-zinc-900 dark:text-white">
-                                <template v-if="selectedDelivery">{{
+                                <template
+                                    v-if="
+                                        isMultiPackage &&
+                                        allPackagesSelected
+                                    "
+                                    >{{
+                                        multiShippingTotal > 0
+                                            ? formatMoney(
+                                                  multiShippingTotal,
+                                                  multiShippingCurrency,
+                                              )
+                                            : 'Free'
+                                    }}</template
+                                >
+                                <template v-else-if="selectedDelivery">{{
                                     selectedDelivery.amount > 0
                                         ? formatMoney(
                                               selectedDelivery.amount,

@@ -9,8 +9,11 @@ use App\Actions\Checkout\CreateKomercePayment;
 use App\Actions\Checkout\FetchDeliveryRates;
 use App\Actions\Checkout\FetchPaymentMethods;
 use App\Actions\CreateOrder;
+use App\Actions\Warehouse\SuggestAllocation;
 use App\Actions\ZoneSessionManager;
 use App\CheckoutSession;
+use App\DTO\AllocationPlan;
+use App\DTO\ShipmentDraft;
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
@@ -60,10 +63,24 @@ final class CheckoutController extends Controller
         $payment = data_get($checkout, 'payment.0');
 
         $deliveryOptions = [];
+        $allocation = null;
+        $deliveryOptionsByShipment = [];
 
         if ($shippingAddress) {
             $packages = resolve(BuildShippingPackages::class)->handle();
-            $deliveryOptions = resolve(FetchDeliveryRates::class)->handle($shippingAddress, $packages);
+
+            [$allocation, $deliveryOptionsByShipment] = $this->resolveAllocationAndRates(
+                $cart,
+                $shippingAddress,
+                $packages,
+                $checkout,
+            );
+
+            if (count($deliveryOptionsByShipment) === 1) {
+                $deliveryOptions = reset($deliveryOptionsByShipment) ?: [];
+            } elseif (count($deliveryOptionsByShipment) === 0) {
+                $deliveryOptions = resolve(FetchDeliveryRates::class)->handle($shippingAddress, $packages);
+            }
         }
 
         $paymentOptions = [];
@@ -84,6 +101,8 @@ final class CheckoutController extends Controller
         $stripeData = session()->get('stripe_payment');
         $komercePayment = session()->get('komerce_payment');
 
+        $selectedByShipment = data_get($checkout, 'shipping_options_by_shipment', []);
+
         return Inertia::render('shop/checkout', [
             'cart' => $cart,
             'cartContext' => $context,
@@ -91,6 +110,9 @@ final class CheckoutController extends Controller
             'shippingAddress' => $shippingAddress,
             'deliveryOptions' => $deliveryOptions,
             'selectedDeliveryOption' => $shippingOption['id'] ?? null,
+            'allocation' => $allocation,
+            'deliveryOptionsByShipment' => $deliveryOptionsByShipment,
+            'selectedRatesByShipment' => is_array($selectedByShipment) ? $selectedByShipment : [],
             'paymentOptions' => $paymentOptions,
             'selectedPaymentMethod' => $payment['id'] ?? null,
             'step' => $step,
@@ -146,15 +168,19 @@ final class CheckoutController extends Controller
 
     public function saveShippingOption(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'service_code' => ['required'],
-        ]);
-
         $shippingAddress = session()->get(CheckoutSession::SHIPPING_ADDRESS);
 
         if (! $shippingAddress) {
             return redirect()->route('shop.checkout.index');
         }
+
+        if ($request->has('rates') && is_array($request->input('rates'))) {
+            return $this->saveShippingOptionsByShipment($request, $shippingAddress);
+        }
+
+        $data = $request->validate([
+            'service_code' => ['required'],
+        ]);
 
         $packages = resolve(BuildShippingPackages::class)->handle();
         $deliveryOptions = resolve(FetchDeliveryRates::class)->handle($shippingAddress, $packages);
@@ -175,6 +201,87 @@ final class CheckoutController extends Controller
             'carrier_code' => $selected['carrier_code'],
             'currency' => $selected['currency'],
             'estimated_days' => $selected['estimated_days'],
+        ]);
+
+        return redirect()->route('shop.checkout.index');
+    }
+
+    /**
+     * Save per-shipment rates (multi-package path).
+     *
+     * @param  array<string, mixed>  $shippingAddress
+     */
+    private function saveShippingOptionsByShipment(Request $request, array $shippingAddress): RedirectResponse
+    {
+        $data = $request->validate([
+            'rates' => ['required', 'array'],
+            'rates.*' => ['required', 'string'],
+        ]);
+
+        $cart = resolve(\Shopper\Cart\CartSessionManager::class)->current();
+
+        if (! $cart) {
+            return redirect()->route('shop.cart');
+        }
+
+        $packages = resolve(BuildShippingPackages::class)->handle();
+        $fetchRates = resolve(FetchDeliveryRates::class);
+
+        $allocationPlan = session()->get(CheckoutSession::ALLOCATION_PLAN);
+
+        if (! $allocationPlan instanceof AllocationPlan) {
+            try {
+                $allocationPlan = resolve(SuggestAllocation::class)->handle($cart, $shippingAddress);
+                session()->put(CheckoutSession::ALLOCATION_PLAN, $allocationPlan);
+            } catch (\Throwable) {
+                return back()->withErrors(['rates' => __('Unable to determine shipment allocation.')]);
+            }
+        }
+
+        $selectedRates = [];
+        $totalPrice = 0;
+
+        foreach ($allocationPlan->shipments as $shipmentDraft) {
+            $inventoryId = $shipmentDraft->inventory_id;
+            $serviceCode = $data['rates'][$inventoryId] ?? $data['rates'][(string) $inventoryId] ?? null;
+
+            if (! $serviceCode) {
+                return back()->withErrors(['rates' => __('Please select a delivery option for all packages.')]);
+            }
+
+            $options = $fetchRates->handle($shippingAddress, $packages, $inventoryId);
+            $selected = collect($options)
+                ->first(fn (array $o): bool => (string) $o['service_code'] === (string) $serviceCode);
+
+            if (! $selected) {
+                return back()->withErrors(['rates' => __('Selected option is no longer available.')]);
+            }
+
+            $selectedRates[$inventoryId] = [
+                'id' => $selected['service_code'],
+                'service_code' => $selected['service_code'],
+                'carrier_code' => $selected['carrier_code'],
+                'carrier_name' => $selected['carrier_name'] ?? null,
+                'service_name' => $selected['service_name'],
+                'amount' => (int) $selected['amount'],
+                'currency' => $selected['currency'],
+                'estimated_days' => $selected['estimated_days'] ?? null,
+            ];
+
+            $totalPrice += (int) $selected['amount'];
+        }
+
+        session()->put(CheckoutSession::SHIPPING_OPTIONS_BY_SHIPMENT, $selectedRates);
+
+        session()->forget(CheckoutSession::SHIPPING_OPTION);
+        session()->push(CheckoutSession::SHIPPING_OPTION, [
+            'id' => 'split-shipment',
+            'name' => 'Split shipment',
+            'price' => $totalPrice,
+            'service_code' => 'split-shipment',
+            'carrier_code' => 'multi',
+            'currency' => 'IDR',
+            'estimated_days' => null,
         ]);
 
         return redirect()->route('shop.checkout.index');
@@ -393,6 +500,59 @@ final class CheckoutController extends Controller
         resolve(CartSessionManager::class)->forget();
 
         return redirect()->route('shop.checkout.success', ['order' => $order->id]);
+    }
+
+    /**
+     * Run SuggestAllocation, store plan in session, return [allocationArray, deliveryOptionsByShipment].
+     *
+     * @param  array<string, mixed>  $shippingAddress
+     * @param  array<int, mixed>  $packages
+     * @param  array<string, mixed>  $checkout
+     * @return array{0: array<string, mixed>|null, 1: array<int|string, array<int, array<string, mixed>>>}
+     */
+    private function resolveAllocationAndRates(
+        \Shopper\Cart\Models\Cart $cart,
+        array $shippingAddress,
+        array $packages,
+        array $checkout,
+    ): array {
+        try {
+            $plan = resolve(SuggestAllocation::class)->handle($cart, $shippingAddress);
+        } catch (\Throwable) {
+            return [null, []];
+        }
+
+        session()->put(CheckoutSession::ALLOCATION_PLAN, $plan);
+
+        $allocationArray = array_map(
+            static fn (ShipmentDraft $draft): array => [
+                'inventory_id' => $draft->inventory_id,
+                'lines' => $draft->lines,
+            ],
+            $plan->shipments,
+        );
+
+        $inventoryIds = array_column($allocationArray, 'inventory_id');
+        $inventories = \Shopper\Core\Models\Inventory::query()
+            ->whereIn('id', $inventoryIds)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($allocationArray as &$draft) {
+            $inv = $inventories->get($draft['inventory_id']);
+            $draft['inventory_name'] = $inv?->getAttribute('name') ?? (string) $draft['inventory_id'];
+        }
+        unset($draft);
+
+        $fetchRates = resolve(FetchDeliveryRates::class);
+        $deliveryOptionsByShipment = [];
+
+        foreach ($plan->shipments as $shipmentDraft) {
+            $rates = $fetchRates->handle($shippingAddress, $packages, $shipmentDraft->inventory_id);
+            $deliveryOptionsByShipment[$shipmentDraft->inventory_id] = $rates;
+        }
+
+        return [$allocationArray, $deliveryOptionsByShipment];
     }
 
     /**
