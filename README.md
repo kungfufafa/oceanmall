@@ -5,7 +5,7 @@ E-commerce storefront starter berbasis [Laravel](https://laravel.com) + [Shopper
 ## Stack
 
 - PHP 8.3+, Laravel 13
-- Shopper 2.11 (+ Stripe addon)
+- Shopper 2.11
 - Inertia.js 3 + Vue 3 + TypeScript
 - Tailwind CSS 4 + Vite 8
 - Laravel Fortify (auth + 2FA)
@@ -15,7 +15,7 @@ E-commerce storefront starter berbasis [Laravel](https://laravel.com) + [Shopper
 
 - Storefront: home, produk, kategori, koleksi, search
 - Cart & zone/shipping
-- Checkout + Stripe payment + webhook
+- Checkout (payment method dikonfigurasi di admin Shopper)
 - Account: orders & addresses
 - Admin panel Shopper di `/cpanel`
 
@@ -63,17 +63,9 @@ Admin: [http://localhost:8000/cpanel](http://localhost:8000/cpanel)
 
 ## Environment
 
-Salin dari `.env.example`. Untuk pembayaran Stripe, tambahkan di `.env`:
+Salin dari `.env.example`. Prefix admin bisa diubah lewat `SHOPPER_PREFIX` (default: `cpanel`).
 
-```env
-PAYMENT_STRIPE_ENABLED=true
-PAYMENT_SANDBOX=true
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-```
-
-Prefix admin bisa diubah lewat `SHOPPER_PREFIX` (default: `cpanel`).
+Stripe **dimatikan by default** (`PAYMENT_STRIPE_ENABLED=false`). Checkout pakai payment method yang kamu aktifkan di admin Shopper (mis. manual / COD). Jangan set key Stripe kecuali memang mau dipakai.
 
 ## Scripts berguna
 
