@@ -112,7 +112,9 @@ final class CheckoutController extends Controller
             'selectedDeliveryOption' => $shippingOption['id'] ?? null,
             'allocation' => $allocation,
             'deliveryOptionsByShipment' => $deliveryOptionsByShipment,
-            'selectedRatesByShipment' => is_array($selectedByShipment) ? $selectedByShipment : [],
+            'selectedRatesByShipment' => collect($selectedByShipment)->map(
+                fn (mixed $rate): string => is_array($rate) ? (string) ($rate['service_code'] ?? '') : (string) $rate
+            )->all(),
             'paymentOptions' => $paymentOptions,
             'selectedPaymentMethod' => $payment['id'] ?? null,
             'step' => $step,
@@ -182,8 +184,18 @@ final class CheckoutController extends Controller
             'service_code' => ['required'],
         ]);
 
-        $packages = resolve(BuildShippingPackages::class)->handle();
-        $deliveryOptions = resolve(FetchDeliveryRates::class)->handle($shippingAddress, $packages);
+        $allocationPlan = session()->get(CheckoutSession::ALLOCATION_PLAN);
+        $singleShipment = ($allocationPlan instanceof AllocationPlan && count($allocationPlan->shipments) === 1)
+            ? $allocationPlan->shipments[0]
+            : null;
+
+        $buildPackages = resolve(BuildShippingPackages::class);
+        $packages = $singleShipment !== null
+            ? $buildPackages->handleFromLines($singleShipment->lines)
+            : $buildPackages->handle();
+
+        $originInventoryId = $singleShipment?->inventory_id;
+        $deliveryOptions = resolve(FetchDeliveryRates::class)->handle($shippingAddress, $packages, $originInventoryId);
 
         $selected = collect($deliveryOptions)
             ->first(fn (array $option): bool => (string) $option['service_code'] === (string) $data['service_code']);
@@ -224,7 +236,7 @@ final class CheckoutController extends Controller
             return redirect()->route('shop.cart');
         }
 
-        $packages = resolve(BuildShippingPackages::class)->handle();
+        $buildPackages = resolve(BuildShippingPackages::class);
         $fetchRates = resolve(FetchDeliveryRates::class);
 
         $allocationPlan = session()->get(CheckoutSession::ALLOCATION_PLAN);
@@ -249,7 +261,8 @@ final class CheckoutController extends Controller
                 return back()->withErrors(['rates' => __('Please select a delivery option for all packages.')]);
             }
 
-            $options = $fetchRates->handle($shippingAddress, $packages, $inventoryId);
+            $shipmentPackages = $buildPackages->handleFromLines($shipmentDraft->lines);
+            $options = $fetchRates->handle($shippingAddress, $shipmentPackages, $inventoryId);
             $selected = collect($options)
                 ->first(fn (array $o): bool => (string) $o['service_code'] === (string) $serviceCode);
 
@@ -545,10 +558,12 @@ final class CheckoutController extends Controller
         unset($draft);
 
         $fetchRates = resolve(FetchDeliveryRates::class);
+        $buildPackages = resolve(BuildShippingPackages::class);
         $deliveryOptionsByShipment = [];
 
         foreach ($plan->shipments as $shipmentDraft) {
-            $rates = $fetchRates->handle($shippingAddress, $packages, $shipmentDraft->inventory_id);
+            $shipmentPackages = $buildPackages->handleFromLines($shipmentDraft->lines);
+            $rates = $fetchRates->handle($shippingAddress, $shipmentPackages, $shipmentDraft->inventory_id);
             $deliveryOptionsByShipment[$shipmentDraft->inventory_id] = $rates;
         }
 
