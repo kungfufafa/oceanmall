@@ -9,6 +9,7 @@ use App\DTO\AllocationPlan;
 use App\DTO\ShipmentDraft;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use RuntimeException;
 use Shopper\Cart\Exceptions\InsufficientStockException;
 use Shopper\Cart\Models\Cart;
 use Shopper\Cart\Models\CartLine;
@@ -70,6 +71,37 @@ final class SuggestAllocationTest extends TestCase
         $this->addCartLine($cart, $product, 2);
 
         $this->expectException(InsufficientStockException::class);
+
+        resolve(SuggestAllocation::class)->handle($cart, []);
+    }
+
+    public function test_stock_is_depleted_across_multiple_cart_lines_for_same_product(): void
+    {
+        $cart = $this->cart();
+        $inventory = Inventory::factory()->create(['is_default' => true]);
+        $product = Product::factory()->standard()->create();
+        $product->mutateStock($inventory->id, 5);
+        $this->addCartLine($cart, $product, 3);
+        $this->addCartLine($cart, $product, 3);
+
+        $this->expectException(InsufficientStockException::class);
+
+        resolve(SuggestAllocation::class)->handle($cart, []);
+    }
+
+    public function test_missing_purchasable_throws_clear_exception(): void
+    {
+        $cart = $this->cart();
+        CartLine::query()->create([
+            'cart_id' => $cart->id,
+            'purchasable_type' => Product::class,
+            'purchasable_id' => 999999,
+            'quantity' => 1,
+            'unit_price_amount' => 100000,
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Cart line ['.$cart->lines()->firstOrFail()->id.'] is missing purchasable');
 
         resolve(SuggestAllocation::class)->handle($cart, []);
     }

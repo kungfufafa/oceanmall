@@ -8,6 +8,7 @@ use App\DTO\AllocationPlan;
 use App\DTO\ShipmentDraft;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use RuntimeException;
 use Shopper\Cart\Exceptions\InsufficientStockException;
 use Shopper\Cart\Models\Cart;
 use Shopper\Core\Models\Inventory;
@@ -24,21 +25,28 @@ final readonly class SuggestAllocation
         $shipments = [];
         $shipmentOrder = [];
         $inventories = Inventory::query()->get();
+        $remainingStock = [];
 
         foreach ($cart->lines as $line) {
             $purchasable = $line->purchasable;
 
             if (! $purchasable instanceof Model) {
-                continue;
+                throw new RuntimeException(sprintf(
+                    'Cart line [%s] is missing purchasable [%s:%s].',
+                    (string) $line->getKey(),
+                    (string) $line->purchasable_type,
+                    (string) $line->purchasable_id,
+                ));
             }
 
             $remaining = (int) $line->quantity;
-            $candidates = $this->candidates($inventories, $purchasable);
+            $candidates = $this->candidates($inventories, $purchasable, $remainingStock);
             $allocated = 0;
             $fullCandidate = $this->firstFullCandidate($candidates, $remaining);
 
             if ($fullCandidate !== null) {
                 $allocated += $this->addShipmentLine($shipments, $shipmentOrder, $fullCandidate['inventory']->id, $purchasable, $remaining);
+                $this->depleteRemainingStock($remainingStock, $fullCandidate['inventory']->id, $purchasable, $remaining);
                 $remaining = 0;
             } else {
                 foreach ($candidates as $candidate) {
@@ -48,6 +56,7 @@ final readonly class SuggestAllocation
 
                     $quantity = min($candidate['available'], $remaining);
                     $allocated += $this->addShipmentLine($shipments, $shipmentOrder, $candidate['inventory']->id, $purchasable, $quantity);
+                    $this->depleteRemainingStock($remainingStock, $candidate['inventory']->id, $purchasable, $quantity);
                     $remaining -= $quantity;
                 }
             }
@@ -67,14 +76,15 @@ final readonly class SuggestAllocation
 
     /**
      * @param  Collection<int, Inventory>  $inventories
+     * @param  array<string, int>  $remainingStock
      * @return list<array{inventory: Inventory, available: int}>
      */
-    private function candidates(Collection $inventories, Model $purchasable): array
+    private function candidates(Collection $inventories, Model $purchasable, array &$remainingStock): array
     {
         $candidates = [];
 
         foreach ($inventories as $inventory) {
-            $available = (int) $purchasable->stockInventory($inventory->id);
+            $available = $this->remainingAvailable($remainingStock, $inventory->id, $purchasable);
 
             if ($available > 0) {
                 $candidates[] = [
@@ -104,6 +114,41 @@ final readonly class SuggestAllocation
         );
 
         return $candidates;
+    }
+
+    /**
+     * @param  array<string, int>  $remainingStock
+     */
+    private function remainingAvailable(array &$remainingStock, int $inventoryId, Model $purchasable): int
+    {
+        $key = $this->remainingStockKey($inventoryId, $purchasable);
+
+        if (! array_key_exists($key, $remainingStock)) {
+            $remainingStock[$key] = (int) $purchasable->stockInventory($inventoryId);
+        }
+
+        return $remainingStock[$key];
+    }
+
+    /**
+     * @param  array<string, int>  $remainingStock
+     */
+    private function depleteRemainingStock(array &$remainingStock, int $inventoryId, Model $purchasable, int $quantity): void
+    {
+        if ($quantity <= 0) {
+            return;
+        }
+
+        $remainingStock[$this->remainingStockKey($inventoryId, $purchasable)] -= $quantity;
+    }
+
+    private function remainingStockKey(int $inventoryId, Model $purchasable): string
+    {
+        return implode(':', [
+            $inventoryId,
+            $purchasable->getMorphClass(),
+            (string) $purchasable->getKey(),
+        ]);
     }
 
     /**
