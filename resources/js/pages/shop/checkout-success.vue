@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { Check } from 'lucide-vue-next';
+import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
+import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/format';
 import { orders as accountOrders } from '@/routes/account';
@@ -16,7 +18,10 @@ type Order = {
     status: OrderStatusLike;
 };
 
-const props = defineProps<{ order: Order }>();
+const props = defineProps<{
+    order: Order;
+    komercePayment?: KomercePaymentInstructions | null;
+}>();
 
 function statusLabel(status: OrderStatusLike): string {
     if (!status) return '';
@@ -92,6 +97,16 @@ function statusLabel(status: OrderStatusLike): string {
                     </dd>
                 </div>
             </dl>
+        </div>
+
+        <div
+            v-if="props.komercePayment"
+            class="mt-8 text-left"
+        >
+            <h2 class="mb-3 text-sm font-semibold text-zinc-900 dark:text-white">
+                Payment Instructions
+            </h2>
+            <KomercePaymentPanel :payment="props.komercePayment" />
         </div>
 
         <div

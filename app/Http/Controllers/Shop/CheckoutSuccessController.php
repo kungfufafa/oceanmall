@@ -15,11 +15,14 @@ final class CheckoutSuccessController extends Controller
     {
         abort_unless($order->customer_id === auth()->id(), 403);
 
-        session()->forget(['stripe_payment', 'stripe_order_number', 'checkout_cart_id', \App\CheckoutSession::KEY]);
+        $komercePayment = session()->get('komerce_payment');
+
+        session()->forget(['stripe_payment', 'stripe_order_number', 'checkout_cart_id', \App\CheckoutSession::KEY, 'komerce_payment']);
         resolve(\Shopper\Cart\CartSessionManager::class)->forget();
 
         return Inertia::render('shop/checkout-success', [
             'order' => $order,
+            'komercePayment' => $komercePayment,
         ]);
     }
 }

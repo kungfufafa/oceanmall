@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Shop;
 
 use App\Actions\Checkout\BuildShippingPackages;
+use App\Actions\Checkout\CreateKomercePayment;
 use App\Actions\Checkout\FetchDeliveryRates;
 use App\Actions\Checkout\FetchPaymentMethods;
 use App\Actions\CreateOrder;
@@ -81,6 +82,7 @@ final class CheckoutController extends Controller
         $step = min(max($requestedStep, 1), $maxStep);
 
         $stripeData = session()->get('stripe_payment');
+        $komercePayment = session()->get('komerce_payment');
 
         return Inertia::render('shop/checkout', [
             'cart' => $cart,
@@ -92,11 +94,12 @@ final class CheckoutController extends Controller
             'paymentOptions' => $paymentOptions,
             'selectedPaymentMethod' => $payment['id'] ?? null,
             'step' => $step,
-            'stripeData' => $stripeData ? [
+            'stripeData' => $stripeData && config('shopper.payment.drivers.stripe.enabled', false) ? [
                 'client_secret' => $stripeData['client_secret'],
                 'publishable_key' => $stripeData['publishable_key'],
                 'return_url' => route('shop.checkout.stripe-return'),
             ] : null,
+            'komercePayment' => $komercePayment,
         ]);
     }
 
@@ -242,7 +245,7 @@ final class CheckoutController extends Controller
     }
 
     /**
-     * COD path: places the order immediately. Stripe path uses stripeReturn instead.
+     * COD / Komerce path: places the order immediately. Stripe path uses stripeReturn instead.
      */
     public function placeOrder(Request $request): RedirectResponse
     {
@@ -263,6 +266,10 @@ final class CheckoutController extends Controller
         session()->forget(CheckoutSession::PAYMENT);
         session()->push(CheckoutSession::PAYMENT, $selectedMethod);
 
+        if (($selectedMethod['driver'] ?? null) === 'komerce') {
+            return $this->placeKomerceOrder($selectedMethod);
+        }
+
         try {
             $order = resolve(CreateOrder::class)->handle();
             $result = resolve(PaymentProcessingService::class)->initiate($order);
@@ -278,6 +285,30 @@ final class CheckoutController extends Controller
             if ($result->redirectUrl) {
                 return redirect()->away($result->redirectUrl);
             }
+
+            return redirect()->route('shop.checkout.success', ['order' => $order->id]);
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()->withErrors(['order' => __('An error occurred while placing your order. Please try again.')]);
+        }
+    }
+
+    /**
+     * Create Komerce VA/QRIS charge after order creation, store instructions in session.
+     *
+     * @param  array<string, mixed>  $selectedMethod
+     */
+    private function placeKomerceOrder(array $selectedMethod): RedirectResponse
+    {
+        try {
+            $order = resolve(CreateOrder::class)->handle();
+            $instructions = resolve(CreateKomercePayment::class)->handle($order, $selectedMethod);
+
+            session()->forget(CheckoutSession::KEY);
+            session()->put('komerce_payment', $instructions);
+
+            resolve(CartSessionManager::class)->forget();
 
             return redirect()->route('shop.checkout.success', ['order' => $order->id]);
         } catch (Throwable $e) {

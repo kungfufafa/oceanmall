@@ -4,6 +4,8 @@ import { Check, ChevronRight, Lock, ShoppingBag } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import Card from '@/components/shop/card.vue';
 import Container from '@/components/shop/container.vue';
+import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
+import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
 import StripePaymentForm from '@/components/shop/stripe-payment-form.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +44,8 @@ const props = defineProps<{
         title: string;
         driver: string;
         logo?: string | null;
+        channel_code?: string | null;
+        payment_type?: string | null;
     }>;
     selectedPaymentMethod: number | null;
     step: 1 | 2 | 3;
@@ -50,6 +54,7 @@ const props = defineProps<{
         publishable_key: string;
         return_url: string;
     } | null;
+    komercePayment: KomercePaymentInstructions | null;
 }>();
 
 const { currency, taxLabel, zone } = useShop();
@@ -98,7 +103,10 @@ const currentPaymentMethod = computed(
 );
 
 const isStripeSelected = computed<boolean>(
-    () => currentPaymentMethod.value?.driver === 'stripe',
+    () => currentPaymentMethod.value?.driver === 'stripe' && Boolean(props.stripeData),
+);
+const isKomerceSelected = computed<boolean>(
+    () => currentPaymentMethod.value?.driver === 'komerce',
 );
 const preparingStripe = ref<boolean>(false);
 const stripeMounted = ref<boolean>(false);
@@ -628,7 +636,7 @@ const steps = [
                             </div>
 
                             <div
-                                v-show="isStripeSelected && stripeData"
+                                v-if="isStripeSelected && stripeData"
                                 class="space-y-4 pt-2"
                             >
                                 <div class="flex items-center gap-3">
@@ -654,8 +662,15 @@ const steps = [
                                 />
                             </div>
 
+                            <div
+                                v-if="isKomerceSelected && komercePayment"
+                                class="pt-2"
+                            >
+                                <KomercePaymentPanel :payment="komercePayment" />
+                            </div>
+
                             <template
-                                v-if="currentPaymentMethod && !isStripeSelected"
+                                v-if="currentPaymentMethod && !isStripeSelected && !isKomerceSelected"
                             >
                                 <div
                                     class="flex flex-col gap-3 border-t border-zinc-200 pt-5 dark:border-zinc-700"
