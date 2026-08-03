@@ -15,6 +15,7 @@ use App\Http\Controllers\Shop\SearchController;
 use App\Http\Controllers\Shop\StripePaymentController;
 use App\Http\Controllers\Shop\ZoneController;
 use App\Http\Controllers\StripeWebhookController;
+use App\Http\Controllers\Webhooks\KomercePaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
 // Storefront
@@ -54,6 +55,10 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
 Route::post('webhooks/stripe', StripeWebhookController::class)
     ->middleware('throttle:60,1')
     ->name('webhooks.stripe');
+
+Route::post('webhooks/komerce/payment', KomercePaymentWebhookController::class)
+    ->middleware('throttle:60,1')
+    ->name('webhooks.komerce.payment');
 
 // Account
 Route::middleware(['auth', 'verified'])->prefix('account')->name('account.')->group(function (): void {

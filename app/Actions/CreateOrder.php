@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Shopper\Cart\Actions\CreateOrderFromCartAction;
 use Shopper\Core\Models\Order;
+use Shopper\Payment\Enum\TransactionStatus;
+use Shopper\Payment\Enum\TransactionType;
+use Shopper\Payment\Models\PaymentTransaction;
 
 final class CreateOrder
 {
@@ -52,10 +55,39 @@ final class CreateOrder
                     'price_amount' => $order->price_amount + $shippingPrice,
                 ]);
 
+                $this->storeKomercePaymentReference($order, $checkout);
+
                 return $order;
             });
         } finally {
             $lock->release();
         }
+    }
+
+    private function storeKomercePaymentReference(Order $order, mixed $checkout): void
+    {
+        $reference = data_get($checkout, 'komerce_payment_ref')
+            ?? data_get($checkout, 'payment.0.komerce_payment_ref')
+            ?? data_get($checkout, 'payment.0.payment_id');
+
+        if (! is_string($reference) || trim($reference) === '') {
+            return;
+        }
+
+        PaymentTransaction::query()->updateOrCreate(
+            [
+                'order_id' => $order->id,
+                'reference' => trim($reference),
+            ],
+            [
+                'payment_method_id' => $order->payment_method_id,
+                'driver' => 'komerce',
+                'type' => TransactionType::Initiate,
+                'amount' => (int) $order->price_amount,
+                'currency_code' => $order->currency_code,
+                'status' => TransactionStatus::Pending,
+                'metadata' => ['komerce_payment_ref' => trim($reference)],
+            ],
+        );
     }
 }
