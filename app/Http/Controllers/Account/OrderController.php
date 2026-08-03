@@ -54,17 +54,22 @@ final class OrderController extends Controller
             ->with('inventory')
             ->orderBy('id')
             ->get()
-            ->map(static fn (OrderShipment $shipment): array => [
-                'id' => $shipment->id,
-                'inventory_name' => $shipment->inventory?->name,
-                'status' => $shipment->status,
-                'awb' => $shipment->awb,
-                'tracking_number' => $shipment->tracking_number,
-                'carrier' => $shipment->carrier_name ?? $shipment->carrier_code,
-                'service' => $shipment->service_name ?? $shipment->service_code,
-                'cost' => $shipment->cost,
-                'currency' => $shipment->currency_code,
-            ]);
+            ->map(static function (OrderShipment $shipment): array {
+                $history = data_get($shipment->metadata, 'komerce.tracking_history', []);
+
+                return [
+                    'id' => $shipment->id,
+                    'inventory_name' => $shipment->inventory?->name,
+                    'status' => $shipment->status,
+                    'awb' => $shipment->awb,
+                    'tracking_number' => $shipment->tracking_number,
+                    'carrier' => $shipment->carrier_name ?? $shipment->carrier_code,
+                    'service' => $shipment->service_name ?? $shipment->service_code,
+                    'cost' => $shipment->cost,
+                    'currency' => $shipment->currency_code,
+                    'tracking_history' => is_array($history) ? array_values($history) : [],
+                ];
+            });
 
         return Inertia::render('account/order-show', [
             'order' => $order,

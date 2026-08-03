@@ -13,8 +13,14 @@ final class KomercePaymentWebhookController extends Controller
 {
     public function __invoke(Request $request, MarkOrderPaidFromKomerce $markOrderPaid): JsonResponse
     {
+        // Validate the callback secret first so a forged request is always
+        // rejected, then short-circuit if the integration is switched off.
         if (! $this->hasValidSecret($request)) {
             return response()->json(['status' => 'invalid_secret'], 401);
+        }
+
+        if (! komerce_enabled()) {
+            return response()->json(['status' => 'disabled'], 503);
         }
 
         // Expected Komerce callback payload:

@@ -28,6 +28,10 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
 
     public function handle(ShippingDeliveryClient $delivery): void
     {
+        if (! komerce_enabled()) {
+            return;
+        }
+
         $shipment = OrderShipment::query()
             ->with(['order.shippingAddress', 'inventory', 'lines.purchasable'])
             ->findOrFail($this->orderShipmentId);

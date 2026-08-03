@@ -65,5 +65,10 @@ class AppServiceProvider extends ServiceProvider
             'override-allocation',
             static fn (User $user, ?Order $order = null): bool => $user->isAdmin(),
         );
+
+        Gate::define(
+            'print-shipment-label',
+            static fn (User $user, ?Order $order = null): bool => $user->isAdmin(),
+        );
     }
 }
