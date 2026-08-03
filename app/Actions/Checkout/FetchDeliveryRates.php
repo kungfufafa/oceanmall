@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Actions\Checkout;
 
+use App\Services\Komerce\ShippingCostClient;
 use Shopper\Core\Models\Carrier;
 use Shopper\Core\Models\Country;
+use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Zone;
 use Shopper\Shipping\DataTransferObjects\Address as ShippingAddress;
 use Shopper\Shipping\DataTransferObjects\Package;
@@ -21,6 +23,12 @@ final class FetchDeliveryRates
      */
     public function handle(array $shippingAddress, array $packages): array
     {
+        $rajaOngkirRates = $this->rajaOngkirRates($shippingAddress, $packages);
+
+        if ($rajaOngkirRates !== null) {
+            return $rajaOngkirRates;
+        }
+
         $countryId = $shippingAddress['country_id'] ?? null;
 
         if (! $countryId) {
@@ -49,6 +57,188 @@ final class FetchDeliveryRates
         }
 
         return $this->formatRates($rates, $zone, $service);
+    }
+
+    /**
+     * RajaOngkir Cost API response shape:
+     * `{ meta: {...}, data: list<{ name, code, service?, description?, cost?, etd?, costs?: list<...> }> }`.
+     *
+     * @param  array<string, mixed>  $shippingAddress
+     * @param  array<int, Package>  $packages
+     * @return array<int, array<string, mixed>>|null
+     */
+    private function rajaOngkirRates(array $shippingAddress, array $packages): ?array
+    {
+        if ((string) config('komerce.api_key', '') === '') {
+            return null;
+        }
+
+        $originId = $this->defaultInventoryOriginId();
+        $destinationId = $shippingAddress['rajaongkir_destination_id']
+            ?? $shippingAddress['destination_id']
+            ?? null;
+
+        if (! $originId || ! $destinationId) {
+            return null;
+        }
+
+        try {
+            $response = resolve(ShippingCostClient::class)->calculate(
+                origin: ['id' => $originId],
+                destination: ['id' => $destinationId],
+                weightGrams: $this->totalWeightGrams($packages),
+                couriers: $this->couriers(),
+            );
+        } catch (Throwable $e) {
+            report($e);
+
+            return [];
+        }
+
+        return $this->formatRajaOngkirRates($response);
+    }
+
+    private function defaultInventoryOriginId(): ?string
+    {
+        $inventory = Inventory::query()
+            ->where('is_default', true)
+            ->first();
+
+        $originId = $inventory?->getAttribute('rajaongkir_origin_id');
+
+        return $originId ? (string) $originId : null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function couriers(): array
+    {
+        $couriers = config('komerce.couriers', ['jne', 'jnt', 'sicepat']);
+
+        if (is_string($couriers)) {
+            $couriers = explode(',', $couriers);
+        }
+
+        if (! is_array($couriers)) {
+            return ['jne', 'jnt', 'sicepat'];
+        }
+
+        return array_values(array_filter(
+            array_map(static fn (mixed $courier): string => trim((string) $courier), $couriers),
+            static fn (string $courier): bool => $courier !== '',
+        ));
+    }
+
+    /**
+     * @param  array<int, Package>  $packages
+     */
+    private function totalWeightGrams(array $packages): int
+    {
+        $grams = array_sum(array_map(fn (Package $package): int => $this->packageWeightGrams($package), $packages));
+
+        return max(1, (int) $grams);
+    }
+
+    private function packageWeightGrams(Package $package): int
+    {
+        $weight = max(0.0, $package->weight);
+
+        if ($package->isImperial()) {
+            return (int) round($weight * 453.59237);
+        }
+
+        if ($weight > 0 && $weight < 100) {
+            return (int) round($weight * 1000);
+        }
+
+        return (int) round($weight);
+    }
+
+    /**
+     * @param  array<string, mixed>  $response
+     * @return array<int, array<string, mixed>>
+     */
+    private function formatRajaOngkirRates(array $response): array
+    {
+        $data = $response['data'] ?? [];
+
+        if (! is_array($data)) {
+            return [];
+        }
+
+        $rates = [];
+
+        foreach ($data as $carrierRow) {
+            if (! is_array($carrierRow)) {
+                continue;
+            }
+
+            $carrierCode = (string) ($carrierRow['code'] ?? '');
+            $carrierName = (string) ($carrierRow['name'] ?? $carrierCode);
+            $costRows = isset($carrierRow['costs']) && is_array($carrierRow['costs'])
+                ? $carrierRow['costs']
+                : [$carrierRow];
+
+            foreach ($costRows as $costRow) {
+                if (! is_array($costRow)) {
+                    continue;
+                }
+
+                $service = (string) ($costRow['service'] ?? '');
+                $amount = $this->costAmount($costRow);
+
+                if ($carrierCode === '' || $service === '' || $amount === null) {
+                    continue;
+                }
+
+                $rates[] = [
+                    'service_code' => "{$carrierCode}:{$service}",
+                    'service_name' => $service,
+                    'amount' => $amount,
+                    'currency' => 'IDR',
+                    'carrier_code' => $carrierCode,
+                    'estimated_days' => $this->estimatedDays($costRow),
+                    'description' => $costRow['description'] ?? null,
+                    'carrier_name' => $carrierName,
+                    'carrier_logo' => null,
+                ];
+            }
+        }
+
+        return $rates;
+    }
+
+    /**
+     * @param  array<string, mixed>  $costRow
+     */
+    private function costAmount(array $costRow): ?int
+    {
+        $cost = $costRow['cost'] ?? null;
+
+        if (is_array($cost)) {
+            $cost = $cost['value'] ?? $cost[0]['value'] ?? null;
+        }
+
+        return is_numeric($cost) ? (int) $cost : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $costRow
+     */
+    private function estimatedDays(array $costRow): string|int|null
+    {
+        if (array_key_exists('etd', $costRow)) {
+            return $costRow['etd'];
+        }
+
+        $cost = $costRow['cost'] ?? null;
+
+        if (is_array($cost)) {
+            return $cost['etd'] ?? $cost[0]['etd'] ?? null;
+        }
+
+        return null;
     }
 
     private function buildOriginAddress(): ShippingAddress

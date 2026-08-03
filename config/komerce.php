@@ -12,6 +12,8 @@ return [
         'delivery_base_url' => env('RAJAONGKIR_DELIVERY_BASE_URL', ''),
     ],
 
+    'couriers' => array_values(array_filter(array_map('trim', explode(',', env('RAJAONGKIR_COURIERS', 'jne,jnt,sicepat'))))),
+
     'webhook_secret' => env('KOMERCE_WEBHOOK_SECRET', ''),
 
     'timeout' => (int) env('KOMERCE_TIMEOUT', 30),
