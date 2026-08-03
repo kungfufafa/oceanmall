@@ -10,6 +10,7 @@ import type {
   Media,
   Order as BaseOrder,
   OrderItem as BaseOrderItem,
+  Price,
   Product as BaseProduct,
   ProductVariant as BaseProductVariant,
 } from '@shopperlabs/shopper-types';
@@ -56,6 +57,8 @@ export type Product = BaseProduct &
     variants?: ProductVariant[];
     related_products?: Product[];
   };
+
+export type ProductPrice = Price;
 
 export type VariantOptions = {
   productOptions: Array<{

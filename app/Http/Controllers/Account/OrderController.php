@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
+use App\Models\OrderShipment;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -48,8 +49,26 @@ final class OrderController extends Controller
         $order->shippingAddress?->append('full_name');
         $order->billingAddress?->append('full_name');
 
+        $shipments = OrderShipment::query()
+            ->where('order_id', $order->id)
+            ->with('inventory')
+            ->orderBy('id')
+            ->get()
+            ->map(static fn (OrderShipment $shipment): array => [
+                'id' => $shipment->id,
+                'inventory_name' => $shipment->inventory?->name,
+                'status' => $shipment->status,
+                'awb' => $shipment->awb,
+                'tracking_number' => $shipment->tracking_number,
+                'carrier' => $shipment->carrier_name ?? $shipment->carrier_code,
+                'service' => $shipment->service_name ?? $shipment->service_code,
+                'cost' => $shipment->cost,
+                'currency' => $shipment->currency_code,
+            ]);
+
         return Inertia::render('account/order-show', [
             'order' => $order,
+            'shipments' => $shipments,
         ]);
     }
 }

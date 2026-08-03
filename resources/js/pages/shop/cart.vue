@@ -22,12 +22,12 @@ const cartActions = useCart();
 function productSlug(
     purchasable: Cart['lines'][number]['purchasable'],
 ): string | null {
-    if ('slug' in purchasable && purchasable.slug) {
+    if ('slug' in purchasable && typeof purchasable.slug === 'string') {
         return purchasable.slug;
     }
     if (
         'product' in purchasable &&
-        (purchasable as { product?: Product }).product?.slug
+        typeof (purchasable as { product?: Product }).product?.slug === 'string'
     ) {
         return (purchasable as { product: Product }).product.slug;
     }

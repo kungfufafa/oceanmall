@@ -52,7 +52,19 @@ type Order = {
     shipping_option?: OrderShipping | null;
 };
 
-const props = defineProps<{ order: Order }>();
+type Shipment = {
+    id: number;
+    inventory_name: string | null;
+    status: string;
+    awb: string | null;
+    tracking_number: string | null;
+    carrier: string | null;
+    service: string | null;
+    cost: number;
+    currency: string;
+};
+
+const props = defineProps<{ order: Order; shipments: Shipment[] }>();
 
 const shippingPrice = props.order.shipping_option?.price ?? 0;
 const itemsTotal =
@@ -68,6 +80,16 @@ function formatDate(value: string): string {
         day: '2-digit',
         year: 'numeric',
     });
+}
+
+function formatShipmentStatus(value: string): string {
+    return value
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function shipmentCarrierService(shipment: Shipment): string | null {
+    return [shipment.carrier, shipment.service].filter(Boolean).join(' / ') || null;
 }
 </script>
 
@@ -219,6 +241,86 @@ function formatDate(value: string): string {
                 </dl>
             </Card>
         </div>
+    </div>
+
+    <div v-if="shipments.length" class="mt-8 overflow-hidden">
+        <Card class="!p-0">
+            <div class="border-b border-zinc-200 px-5 py-4 dark:border-white/10">
+                <h3
+                    class="font-heading text-sm font-semibold text-zinc-900 dark:text-white"
+                >
+                    Shipments / Packages
+                </h3>
+                <p class="mt-1 text-sm text-zinc-500">
+                    Track each package in this order.
+                </p>
+            </div>
+            <div class="divide-y divide-zinc-200 dark:divide-white/10">
+                <div
+                    v-for="(shipment, index) in shipments"
+                    :key="shipment.id"
+                    class="px-5 py-4"
+                >
+                    <div
+                        class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                    >
+                        <div>
+                            <p
+                                class="font-heading text-sm font-medium text-zinc-900 dark:text-white"
+                            >
+                                Paket {{ index + 1 }}
+                                <span v-if="shipment.inventory_name">
+                                    · {{ shipment.inventory_name }}
+                                </span>
+                            </p>
+                            <p class="mt-1 text-sm text-zinc-500">
+                                {{
+                                    shipmentCarrierService(shipment) ??
+                                    'Carrier pending'
+                                }}
+                            </p>
+                        </div>
+                        <p
+                            class="text-sm font-medium text-zinc-900 dark:text-white"
+                        >
+                            {{ formatShipmentStatus(shipment.status) }}
+                        </p>
+                    </div>
+
+                    <dl
+                        class="mt-4 grid gap-3 text-sm sm:grid-cols-3"
+                    >
+                        <div>
+                            <dt class="text-zinc-500">AWB</dt>
+                            <dd class="mt-1 text-zinc-900 dark:text-white">
+                                {{ shipment.awb ?? 'Pending label' }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-zinc-500">Tracking</dt>
+                            <dd class="mt-1 text-zinc-900 dark:text-white">
+                                {{
+                                    shipment.tracking_number ??
+                                    shipment.awb ??
+                                    'Pending label'
+                                }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-zinc-500">Shipping cost</dt>
+                            <dd class="mt-1 text-zinc-900 dark:text-white">
+                                {{
+                                    formatMoney(
+                                        shipment.cost,
+                                        shipment.currency,
+                                    )
+                                }}
+                            </dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+        </Card>
     </div>
 
     <div class="mt-8 overflow-hidden">

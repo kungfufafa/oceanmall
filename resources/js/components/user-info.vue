@@ -15,22 +15,39 @@ const props = withDefaults(defineProps<Props>(), {
 
 const { getInitials } = useInitials();
 
-// Compute whether we should show the avatar image
-const showAvatar = computed(
-    () => props.user.avatar && props.user.avatar !== '',
-);
+const displayName = computed<string>(() => {
+    return typeof props.user.name === 'string'
+        ? props.user.name
+        : (props.user.full_name ?? props.user.email);
+});
+
+const avatarSrc = computed<string | null>(() => {
+    const avatar = props.user.avatar as unknown;
+
+    if (typeof avatar === 'string') {
+        return avatar || null;
+    }
+
+    if (avatar && typeof avatar === 'object') {
+        const value = avatar as { url?: string | null; default?: string | null };
+
+        return value.url || value.default || null;
+    }
+
+    return null;
+});
 </script>
 
 <template>
     <Avatar class="size-8 overflow-hidden rounded-lg">
-        <AvatarImage v-if="showAvatar" :src="user.avatar!" :alt="user.name" />
+        <AvatarImage v-if="avatarSrc" :src="avatarSrc" :alt="displayName" />
         <AvatarFallback class="rounded-lg text-black dark:text-white">
-            {{ getInitials(user.name) }}
+            {{ getInitials(displayName) }}
         </AvatarFallback>
     </Avatar>
 
     <div class="grid flex-1 text-left text-sm/tight">
-        <span class="truncate font-medium">{{ user.name }}</span>
+        <span class="truncate font-medium">{{ displayName }}</span>
         <span v-if="showEmail" class="truncate text-xs text-muted-foreground">{{
             user.email
         }}</span>

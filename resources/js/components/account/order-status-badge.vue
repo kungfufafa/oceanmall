@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { OrderStatus, PaymentStatus, ShippingStatus } from '@/types/shop';
 
 type StatusType = 'order' | 'payment' | 'shipping';
 
 const props = defineProps<{
-    status: OrderStatus | PaymentStatus | ShippingStatus;
+    status: string;
     type?: StatusType;
 }>();
 

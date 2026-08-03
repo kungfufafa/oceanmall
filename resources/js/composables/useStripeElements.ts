@@ -38,9 +38,12 @@ export function useStripeElements(
       return;
     }
 
+    const theme =
+      options.appearance === 'auto' ? undefined : (options.appearance ?? 'stripe');
+
     elements = stripeInstance.elements({
       clientSecret: options.clientSecret,
-      appearance: { theme: options.appearance ?? 'stripe' },
+      appearance: { theme },
     });
 
     const node = mountTarget();

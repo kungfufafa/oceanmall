@@ -26,7 +26,9 @@ const textSize = computed<string>(() => {
 
 const percentage = computed<number | null>(() => {
     if (
-        !props.price?.compare_amount ||
+        !props.price ||
+        props.price.amount === null ||
+        !props.price.compare_amount ||
         props.price.compare_amount <= props.price.amount
     ) {
         return null;
@@ -41,7 +43,7 @@ const percentage = computed<number | null>(() => {
 
 <template>
     <div :class="textSize">
-        <template v-if="price">
+        <template v-if="price && price.amount !== null">
             <p class="flex items-center gap-2">
                 <span class="font-semibold text-zinc-900 dark:text-white">{{
                     formatMoney(price.amount, currency)

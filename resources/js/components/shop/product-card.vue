@@ -11,10 +11,11 @@ const thumbnail = computed<string | null>(
     () => props.product.thumbnail ?? props.product.images?.[0]?.url ?? null,
 );
 
-const price = computed(() => props.product.prices[0]);
+const price = computed(() => props.product.prices?.[0] ?? null);
 
 const percentage = computed<number | null>(() => {
     if (
+        price.value?.amount == null ||
         !price.value?.compare_amount ||
         price.value.compare_amount <= price.value.amount
     ) {

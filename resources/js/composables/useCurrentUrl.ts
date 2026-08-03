@@ -65,12 +65,14 @@ export function useCurrentUrl(): UseCurrentUrlReturn {
     return isCurrentUrl(urlToCheck, currentUrl, true);
   }
 
-  function whenCurrentUrl<TValue>(
+  function whenCurrentUrl<TValue, TFallback = null>(
     urlToCheck: NonNullable<InertiaLinkProps['href']>,
     ifTrue: TValue,
-    ifFalse: TValue | null = null,
-  ) {
-    return isCurrentUrl(urlToCheck) ? ifTrue : ifFalse;
+    ifFalse?: TFallback,
+  ): TValue | TFallback {
+    const fallback = (ifFalse === undefined ? null : ifFalse) as TFallback;
+
+    return isCurrentUrl(urlToCheck) ? ifTrue : fallback;
   }
 
   return {
