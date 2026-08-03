@@ -145,14 +145,11 @@ final class FetchDeliveryRates
         $weight = max(0.0, $package->weight);
 
         if ($package->isImperial()) {
-            return (int) round($weight * 453.59237);
+            return max(1, (int) ceil($weight * 453.59237));
         }
 
-        if ($weight > 0 && $weight < 100) {
-            return (int) round($weight * 1000);
-        }
-
-        return (int) round($weight);
+        // BuildShippingPackages normalizes metric Package weights to kilograms.
+        return max(1, (int) ceil($weight * 1000));
     }
 
     /**

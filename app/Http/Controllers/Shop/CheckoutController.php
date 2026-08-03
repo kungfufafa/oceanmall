@@ -114,10 +114,17 @@ final class CheckoutController extends Controller
             'city' => ['required', 'string', 'max:255'],
             'state' => ['nullable', 'string', 'max:255'],
             'phone_number' => ['nullable', 'string', 'max:20'],
+            'rajaongkir_destination_id' => ['nullable', 'string', 'max:50'],
+            'destination_id' => ['nullable', 'string', 'max:50'],
         ]);
 
         $zone = ZoneSessionManager::getSession();
         $data['country_id'] = $zone?->countryId;
+
+        $destinationId = $data['rajaongkir_destination_id'] ?? $data['destination_id'] ?? null;
+        if ($destinationId !== null) {
+            $data['rajaongkir_destination_id'] = $destinationId;
+        }
 
         session()->put(CheckoutSession::SHIPPING_ADDRESS, $data);
 

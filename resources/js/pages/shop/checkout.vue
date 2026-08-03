@@ -24,6 +24,7 @@ type ShippingAddressForm = {
     city: string;
     state: string;
     phone_number: string;
+    rajaongkir_destination_id: string;
 };
 
 const props = defineProps<{
@@ -78,6 +79,8 @@ const addressForm = useForm<ShippingAddressForm>({
     city: props.shippingAddress?.city ?? '',
     state: props.shippingAddress?.state ?? '',
     phone_number: props.shippingAddress?.phone_number ?? '',
+    rajaongkir_destination_id:
+        props.shippingAddress?.rajaongkir_destination_id ?? '',
 });
 
 const shippingForm = useForm<{ service_code: string }>({
@@ -174,6 +177,7 @@ function selectAddress(address: Address): void {
     addressForm.city = address.city;
     addressForm.state = address.state ?? '';
     addressForm.phone_number = address.phone_number ?? '';
+    addressForm.rajaongkir_destination_id = '';
 }
 
 function clearAddress(): void {
@@ -455,6 +459,17 @@ const steps = [
                                 id="phone_number"
                                 v-model="addressForm.phone_number"
                                 type="tel"
+                            />
+                        </div>
+
+                        <div class="space-y-2">
+                            <Label for="rajaongkir_destination_id">
+                                Destination ID (RajaOngkir)
+                            </Label>
+                            <Input
+                                id="rajaongkir_destination_id"
+                                v-model="addressForm.rajaongkir_destination_id"
+                                placeholder="Optional"
                             />
                         </div>
 
