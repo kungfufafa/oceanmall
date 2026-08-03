@@ -1,0 +1,116 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\Services\Komerce;
+
+use App\Services\Komerce\PaymentClient;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
+
+final class PaymentClientTest extends TestCase
+{
+    public function test_create_virtual_account_posts_json_payload_with_api_key_header(): void
+    {
+        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+        config()->set('komerce.timeout', 15);
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
+                'success' => true,
+                'data' => [
+                    'payment_id' => 'pay_123',
+                    'order_id' => 'ORDER-123',
+                ],
+            ]),
+        ]);
+
+        $response = (new PaymentClient)->createVirtualAccount([
+            'channel_code' => 'BRIVA',
+            'order_id' => 'ORDER-123',
+            'amount' => 125000,
+            'customer' => [
+                'name' => 'Jane Customer',
+                'email' => 'jane@example.test',
+                'phone' => '08123456789',
+            ],
+        ]);
+
+        $this->assertSame('pay_123', $response['data']['payment_id']);
+
+        Http::assertSent(function (Request $request): bool {
+            return $request->method() === 'POST'
+                && $request->url() === 'https://payment.example.test/user/api/v1/user/payment/create'
+                && $request->hasHeader('x-api-key', 'test-komerce-key')
+                && $request->hasHeader('Content-Type', 'application/json')
+                && $request['payment_type'] === 'bank_transfer'
+                && $request['channel_code'] === 'BRIVA'
+                && $request['order_id'] === 'ORDER-123'
+                && $request['amount'] === 125000
+                && $request['customer']['email'] === 'jane@example.test';
+        });
+    }
+
+    public function test_create_qris_posts_json_payload_with_qris_payment_type(): void
+    {
+        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
+                'success' => true,
+                'data' => [
+                    'payment_id' => 'pay_qris_123',
+                ],
+            ]),
+        ]);
+
+        $response = (new PaymentClient)->createQris([
+            'channel_code' => 'BRIVA',
+            'order_id' => 'ORDER-QRIS-123',
+            'amount' => 99000,
+            'customer' => [
+                'name' => 'Jane Customer',
+                'email' => 'jane@example.test',
+                'phone' => '08123456789',
+            ],
+        ]);
+
+        $this->assertSame('pay_qris_123', $response['data']['payment_id']);
+
+        Http::assertSent(function (Request $request): bool {
+            return $request->url() === 'https://payment.example.test/user/api/v1/user/payment/create'
+                && $request->hasHeader('x-api-key', 'test-komerce-key')
+                && $request['payment_type'] === 'qris'
+                && ! array_key_exists('channel_code', $request->data());
+        });
+    }
+
+    public function test_get_status_fetches_payment_status_by_reference(): void
+    {
+        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/status/pay_123' => Http::response([
+                'success' => true,
+                'data' => [
+                    'payment_id' => 'pay_123',
+                    'status' => 'PAID',
+                ],
+            ]),
+        ]);
+
+        $response = (new PaymentClient)->getStatus('pay_123');
+
+        $this->assertSame('PAID', $response['data']['status']);
+
+        Http::assertSent(function (Request $request): bool {
+            return $request->method() === 'GET'
+                && $request->url() === 'https://payment.example.test/user/api/v1/user/payment/status/pay_123'
+                && $request->hasHeader('x-api-key', 'test-komerce-key');
+        });
+    }
+}
