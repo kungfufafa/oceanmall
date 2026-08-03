@@ -62,6 +62,7 @@ final class CreateOrder
                     'price_amount' => $order->price_amount + $shippingPrice,
                 ]);
 
+                $this->storeShippingAddressMetadata($order, $checkout);
                 $this->storeKomercePaymentReference($order, $checkout);
 
                 return $order;
@@ -80,6 +81,58 @@ final class CreateOrder
         }
 
         return is_string($id) && ctype_digit($id) ? (int) $id : null;
+    }
+
+    private function storeShippingAddressMetadata(Order $order, mixed $checkout): void
+    {
+        $shippingAddress = (array) data_get($checkout, 'shipping_address', []);
+        $metadataAddress = [];
+
+        $countryId = data_get($shippingAddress, 'country_id');
+        if (is_int($countryId) || (is_string($countryId) && ctype_digit($countryId))) {
+            $metadataAddress['country_id'] = (int) $countryId;
+        }
+
+        $destinationId = data_get($shippingAddress, 'rajaongkir_destination_id')
+            ?? data_get($shippingAddress, 'destination_id');
+
+        if (is_scalar($destinationId) && trim((string) $destinationId) !== '') {
+            $metadataAddress['rajaongkir_destination_id'] = trim((string) $destinationId);
+        }
+
+        if ($metadataAddress === []) {
+            return;
+        }
+
+        $metadata = $this->decodeMetadata($order->getAttribute('metadata'));
+        $existingAddress = data_get($metadata, 'shipping_address');
+
+        $metadata['shipping_address'] = array_merge(
+            is_array($existingAddress) ? $existingAddress : [],
+            $metadataAddress,
+        );
+
+        $order->forceFill([
+            'metadata' => json_encode($metadata, JSON_THROW_ON_ERROR),
+        ])->save();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeMetadata(mixed $metadata): array
+    {
+        if (is_array($metadata)) {
+            return $metadata;
+        }
+
+        if (! is_string($metadata) || trim($metadata) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($metadata, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function resolveAllocationPlan(Cart $cart, mixed $checkout): AllocationPlan

@@ -191,7 +191,8 @@ final class OverrideAllocation
      */
     private function ensureDestinationStock(Order $order, array $moves): void
     {
-        $projected = $this->currentAllocationTotals($order);
+        $currentBeforeMoves = $this->currentAllocationTotals($order);
+        $projected = $currentBeforeMoves;
         $destinationKeys = [];
 
         foreach ($moves as $move) {
@@ -210,8 +211,9 @@ final class OverrideAllocation
         foreach ($destinationKeys as $key => $destination) {
             $purchasable = $this->purchasable($destination['purchasable_type'], $destination['purchasable_id']);
             $available = (int) $purchasable->stockInventory($destination['inventory_id']);
+            $additionalNeeded = max(0, ($projected[$key] ?? 0) - ($currentBeforeMoves[$key] ?? 0));
 
-            if ($available < ($projected[$key] ?? 0)) {
+            if ($available < $additionalNeeded) {
                 throw ValidationException::withMessages([
                     'stock' => __('Destination inventory does not have enough stock for this allocation.'),
                 ]);
@@ -365,8 +367,14 @@ final class OverrideAllocation
     private function shippingAddress(Order $order): array
     {
         $address = $order->shippingAddress;
+        $metadata = $this->decodeMetadata($order->getAttribute('metadata'));
+        $metadataAddress = data_get($metadata, 'shipping_address', []);
 
-        return [
+        if (! is_array($metadataAddress)) {
+            $metadataAddress = [];
+        }
+
+        $shippingAddress = [
             'first_name' => $address?->first_name ?? '',
             'last_name' => $address?->last_name ?? '',
             'street_address' => $address?->street_address ?? '',
@@ -377,6 +385,36 @@ final class OverrideAllocation
             'phone_number' => $address?->phone,
             'country_name' => $address?->country_name,
         ];
+
+        foreach (['country_id', 'rajaongkir_destination_id', 'destination_id'] as $key) {
+            $value = $metadataAddress[$key]
+                ?? $metadata[$key]
+                ?? $address?->getAttribute($key);
+
+            if ($value !== null && (! is_scalar($value) || trim((string) $value) !== '')) {
+                $shippingAddress[$key] = $value;
+            }
+        }
+
+        return $shippingAddress;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeMetadata(mixed $metadata): array
+    {
+        if (is_array($metadata)) {
+            return $metadata;
+        }
+
+        if (! is_string($metadata) || trim($metadata) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($metadata, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     /**

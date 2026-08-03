@@ -10,6 +10,7 @@ use App\Models\OrderShipment;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Shopper\Cart\Models\Cart;
 use Shopper\Cart\Models\CartLine;
@@ -59,6 +60,7 @@ final class SplitShipmentOrderTest extends TestCase
                 'city' => 'Jakarta',
                 'country_id' => $defaultInventory->country_id,
                 'phone_number' => '081234567890',
+                'rajaongkir_destination_id' => '152',
             ],
             'shipping_option' => [[
                 'id' => 'split-shipment',
@@ -93,6 +95,7 @@ final class SplitShipmentOrderTest extends TestCase
         ]);
 
         $order = resolve(CreateOrder::class)->handle();
+        $metadata = json_decode((string) DB::table($order->getTable())->where('id', $order->id)->value('metadata'), true);
 
         $shipments = OrderShipment::query()
             ->with('lines')
@@ -101,6 +104,8 @@ final class SplitShipmentOrderTest extends TestCase
             ->get();
 
         $this->assertSame(430000, $order->refresh()->price_amount);
+        $this->assertSame('152', data_get($metadata, 'shipping_address.rajaongkir_destination_id'));
+        $this->assertSame($defaultInventory->country_id, data_get($metadata, 'shipping_address.country_id'));
         $this->assertCount(2, $shipments);
 
         $this->assertSame($defaultInventory->id, $shipments[0]->inventory_id);

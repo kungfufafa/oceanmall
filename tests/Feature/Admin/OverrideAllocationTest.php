@@ -11,6 +11,7 @@ use App\Models\OrderShipmentLine;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Shopper\Core\Models\Inventory;
@@ -102,7 +103,7 @@ final class OverrideAllocationTest extends TestCase
 
     public function test_rejects_when_destination_inventory_lacks_stock(): void
     {
-        $fixture = $this->shipmentFixture(toStock: 1);
+        $fixture = $this->shipmentFixture(toStock: 0);
 
         $this->expectException(ValidationException::class);
 
@@ -112,6 +113,64 @@ final class OverrideAllocationTest extends TestCase
             'from_inventory_id' => $fixture['fromInventory']->id,
             'to_inventory_id' => $fixture['toInventory']->id,
         ]]);
+    }
+
+    public function test_destination_stock_validation_only_requires_additional_needed_quantity(): void
+    {
+        $fixture = $this->shipmentFixture(toStock: 1);
+        $this->app->instance(FetchDeliveryRates::class, $this->fakeRates([
+            $fixture['fromInventory']->id => [$this->rate('jne', 'REG', 11000)],
+            $fixture['toInventory']->id => [$this->rate('jnt', 'EZ', 15000)],
+        ]));
+
+        resolve(OverrideAllocation::class)->handle($fixture['order'], [[
+            'shipment_line_id' => $fixture['sourceLine']->id,
+            'qty' => 1,
+            'from_inventory_id' => $fixture['fromInventory']->id,
+            'to_inventory_id' => $fixture['toInventory']->id,
+        ]]);
+
+        $targetLine = OrderShipmentLine::query()
+            ->where('order_shipment_id', $fixture['targetShipment']->id)
+            ->where('purchasable_type', $fixture['product']->getMorphClass())
+            ->where('purchasable_id', $fixture['product']->id)
+            ->firstOrFail();
+
+        $this->assertSame(2, $targetLine->qty);
+    }
+
+    public function test_recalculated_rates_receive_rajaongkir_destination_from_order_metadata(): void
+    {
+        $fixture = $this->shipmentFixture();
+        DB::table($fixture['order']->getTable())
+            ->where('id', $fixture['order']->id)
+            ->update([
+                'metadata' => json_encode([
+                    'shipping_address' => [
+                        'country_id' => 99,
+                        'rajaongkir_destination_id' => '114',
+                    ],
+                ], JSON_THROW_ON_ERROR),
+            ]);
+
+        $rates = $this->fakeRates([
+            $fixture['fromInventory']->id => [$this->rate('jne', 'REG', 11000)],
+            $fixture['toInventory']->id => [$this->rate('jnt', 'EZ', 15000)],
+        ]);
+        $this->app->instance(FetchDeliveryRates::class, $rates);
+
+        resolve(OverrideAllocation::class)->handle($fixture['order']->refresh(), [[
+            'shipment_line_id' => $fixture['sourceLine']->id,
+            'qty' => 1,
+            'from_inventory_id' => $fixture['fromInventory']->id,
+            'to_inventory_id' => $fixture['toInventory']->id,
+        ]]);
+
+        $this->assertNotEmpty($rates->addresses);
+        foreach ($rates->addresses as $address) {
+            $this->assertSame('114', $address['rajaongkir_destination_id'] ?? null);
+            $this->assertSame(99, $address['country_id'] ?? null);
+        }
     }
 
     public function test_override_route_requires_admin_role(): void
@@ -232,6 +291,9 @@ final class OverrideAllocationTest extends TestCase
             /** @var list<array{0: int|null, 1: int}> */
             public array $calls = [];
 
+            /** @var list<array<string, mixed>> */
+            public array $addresses = [];
+
             /** @param  array<int, list<array<string, mixed>>>  $rates */
             public function __construct(private readonly array $rates) {}
 
@@ -239,6 +301,7 @@ final class OverrideAllocationTest extends TestCase
             public function handle(array $shippingAddress, array $packages, ?int $originInventoryId = null): array
             {
                 $this->calls[] = [$originInventoryId, count($packages)];
+                $this->addresses[] = $shippingAddress;
 
                 return $this->rates[$originInventoryId] ?? [];
             }
