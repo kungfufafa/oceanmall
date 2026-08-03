@@ -31,6 +31,17 @@ trait UsesKomerceHttp
             ]);
     }
 
+    protected function deliveryHttp(): PendingRequest
+    {
+        return Http::baseUrl($this->baseUrl('komerce.rajaongkir.delivery_base_url'))
+            ->timeout($this->timeout())
+            ->acceptJson()
+            ->asJson()
+            ->withHeaders([
+                'x-api-key' => $this->apiKey(),
+            ]);
+    }
+
     private function apiKey(): string
     {
         return (string) config('komerce.api_key', '');

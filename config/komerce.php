@@ -9,7 +9,7 @@ return [
 
     'rajaongkir' => [
         'cost_base_url' => env('RAJAONGKIR_COST_BASE_URL', 'https://rajaongkir.komerce.id'),
-        'delivery_base_url' => env('RAJAONGKIR_DELIVERY_BASE_URL', ''),
+        'delivery_base_url' => env('RAJAONGKIR_DELIVERY_BASE_URL', 'https://api-sandbox.collaborator.komerce.id'),
     ],
 
     'couriers' => array_values(array_filter(array_map('trim', explode(',', env('RAJAONGKIR_COURIERS', 'jne,jnt,sicepat'))))),

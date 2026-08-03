@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\Checkout;
 
+use App\Jobs\CreateRajaOngkirDeliveryForShipment;
+use App\Models\OrderShipment;
 use App\Services\Komerce\PaymentClient;
 use Illuminate\Support\Facades\DB;
 use Shopper\Core\Enum\OrderStatus;
@@ -85,6 +87,13 @@ final class MarkOrderPaidFromKomerce
                 ],
             ]);
         });
+
+        OrderShipment::query()
+            ->where('order_id', $order->id)
+            ->pluck('id')
+            ->each(static function (mixed $shipmentId): void {
+                CreateRajaOngkirDeliveryForShipment::dispatch((int) $shipmentId);
+            });
 
         return 'handled';
     }
