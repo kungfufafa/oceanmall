@@ -65,7 +65,42 @@ Admin: [http://localhost:8000/cpanel](http://localhost:8000/cpanel)
 
 Salin dari `.env.example`. Prefix admin bisa diubah lewat `SHOPPER_PREFIX` (default: `cpanel`).
 
-Stripe **dimatikan by default** (`PAYMENT_STRIPE_ENABLED=false`). Checkout pakai payment method yang kamu aktifkan di admin Shopper (mis. manual / COD). Jangan set key Stripe kecuali memang mau dipakai.
+### Payment & shipping (Phase 1 — Komerce / RajaOngkir)
+
+OceanMall checkout aktif memakai **Komerce Payment** (VA / QRIS) + **RajaOngkir Shipping Cost**. Stripe **tetap mati** by default.
+
+| Variable | Keterangan |
+| --- | --- |
+| `KOMERCE_API_KEY` | API key dari dashboard Komerce / RajaOngkir (sandbox dulu) |
+| `KOMERCE_PAYMENT_BASE_URL` | Default sandbox: `https://api-sandbox.collaborator.komerce.id/user` |
+| `RAJAONGKIR_COST_BASE_URL` | Default: `https://rajaongkir.komerce.id` |
+| `RAJAONGKIR_DELIVERY_BASE_URL` | Reserved untuk Phase 3 (AWB / pickup) |
+| `RAJAONGKIR_COURIERS` | Kurir aktif, comma-separated (default: `jne,jnt,sicepat`) |
+| `KOMERCE_WEBHOOK_SECRET` | Secret untuk verifikasi callback (`callback_API_KEY`) |
+| `KOMERCE_TIMEOUT` | Timeout HTTP client (detik) |
+| `PAYMENT_STRIPE_ENABLED` | **Harus `false`** untuk production OceanMall v1 |
+
+Webhook URL (expose ke Komerce sandbox/production):
+
+```
+POST {APP_URL}/webhooks/komerce/payment
+```
+
+Jangan commit `.env` atau API key asli.
+
+### Sandbox checklist (manual)
+
+1. Set `KOMERCE_API_KEY`, `KOMERCE_WEBHOOK_SECRET`, biarkan `PAYMENT_STRIPE_ENABLED=false`.
+2. `php artisan migrate` — pastikan kolom `rajaongkir_origin_id` ada di inventories.
+3. Di admin Shopper (`/cpanel`): buat / set **Inventory default** (mis. Gudang Jakarta) dan isi `rajaongkir_origin_id` (ID origin dari RajaOngkir destination search).
+4. Buat Payment Method dengan `driver=komerce` (metadata `payment_type` = `bank_transfer` + `channel_code` bank, atau `qris`), aktifkan di zone Indonesia.
+5. Di storefront checkout: isi alamat + **Destination ID (RajaOngkir)** tujuan customer → pilih kurir → pilih VA/QRIS → Place order.
+6. Salin instruksi bayar (nomor VA / QRIS). Simulasikan callback paid ke webhook, atau gunakan status sandbox Komerce.
+7. Order harus beralih ke `payment_status=paid`.
+
+### Stripe
+
+Stripe **dimatikan by default** (`PAYMENT_STRIPE_ENABLED=false`). Jangan set key Stripe kecuali memang mau dipakai untuk eksperimen; path storefront aktif adalah Komerce.
 
 ## Scripts berguna
 
