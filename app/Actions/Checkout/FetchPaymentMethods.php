@@ -6,6 +6,7 @@ namespace App\Actions\Checkout;
 
 use InvalidArgumentException;
 use Shopper\Core\Models\PaymentMethod;
+use Shopper\Payment\Facades\Payment;
 use Shopper\Payment\Services\PaymentProcessingService;
 
 final class FetchPaymentMethods
@@ -39,7 +40,7 @@ final class FetchPaymentMethods
         return match ($method->driver ?? 'manual') {
             'stripe' => $stripeEnabled,
             'komerce' => $komerceKey !== '',
-            default => true,
+            default => Payment::isConfigured($method->driver ?? 'manual'),
         };
     }
 
@@ -71,7 +72,6 @@ final class FetchPaymentMethods
     /**
      * Decode metadata that may be stored as a JSON string or already decoded array.
      *
-     * @param  mixed  $metadata
      * @return array<string, mixed>
      */
     private function decodeMeta(mixed $metadata): array

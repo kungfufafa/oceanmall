@@ -6,6 +6,7 @@ namespace App\Actions\Checkout;
 
 use App\Services\Komerce\PaymentClient;
 use Illuminate\Support\Facades\Route;
+use RuntimeException;
 use Shopper\Core\Models\Order;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Enum\TransactionType;
@@ -19,7 +20,7 @@ final class CreateKomercePayment
      * Create a Komerce VA or QRIS payment for a pending order.
      *
      * @param  array<string, mixed>  $selectedMethod  Payment method data from checkout session.
-     * @return array<string, mixed>  Payment instructions to show the customer.
+     * @return array<string, mixed> Payment instructions to show the customer.
      */
     public function handle(Order $order, array $selectedMethod): array
     {
@@ -53,7 +54,7 @@ final class CreateKomercePayment
             ? $this->payments->createQris($payload)
             : $this->payments->createVirtualAccount($payload);
 
-        $paymentId = (string) (data_get($response, 'data.payment_id') ?? '');
+        $paymentId = $this->validatedPaymentId($response);
 
         PaymentTransaction::query()->updateOrCreate(
             [
@@ -84,5 +85,42 @@ final class CreateKomercePayment
             'amount' => (int) (data_get($response, 'data.amount') ?? $order->price_amount),
             'currency_code' => $order->currency_code,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $response
+     */
+    private function validatedPaymentId(array $response): string
+    {
+        $paymentId = trim((string) (data_get($response, 'data.payment_id') ?? ''));
+
+        if ($paymentId === '' || ! is_array(data_get($response, 'data')) || $this->responseIndicatesFailure($response)) {
+            $message = data_get($response, 'meta.message')
+                ?? data_get($response, 'message')
+                ?? __('Unable to create Komerce payment.');
+
+            throw new RuntimeException('Komerce payment creation failed: '.$message);
+        }
+
+        return $paymentId;
+    }
+
+    /**
+     * @param  array<string, mixed>  $response
+     */
+    private function responseIndicatesFailure(array $response): bool
+    {
+        if (array_key_exists('success', $response) && $response['success'] === false) {
+            return true;
+        }
+
+        $status = mb_strtolower(trim((string) (data_get($response, 'meta.status') ?? '')));
+        if ($status !== '' && ! in_array($status, ['success', 'succeeded', 'ok'], true)) {
+            return true;
+        }
+
+        $code = data_get($response, 'meta.code');
+
+        return is_numeric($code) && ((int) $code < 200 || (int) $code >= 300);
     }
 }

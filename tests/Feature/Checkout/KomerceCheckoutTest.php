@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\Http;
+use RuntimeException;
 use Shopper\Cart\CartManager;
 use Shopper\Cart\Models\Cart;
 use Shopper\Cart\Models\CartLine;
@@ -459,6 +460,31 @@ final class KomerceCheckoutTest extends TestCase
         $this->assertContains('stripe', $drivers);
     }
 
+    public function test_fetch_payment_methods_excludes_unconfigured_default_drivers(): void
+    {
+        $this->komerceFakeConfig();
+
+        $country = Country::factory()->create();
+        $zone = Zone::factory()->create(['is_enabled' => true]);
+        $zone->countries()->attach($country->id);
+
+        $manual = PaymentMethod::factory()->create([
+            'driver' => 'manual',
+            'is_enabled' => true,
+        ]);
+        $paypal = PaymentMethod::factory()->create([
+            'driver' => 'paypal',
+            'is_enabled' => true,
+        ]);
+        $zone->paymentMethods()->attach([$manual->id, $paypal->id]);
+
+        $methods = resolve(FetchPaymentMethods::class)->handle($country->id);
+        $drivers = array_column($methods, 'driver');
+
+        $this->assertContains('manual', $drivers);
+        $this->assertNotContains('paypal', $drivers);
+    }
+
     public function test_place_order_rejects_stripe_driver_with_error(): void
     {
         // Stripe IS enabled in the zone, but placeOrder should reject the stripe path.
@@ -552,5 +578,60 @@ final class KomerceCheckoutTest extends TestCase
                 && data_get($body, 'order_id') === 'ORD-ACTION-001'
                 && data_get($body, 'amount') === 100000;
         });
+    }
+
+    public function test_create_komerce_payment_rejects_failed_response_without_payment_id(): void
+    {
+        $this->komerceFakeConfig();
+
+        $user = User::factory()->create(['first_name' => 'Test', 'last_name' => 'User', 'email' => 'test@example.test']);
+
+        $paymentMethod = PaymentMethod::factory()->create(['driver' => 'komerce', 'is_enabled' => true]);
+
+        $order = Order::factory()->create([
+            'number' => 'ORD-ACTION-FAILED',
+            'price_amount' => 100000,
+            'currency_code' => 'IDR',
+            'customer_id' => $user->id,
+            'payment_method_id' => $paymentMethod->id,
+            'payment_status' => PaymentStatus::Pending,
+            'status' => OrderStatus::New,
+        ]);
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
+                'meta' => [
+                    'status' => 'error',
+                    'code' => 400,
+                    'message' => 'Payment channel is unavailable.',
+                ],
+                'data' => [
+                    'payment_id' => '',
+                ],
+            ], 200),
+        ]);
+
+        try {
+            resolve(CreateKomercePayment::class)->handle($order, [
+                'id' => $paymentMethod->id,
+                'driver' => 'komerce',
+                'channel_code' => 'BCA',
+                'payment_type' => 'bank_transfer',
+            ]);
+
+            $this->fail('Expected failed Komerce response to throw.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('Komerce payment creation failed', $e->getMessage());
+        }
+
+        $this->assertDatabaseMissing(
+            (new PaymentTransaction)->getTable(),
+            [
+                'order_id' => $order->id,
+                'driver' => 'komerce',
+                'reference' => '',
+            ],
+        );
+        $this->assertSame(0, PaymentTransaction::query()->where('order_id', $order->id)->count());
     }
 }
