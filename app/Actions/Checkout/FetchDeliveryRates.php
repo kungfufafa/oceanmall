@@ -69,7 +69,7 @@ final class FetchDeliveryRates
      */
     private function rajaOngkirRates(array $shippingAddress, array $packages, ?int $originInventoryId = null): ?array
     {
-        if ((string) config('komerce.api_key', '') === '') {
+        if (! komerce_enabled()) {
             return null;
         }
 

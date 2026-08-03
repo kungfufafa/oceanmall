@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\ZoneSessionManager;
+use App\DTO\CountryByZoneData;
 use App\Models\Channel;
 use Shopper\Cart\CartSessionManager;
 use Shopper\Cart\Models\Cart;
@@ -30,6 +31,26 @@ if (! function_exists('cartSession')) {
     }
 }
 
+if (! function_exists('komerce_enabled')) {
+    /**
+     * Whether the Komerce collaborator integration (payment + RajaOngkir shipping)
+     * is active. When KOMERCE_ENABLED is not set explicitly, the integration is
+     * considered enabled only when an API key is configured. This is the single
+     * source of truth used to short-circuit every Komerce/RajaOngkir feature so
+     * an unconfigured store never attempts an outbound call.
+     */
+    function komerce_enabled(): bool
+    {
+        $explicit = config('komerce.enabled');
+
+        if ($explicit !== null) {
+            return (bool) $explicit;
+        }
+
+        return trim((string) config('komerce.api_key', '')) !== '';
+    }
+}
+
 if (! function_exists('current_currency')) {
     function current_currency(): string
     {
@@ -43,7 +64,7 @@ if (! function_exists('current_tax_label')) {
         return once(function (): string {
             $zone = ZoneSessionManager::getSession();
 
-            if (! $zone instanceof App\DTO\CountryByZoneData) {
+            if (! $zone instanceof CountryByZoneData) {
                 return '';
             }
 

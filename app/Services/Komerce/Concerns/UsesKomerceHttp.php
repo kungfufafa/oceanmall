@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Komerce\Concerns;
 
+use App\Exceptions\KomerceNotConfiguredException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 
@@ -11,6 +12,8 @@ trait UsesKomerceHttp
 {
     protected function paymentHttp(): PendingRequest
     {
+        $this->ensureKomerceEnabled();
+
         return Http::baseUrl($this->baseUrl('komerce.payment_base_url'))
             ->timeout($this->timeout())
             ->acceptJson()
@@ -22,6 +25,8 @@ trait UsesKomerceHttp
 
     protected function shippingCostHttp(): PendingRequest
     {
+        $this->ensureKomerceEnabled();
+
         return Http::baseUrl($this->baseUrl('komerce.rajaongkir.cost_base_url'))
             ->timeout($this->timeout())
             ->acceptJson()
@@ -33,6 +38,8 @@ trait UsesKomerceHttp
 
     protected function deliveryHttp(): PendingRequest
     {
+        $this->ensureKomerceEnabled();
+
         return Http::baseUrl($this->baseUrl('komerce.rajaongkir.delivery_base_url'))
             ->timeout($this->timeout())
             ->acceptJson()
@@ -40,6 +47,17 @@ trait UsesKomerceHttp
             ->withHeaders([
                 'x-api-key' => $this->apiKey(),
             ]);
+    }
+
+    /**
+     * Guard every outbound Komerce call behind the integration switch so an
+     * unconfigured store never hits the collaborator API.
+     */
+    protected function ensureKomerceEnabled(): void
+    {
+        if (! komerce_enabled()) {
+            throw KomerceNotConfiguredException::make();
+        }
     }
 
     private function apiKey(): string

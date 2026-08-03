@@ -23,23 +23,23 @@ final class FetchPaymentMethods
         }
 
         $stripeEnabled = (bool) config('shopper.payment.drivers.stripe.enabled', false);
-        $komerceKey = (string) config('komerce.api_key', '');
+        $komerceEnabled = komerce_enabled();
         $service = resolve(PaymentProcessingService::class);
 
         return $zone->paymentMethods()
             ->where('is_enabled', true)
             ->get()
-            ->filter(fn (PaymentMethod $method): bool => $this->isAvailable($method, $stripeEnabled, $komerceKey))
+            ->filter(fn (PaymentMethod $method): bool => $this->isAvailable($method, $stripeEnabled, $komerceEnabled))
             ->map(fn (PaymentMethod $method): array => $this->toArray($method, $service))
             ->values()
             ->all();
     }
 
-    private function isAvailable(PaymentMethod $method, bool $stripeEnabled, string $komerceKey): bool
+    private function isAvailable(PaymentMethod $method, bool $stripeEnabled, bool $komerceEnabled): bool
     {
         return match ($method->driver ?? 'manual') {
             'stripe' => $stripeEnabled,
-            'komerce' => $komerceKey !== '',
+            'komerce' => $komerceEnabled,
             default => Payment::isConfigured($method->driver ?? 'manual'),
         };
     }
