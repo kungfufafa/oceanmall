@@ -33,6 +33,20 @@ final class KomerceCheckoutTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Raw X-Inertia requests get a 409 (asset-version mismatch) once a Vite
+        // manifest exists, because they carry no version. Send the version the
+        // Inertia middleware computes so these requests are accepted.
+        $manifest = public_path('build/manifest.json');
+        $this->withHeader(
+            'X-Inertia-Version',
+            file_exists($manifest) ? hash_file('xxh128', $manifest) : '',
+        );
+    }
+
     private function komerceFakeConfig(): void
     {
         config()->set('komerce.api_key', 'test-komerce-key');
