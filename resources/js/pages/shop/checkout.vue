@@ -43,6 +43,11 @@ type ShippingAddressForm = {
     rajaongkir_destination_label: string;
 };
 
+type SavedCheckoutAddress = Address & {
+    rajaongkir_destination_id?: string | null;
+    rajaongkir_destination_label?: string | null;
+};
+
 type DestinationResult = {
     id: string;
     label: string;
@@ -56,7 +61,7 @@ type DestinationResult = {
 const props = defineProps<{
     cart: Cart;
     cartContext: CartContext;
-    savedAddresses: Address[];
+    savedAddresses: SavedCheckoutAddress[];
     shippingAddress: ShippingAddressForm | null;
     deliveryOptions: DeliveryOption[];
     selectedDeliveryOption: string | number | null;
@@ -344,7 +349,7 @@ const total = computed<number>(() => {
     return sub + delivery;
 });
 
-function selectAddress(address: Address): void {
+function selectAddress(address: SavedCheckoutAddress): void {
     selectedAddressId.value = address.id;
     addressForm.first_name = address.first_name ?? '';
     addressForm.last_name = address.last_name;
@@ -354,7 +359,24 @@ function selectAddress(address: Address): void {
     addressForm.city = address.city;
     addressForm.state = address.state ?? '';
     addressForm.phone_number = address.phone_number ?? '';
-    // Destinasi RajaOngkir harus dipilih ulang agar ongkir akurat.
+
+    const destinationId = String(address.rajaongkir_destination_id ?? '').trim();
+    const destinationLabel = String(
+        address.rajaongkir_destination_label ?? '',
+    ).trim();
+
+    if (destinationId !== '') {
+        addressForm.rajaongkir_destination_id = destinationId;
+        addressForm.rajaongkir_destination_label = destinationLabel;
+        destinationQuery.value = destinationLabel || destinationId;
+        destinationResults.value = [];
+        addressForm.clearErrors('rajaongkir_destination_id');
+        // One tap: reuse street + district and jump to courier rates.
+        submitAddress();
+        return;
+    }
+
+    // Legacy saved addresses without district — prompt search.
     addressForm.rajaongkir_destination_id = '';
     addressForm.rajaongkir_destination_label = '';
     destinationQuery.value = [address.city, address.postal_code]
@@ -362,7 +384,7 @@ function selectAddress(address: Address): void {
         .join(' ');
     destinationResults.value = [];
     if (destinationQuery.value.trim().length >= 2) {
-        searchDestinations(destinationQuery.value.trim());
+        void searchDestinations(destinationQuery.value.trim());
     }
 }
 
@@ -508,6 +530,10 @@ const steps = [
                         <h2 class="text-[13px] font-semibold text-zinc-900">
                             Alamat tersimpan
                         </h2>
+                        <p class="mt-1 text-[11px] text-zinc-500">
+                            Ketuk sekali untuk pakai lagi — district tersimpan
+                            ikut dipakai.
+                        </p>
                         <div class="mt-4 grid gap-3 sm:grid-cols-2">
                             <button
                                 v-for="address in savedAddresses"
@@ -532,6 +558,16 @@ const steps = [
                                         {{ address.street_address }},
                                         {{ address.city }}
                                         {{ address.postal_code }}
+                                    </p>
+                                    <p
+                                        v-if="
+                                            address.rajaongkir_destination_label
+                                        "
+                                        class="mt-1 text-[11px] text-emerald-700"
+                                    >
+                                        {{
+                                            address.rajaongkir_destination_label
+                                        }}
                                     </p>
                                     <p class="text-xs text-zinc-500">
                                         {{ address.country?.name }}

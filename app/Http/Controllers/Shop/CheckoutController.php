@@ -8,6 +8,7 @@ use App\Actions\Checkout\BuildShippingPackages;
 use App\Actions\Checkout\CreateKomercePayment;
 use App\Actions\Checkout\FetchDeliveryRates;
 use App\Actions\Checkout\FetchPaymentMethods;
+use App\Actions\Checkout\PersistUserShippingAddress;
 use App\Actions\CreateOrder;
 use App\Actions\Notify\NotifyOrderCustomer;
 use App\Actions\Warehouse\SuggestAllocation;
@@ -64,6 +65,30 @@ final class CheckoutController extends Controller
         $shippingOption = data_get($checkout, 'shipping_option.0');
         $payment = data_get($checkout, 'payment.0');
 
+        $persistAddress = resolve(PersistUserShippingAddress::class);
+
+        // Returning customers: reuse default saved address (incl. district)
+        // so they land on shipping rates instead of retyping the form.
+        if (! is_array($shippingAddress) || $shippingAddress === []) {
+            $user = Auth::user();
+            if ($user) {
+                $defaultAddress = $user->addresses()
+                    ->where('shipping_default', true)
+                    ->orderByDesc('updated_at')
+                    ->first()
+                    ?? $user->addresses()->orderByDesc('updated_at')->first();
+
+                if ($defaultAddress) {
+                    $applied = $persistAddress->toCheckoutShippingAddress($defaultAddress);
+                    if ($applied !== null) {
+                        session()->put(CheckoutSession::SHIPPING_ADDRESS, $applied);
+                        $shippingAddress = $applied;
+                        $checkout = session()->get(CheckoutSession::KEY, []);
+                    }
+                }
+            }
+        }
+
         $deliveryOptions = [];
         $allocation = null;
         $deliveryOptionsByShipment = [];
@@ -112,10 +137,14 @@ final class CheckoutController extends Controller
 
         $selectedByShipment = data_get($checkout, 'shipping_options_by_shipment', []);
 
+        $user = Auth::user();
+
         return Inertia::render('shop/checkout', [
             'cart' => $cart,
             'cartContext' => $context,
-            'savedAddresses' => Auth::user()?->addresses()->with('country')->get() ?? [],
+            'savedAddresses' => $user
+                ? $persistAddress->mapSavedAddressesForCheckout($user)
+                : [],
             'shippingAddress' => $shippingAddress,
             'deliveryOptions' => $deliveryOptions,
             'selectedDeliveryOption' => $shippingOption['id'] ?? null,
@@ -239,6 +268,12 @@ final class CheckoutController extends Controller
                 'phone' => $data['phone_number'] ?? null,
                 'country_id' => $zone?->countryId,
             ]);
+        }
+
+        if ($user = Auth::user()) {
+            $saved = resolve(PersistUserShippingAddress::class)->handle($user, $data);
+            $data['saved_address_id'] = $saved->id;
+            session()->put(CheckoutSession::SHIPPING_ADDRESS, $data);
         }
 
         return redirect()->route('shop.checkout.index');
