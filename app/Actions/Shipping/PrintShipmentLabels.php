@@ -40,7 +40,9 @@ final readonly class PrintShipmentLabels
             ->all();
 
         if ($orderNos === []) {
-            throw new RuntimeException('No shipment with a RajaOngkir delivery order is ready for label printing.');
+            throw new RuntimeException(
+                'This shipment is not ready for a label yet. Wait until payment is confirmed and the RajaOngkir delivery order (with pickup) has been created.',
+            );
         }
 
         return $this->delivery->printLabel($orderNos, $page);

@@ -1,4 +1,5 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
+import komerce from './komerce'
 /**
 * @see \App\Http\Controllers\StripeWebhookController::__invoke
 * @see app/Http/Controllers/StripeWebhookController.php:17
@@ -57,6 +58,7 @@ stripe.form = stripeForm
 
 const webhooks = {
     stripe: Object.assign(stripe, stripe),
+    komerce: Object.assign(komerce, komerce),
 }
 
 export default webhooks

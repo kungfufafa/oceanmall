@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Account\OrderController::index
-* @see app/Http/Controllers/Account/OrderController.php:17
+* @see app/Http/Controllers/Account/OrderController.php:18
 * @route '/account/orders'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::index
-* @see app/Http/Controllers/Account/OrderController.php:17
+* @see app/Http/Controllers/Account/OrderController.php:18
 * @route '/account/orders'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::index
-* @see app/Http/Controllers/Account/OrderController.php:17
+* @see app/Http/Controllers/Account/OrderController.php:18
 * @route '/account/orders'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::index
-* @see app/Http/Controllers/Account/OrderController.php:17
+* @see app/Http/Controllers/Account/OrderController.php:18
 * @route '/account/orders'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::index
-* @see app/Http/Controllers/Account/OrderController.php:17
+* @see app/Http/Controllers/Account/OrderController.php:18
 * @route '/account/orders'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::index
-* @see app/Http/Controllers/Account/OrderController.php:17
+* @see app/Http/Controllers/Account/OrderController.php:18
 * @route '/account/orders'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::index
-* @see app/Http/Controllers/Account/OrderController.php:17
+* @see app/Http/Controllers/Account/OrderController.php:18
 * @route '/account/orders'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ index.form = indexForm
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:37
+* @see app/Http/Controllers/Account/OrderController.php:38
 * @route '/account/orders/{order}'
 */
 export const show = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +97,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:37
+* @see app/Http/Controllers/Account/OrderController.php:38
 * @route '/account/orders/{order}'
 */
 show.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -130,7 +130,7 @@ show.url = (args: { order: number | { id: number } } | [order: number | { id: nu
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:37
+* @see app/Http/Controllers/Account/OrderController.php:38
 * @route '/account/orders/{order}'
 */
 show.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -140,7 +140,7 @@ show.get = (args: { order: number | { id: number } } | [order: number | { id: nu
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:37
+* @see app/Http/Controllers/Account/OrderController.php:38
 * @route '/account/orders/{order}'
 */
 show.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -150,7 +150,7 @@ show.head = (args: { order: number | { id: number } } | [order: number | { id: n
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:37
+* @see app/Http/Controllers/Account/OrderController.php:38
 * @route '/account/orders/{order}'
 */
 const showForm = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -160,7 +160,7 @@ const showForm = (args: { order: number | { id: number } } | [order: number | { 
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:37
+* @see app/Http/Controllers/Account/OrderController.php:38
 * @route '/account/orders/{order}'
 */
 showForm.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -170,7 +170,7 @@ showForm.get = (args: { order: number | { id: number } } | [order: number | { id
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:37
+* @see app/Http/Controllers/Account/OrderController.php:38
 * @route '/account/orders/{order}'
 */
 showForm.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

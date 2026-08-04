@@ -31,9 +31,9 @@ final class ShippingDeliveryClient
     /**
      * Store a RajaOngkir delivery order.
      *
-     * Assumed payload includes order_no, origin_id, destination_id,
-     * payment_method, service_fee, receiver{...}, shipping{...}, items, and
-     * total_weight.
+     * Assumed payload follows the official store-order schema:
+     * order_date, brand_name, shipper_*, receiver_*, shipping, shipping_type,
+     * shipping_cost, payment_method, order_details, etc.
      *
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
@@ -51,7 +51,7 @@ final class ShippingDeliveryClient
     /**
      * Request pickup for one or more RajaOngkir delivery orders.
      *
-     * Assumed payload includes order_no and may include awb or pickup metadata.
+     * Official payload: pickup_date, pickup_time, pickup_vehicle, orders[{order_no}].
      *
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
@@ -106,12 +106,24 @@ final class ShippingDeliveryClient
     /**
      * Track an airway bill through the RajaOngkir delivery history endpoint.
      *
+     * Docs require both courier name (`shipping`) and AWB (`airway_bill`).
+     *
      * @return array<string, mixed>
      */
-    public function track(string $awb): array
+    public function track(string $airwayBill, string $shipping): array
     {
+        $airwayBill = trim($airwayBill);
+        $shipping = trim($shipping);
+
+        if ($airwayBill === '' || $shipping === '') {
+            throw new InvalidArgumentException('Tracking requires both shipping courier and airway_bill.');
+        }
+
         $response = $this->deliveryHttp()
-            ->get(self::TRACK_ENDPOINT, ['awb' => $awb])
+            ->get(self::TRACK_ENDPOINT, [
+                'shipping' => $shipping,
+                'airway_bill' => $airwayBill,
+            ])
             ->throw()
             ->json();
 

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Webhooks;
 
 use App\Actions\Checkout\MarkOrderPaidFromKomerce;
 use App\Http\Controllers\Controller;
+use App\Support\KomerceCallbackSignature;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -48,16 +49,13 @@ final class KomercePaymentWebhookController extends Controller
     private function hasValidSecret(Request $request): bool
     {
         $expected = (string) config('komerce.webhook_secret', '');
-
-        if ($expected === '') {
-            return false;
-        }
-
-        $actual = $request->header('X-Callback-Api-Key')
+        $actual = (string) (
+            $request->header('X-Callback-Api-Key')
             ?? $request->header('x-api-key')
             ?? $request->header('X-Komerce-Webhook-Secret')
-            ?? '';
+            ?? ''
+        );
 
-        return hash_equals($expected, (string) $actual);
+        return KomerceCallbackSignature::isValid($request->getContent(), $expected, $actual);
     }
 }

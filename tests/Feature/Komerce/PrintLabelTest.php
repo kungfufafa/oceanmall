@@ -125,6 +125,42 @@ final class PrintLabelTest extends TestCase
         });
     }
 
+    public function test_admin_print_label_resolves_relative_path_against_delivery_base(): void
+    {
+        $this->fakeDeliveryConfig();
+        [$order] = $this->orderWithDeliveryOrder();
+
+        Http::fake([
+            'https://delivery.example.test/order/api/v1/orders/print-label*' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => ['path' => '/storage/label-relative.pdf'],
+            ]),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.orders.print-label', $order))
+            ->assertRedirect('https://delivery.example.test/storage/label-relative.pdf');
+    }
+
+    public function test_admin_print_label_streams_base64_pdf_when_path_missing(): void
+    {
+        $this->fakeDeliveryConfig();
+        [$order] = $this->orderWithDeliveryOrder();
+
+        Http::fake([
+            'https://delivery.example.test/order/api/v1/orders/print-label*' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => ['base_64' => base64_encode('%PDF-fake-label')],
+            ]),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.orders.print-label', $order))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertSee('%PDF-fake-label', false);
+    }
+
     public function test_print_label_requires_admin_role(): void
     {
         $this->fakeDeliveryConfig();
@@ -144,7 +180,22 @@ final class PrintLabelTest extends TestCase
         [$order] = $this->orderWithDeliveryOrder(komerceOrderNo: null);
         Http::fake();
 
-        $this->from(route('account.orders.show', $order))
+        $this->from(route('admin.orders.show', $order))
+            ->actingAs($this->admin())
+            ->get(route('admin.orders.print-label', $order))
+            ->assertSessionHasErrors('label');
+
+        Http::assertNothingSent();
+    }
+
+    public function test_print_label_blocked_when_komerce_disabled(): void
+    {
+        config()->set('komerce.enabled', false);
+        config()->set('komerce.api_key', '');
+        [$order] = $this->orderWithDeliveryOrder();
+        Http::fake();
+
+        $this->from(route('admin.orders.show', $order))
             ->actingAs($this->admin())
             ->get(route('admin.orders.print-label', $order))
             ->assertSessionHasErrors('label');

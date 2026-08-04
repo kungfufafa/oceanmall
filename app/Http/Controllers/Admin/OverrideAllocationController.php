@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Warehouse\OverrideAllocation;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -14,7 +15,7 @@ use Shopper\Core\Models\Order;
 
 final class OverrideAllocationController extends Controller
 {
-    public function __invoke(Order $order, OverrideAllocation $overrideAllocation): Response
+    public function __invoke(Order $order, OverrideAllocation $overrideAllocation): Response|RedirectResponse
     {
         Gate::authorize('override-allocation', $order);
 
@@ -36,6 +37,10 @@ final class OverrideAllocationController extends Controller
 
         $overrideAllocation->handle($order, $payload['moves'], $actor);
 
-        return response()->noContent();
+        if (request()->expectsJson() && ! request()->header('X-Inertia')) {
+            return response()->noContent();
+        }
+
+        return back()->with('status', __('Allocation updated.'));
     }
 }

@@ -33,7 +33,7 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
         }
 
         $shipment = OrderShipment::query()
-            ->with(['order.shippingAddress', 'inventory', 'lines.purchasable'])
+            ->with(['order.shippingAddress', 'order.items', 'order.customer', 'inventory', 'lines.purchasable'])
             ->findOrFail($this->orderShipmentId);
 
         if ($shipment->awb || $shipment->tracking_number) {
@@ -75,7 +75,11 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
                 'data.order_number',
                 'order_no',
                 'order_number',
-            ]) ?? $payload['order_no'];
+            ]);
+
+            if ($deliveryOrderNo === null) {
+                throw new RuntimeException('Komerce store-order response did not include an order_no.');
+            }
 
             $awb = $this->firstScalar($storeResponse, [
                 'data.awb',
@@ -103,10 +107,14 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             ])->save();
         }
 
-        $pickupResponse = $delivery->requestPickup(array_filter([
-            'order_no' => $deliveryOrderNo,
-            'awb' => $awb,
-        ], static fn (mixed $value): bool => $value !== null));
+        $pickupResponse = $delivery->requestPickup([
+            'pickup_date' => now()->addDay()->format('Y-m-d'),
+            'pickup_time' => (string) config('komerce.pickup_time', '10:00'),
+            'pickup_vehicle' => (string) config('komerce.pickup_vehicle', 'Motor'),
+            'orders' => [
+                ['order_no' => $deliveryOrderNo],
+            ],
+        ]);
 
         $shipment->forceFill([
             'awb' => $awb,
@@ -124,6 +132,9 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
     }
 
     /**
+     * Build store-order payload matching
+     * https://rajaongkir.com/docs/delivery-order-api/Store_order/store_order
+     *
      * @return array<string, mixed>
      */
     private function storeOrderPayload(OrderShipment $shipment): array
@@ -135,7 +146,8 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             throw new RuntimeException('Shipment is missing an order.');
         }
 
-        $originId = $shipment->inventory?->getAttribute('rajaongkir_origin_id');
+        $inventory = $shipment->inventory;
+        $originId = $inventory?->getAttribute('rajaongkir_origin_id');
         if (! is_scalar($originId) || trim((string) $originId) === '') {
             throw new RuntimeException('Shipment inventory is missing a RajaOngkir origin id.');
         }
@@ -148,35 +160,56 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             throw new RuntimeException('Order is missing a RajaOngkir destination id.');
         }
 
-        $items = $this->items($shipment);
+        $orderDetails = $this->orderDetails($shipment, $order);
+        $shippingCost = (int) $shipment->cost;
+        $itemsSubtotal = array_sum(array_map(
+            static fn (array $detail): int => (int) $detail['subtotal'],
+            $orderDetails,
+        ));
+
+        $shipperAddress = trim(implode(', ', array_filter([
+            $inventory?->street_address,
+            $inventory?->street_address_plus,
+            $inventory?->city,
+            $inventory?->postal_code,
+        ], static fn (mixed $part): bool => is_scalar($part) && trim((string) $part) !== '')));
+
+        if ($shipperAddress === '') {
+            $shipperAddress = trim(implode(', ', array_filter([
+                shopper_setting('street_address'),
+                shopper_setting('city'),
+                shopper_setting('postal_code'),
+            ], static fn (mixed $part): bool => is_scalar($part) && trim((string) $part) !== '')));
+        }
+
+        $carrierName = strtoupper(trim((string) ($shipment->carrier_name ?: $shipment->carrier_code)));
+        $shippingType = trim((string) ($shipment->service_code ?: $shipment->service_name));
 
         return [
-            'order_no' => $this->orderNo($order, $shipment),
-            'origin_id' => trim((string) $originId),
-            'destination_id' => trim((string) $destinationId),
+            'order_date' => now()->format('Y-m-d'),
+            'brand_name' => (string) (shopper_setting('name') ?: shopper_setting('legal_name') ?: config('app.name')),
+            'shipper_name' => (string) ($inventory?->name ?: shopper_setting('name') ?: config('app.name')),
+            'shipper_phone' => (string) ($inventory?->phone_number ?: shopper_setting('phone_number') ?: ''),
+            'shipper_destination_id' => (int) $originId,
+            'shipper_address' => $shipperAddress,
+            'shipper_email' => (string) ($inventory?->email ?: shopper_setting('email') ?: ''),
+            'receiver_name' => $this->receiverName($shippingAddress),
+            'receiver_phone' => (string) data_get($shippingAddress, 'phone_number', ''),
+            'receiver_destination_id' => (int) $destinationId,
+            'receiver_address' => (string) data_get($shippingAddress, 'street_address', ''),
+            'receiver_email' => (string) ($order->customer?->email ?? ''),
+            'shipping' => $carrierName,
+            'shipping_type' => $shippingType,
+            'shipping_cost' => $shippingCost,
+            'shipping_cashback' => 0,
             'payment_method' => 'BANK TRANSFER',
             'service_fee' => 0,
-            'receiver' => [
-                'name' => $this->receiverName($shippingAddress),
-                'phone' => (string) data_get($shippingAddress, 'phone_number', ''),
-                'address' => (string) data_get($shippingAddress, 'street_address', ''),
-                'address_detail' => data_get($shippingAddress, 'street_address_plus'),
-                'postal_code' => (string) data_get($shippingAddress, 'postal_code', ''),
-                'city' => (string) data_get($shippingAddress, 'city', ''),
-                'state' => data_get($shippingAddress, 'state'),
-            ],
-            'shipping' => [
-                'carrier_code' => (string) $shipment->carrier_code,
-                'carrier_name' => $shipment->carrier_name,
-                'service_code' => (string) $shipment->service_code,
-                'service_name' => $shipment->service_name,
-                'shipping_cost' => (int) $shipment->cost,
-            ],
-            'items' => $items,
-            'total_weight' => array_sum(array_map(
-                static fn (array $item): int => (int) $item['weight'] * (int) $item['quantity'],
-                $items,
-            )),
+            'additional_cost' => 0,
+            'grand_total' => $itemsSubtotal + $shippingCost,
+            'cod_value' => 0,
+            'insurance_value' => 0,
+            'notes' => null,
+            'order_details' => $orderDetails,
         ];
     }
 
@@ -221,26 +254,73 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
     /**
      * @return list<array<string, mixed>>
      */
-    private function items(OrderShipment $shipment): array
+    private function orderDetails(OrderShipment $shipment, Order $order): array
     {
+        $order->loadMissing('items');
+
         return $shipment->lines
-            ->map(function (OrderShipmentLine $line): array {
+            ->map(function (OrderShipmentLine $line) use ($order): array {
                 $purchasable = $line->purchasable;
+                $qty = max(1, (int) $line->qty);
                 $weight = $purchasable instanceof Model
                     ? $this->weightGrams($purchasable)
                     : 1;
 
+                $name = $purchasable instanceof Model
+                    ? (string) ($purchasable->getAttribute('name') ?? class_basename($purchasable))
+                    : 'Item';
+
+                $unitPrice = $this->unitPriceForLine($order, $line, $purchasable);
+
                 return [
-                    'name' => $purchasable instanceof Model
-                        ? (string) ($purchasable->getAttribute('name') ?? class_basename($purchasable))
-                        : 'Item',
-                    'sku' => $purchasable instanceof Model ? $purchasable->getAttribute('sku') : null,
-                    'quantity' => (int) $line->qty,
-                    'weight' => $weight,
+                    'product_name' => $name,
+                    'product_variant_name' => $purchasable instanceof Model
+                        ? (string) ($purchasable->getAttribute('sku') ?? '')
+                        : '',
+                    'product_price' => $unitPrice,
+                    'product_weight' => $weight,
+                    'product_width' => $purchasable instanceof Model
+                        ? max(1, (int) ceil((float) ($purchasable->getAttribute('width_value') ?? 10)))
+                        : 10,
+                    'product_height' => $purchasable instanceof Model
+                        ? max(1, (int) ceil((float) ($purchasable->getAttribute('height_value') ?? 10)))
+                        : 10,
+                    'product_length' => $purchasable instanceof Model
+                        ? max(1, (int) ceil((float) ($purchasable->getAttribute('depth_value') ?? 10)))
+                        : 10,
+                    'qty' => $qty,
+                    'subtotal' => $unitPrice * $qty,
                 ];
             })
             ->values()
             ->all();
+    }
+
+    private function unitPriceForLine(Order $order, OrderShipmentLine $line, mixed $purchasable): int
+    {
+        foreach ($order->items as $item) {
+            $sameMorph = $purchasable instanceof Model
+                && (string) $item->getAttribute('product_type') === $purchasable->getMorphClass()
+                && (int) $item->getAttribute('product_id') === (int) $purchasable->getKey();
+
+            $sameName = $purchasable instanceof Model
+                && (string) $item->name === (string) ($purchasable->getAttribute('name') ?? '');
+
+            if ($sameMorph || $sameName) {
+                return max(0, (int) $item->unit_price_amount);
+            }
+        }
+
+        if ($purchasable instanceof Model) {
+            foreach (['price_amount', 'amount'] as $attr) {
+                $value = $purchasable->getAttribute($attr);
+                if (is_numeric($value)) {
+                    return max(0, (int) $value);
+                }
+            }
+        }
+
+        return 0;
     }
 
     private function weightGrams(Model $model): int
@@ -267,11 +347,6 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
         ], static fn (mixed $part): bool => is_scalar($part) && trim((string) $part) !== '')));
     }
 
-    private function orderNo(Order $order, OrderShipment $shipment): string
-    {
-        return "{$order->number}-SHIP-{$shipment->id}";
-    }
-
     /**
      * @param  array<string, mixed>  $shipment
      * @param  array<int, string>  $paths
@@ -296,7 +371,7 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
     {
         $status = strtoupper((string) (data_get($pickupResponse, 'data.status') ?? data_get($pickupResponse, 'status', '')));
 
-        return in_array($status, ['PICKED_UP', 'PICKED UP', 'PICKEDUP'], true)
+        return in_array($status, ['PICKED_UP', 'PICKED UP', 'PICKEDUP', 'DIJEMPUT'], true)
             ? 'picked_up'
             : 'labeled';
     }
@@ -323,6 +398,7 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             'order_no' => $deliveryOrderNo,
             'awb' => $awb,
             'tracking_number' => $trackingNumber,
+            'shipping' => $shipment->carrier_name ?: $shipment->carrier_code,
             'store_order_response' => $storeResponse,
         ]), static fn (mixed $value): bool => $value !== null);
 

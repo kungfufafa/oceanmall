@@ -27,11 +27,13 @@ use Shopper\Core\Models\Zone;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Enum\TransactionType;
 use Shopper\Payment\Models\PaymentTransaction;
+use Tests\Support\SignsKomercePaymentCallbacks;
 use Tests\TestCase;
 
 final class KomerceCheckoutTest extends TestCase
 {
     use RefreshDatabase;
+    use SignsKomercePaymentCallbacks;
 
     protected function setUp(): void
     {
@@ -404,13 +406,12 @@ final class KomerceCheckoutTest extends TestCase
         );
 
         // Step 2: webhook callback marks paid
-        $this->withHeader('X-Callback-Api-Key', 'webhook-secret')
-            ->postJson('/webhooks/komerce/payment', [
-                'payment_id' => 'KOMPAY-E2E-001',
-                'order_id' => 'ORD-TEST-003',
-                'status' => 'PAID',
-                'amount' => 175000,
-            ])
+        $this->postSignedKomercePaymentWebhook([
+            'payment_id' => 'KOMPAY-E2E-001',
+            'order_id' => 'ORD-TEST-003',
+            'status' => 'PAID',
+            'amount' => 175000,
+        ])
             ->assertOk()
             ->assertJson(['status' => 'handled']);
 
@@ -590,7 +591,12 @@ final class KomerceCheckoutTest extends TestCase
                 && data_get($body, 'payment_type') === 'bank_transfer'
                 && data_get($body, 'channel_code') === 'BCA'
                 && data_get($body, 'order_id') === 'ORD-ACTION-001'
-                && data_get($body, 'amount') === 100000;
+                && data_get($body, 'amount') === 100000
+                && is_array(data_get($body, 'items'))
+                && count(data_get($body, 'items')) >= 1
+                && data_get($body, 'items.0.name') !== null
+                && data_get($body, 'items.0.quantity') >= 1
+                && data_get($body, 'items.0.price') >= 0;
         });
     }
 

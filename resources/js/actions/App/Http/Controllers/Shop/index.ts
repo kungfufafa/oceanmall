@@ -6,6 +6,7 @@ import SearchController from './SearchController'
 import CartController from './CartController'
 import ZoneController from './ZoneController'
 import CheckoutController from './CheckoutController'
+import DestinationSearchController from './DestinationSearchController'
 import StripePaymentController from './StripePaymentController'
 import CheckoutSuccessController from './CheckoutSuccessController'
 
@@ -18,6 +19,7 @@ const Shop = {
     CartController: Object.assign(CartController, CartController),
     ZoneController: Object.assign(ZoneController, ZoneController),
     CheckoutController: Object.assign(CheckoutController, CheckoutController),
+    DestinationSearchController: Object.assign(DestinationSearchController, DestinationSearchController),
     StripePaymentController: Object.assign(StripePaymentController, StripePaymentController),
     CheckoutSuccessController: Object.assign(CheckoutSuccessController, CheckoutSuccessController),
 }

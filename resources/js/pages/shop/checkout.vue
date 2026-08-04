@@ -36,6 +36,17 @@ type ShippingAddressForm = {
     state: string;
     phone_number: string;
     rajaongkir_destination_id: string;
+    rajaongkir_destination_label: string;
+};
+
+type DestinationResult = {
+    id: string;
+    label: string;
+    province_name: string | null;
+    city_name: string | null;
+    district_name: string | null;
+    subdistrict_name: string | null;
+    zip_code: string | null;
 };
 
 const props = defineProps<{
@@ -64,6 +75,7 @@ const props = defineProps<{
         return_url: string;
     } | null;
     komercePayment: KomercePaymentInstructions | null;
+    komerceEnabled: boolean;
 }>(); 
 
 const { currency, taxLabel, zone } = useShop();
@@ -95,7 +107,98 @@ const addressForm = useForm<ShippingAddressForm>({
     phone_number: props.shippingAddress?.phone_number ?? '',
     rajaongkir_destination_id:
         props.shippingAddress?.rajaongkir_destination_id ?? '',
+    rajaongkir_destination_label:
+        props.shippingAddress?.rajaongkir_destination_label ?? '',
 });
+
+const destinationQuery = ref(
+    props.shippingAddress?.rajaongkir_destination_label ?? '',
+);
+const destinationResults = ref<DestinationResult[]>([]);
+const destinationSearching = ref(false);
+const destinationSearchError = ref<string | null>(null);
+let destinationSearchTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(destinationQuery, (value) => {
+    if (destinationSearchTimer) {
+        clearTimeout(destinationSearchTimer);
+    }
+
+    if (!props.komerceEnabled || value.trim().length < 2) {
+        destinationResults.value = [];
+        destinationSearchError.value = null;
+        return;
+    }
+
+    // Keep selected label when it matches the selected id's label.
+    if (
+        addressForm.rajaongkir_destination_id &&
+        value === addressForm.rajaongkir_destination_label
+    ) {
+        return;
+    }
+
+    destinationSearchTimer = setTimeout(() => {
+        void searchDestinations(value.trim());
+    }, 300);
+});
+
+async function searchDestinations(query: string): Promise<void> {
+    destinationSearching.value = true;
+    destinationSearchError.value = null;
+
+    try {
+        const response = await fetch(
+            `/checkout/destinations?q=${encodeURIComponent(query)}&limit=10`,
+            {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            },
+        );
+
+        if (!response.ok) {
+            throw new Error('Destination search failed');
+        }
+
+        const payload = (await response.json()) as {
+            data?: DestinationResult[];
+        };
+        destinationResults.value = Array.isArray(payload.data)
+            ? payload.data
+            : [];
+    } catch {
+        destinationResults.value = [];
+        destinationSearchError.value =
+            'Unable to search destinations right now.';
+    } finally {
+        destinationSearching.value = false;
+    }
+}
+
+function selectDestination(result: DestinationResult): void {
+    addressForm.rajaongkir_destination_id = result.id;
+    addressForm.rajaongkir_destination_label = result.label;
+    destinationQuery.value = result.label;
+    destinationResults.value = [];
+
+    if (result.city_name && !addressForm.city) {
+        addressForm.city = result.city_name;
+    }
+
+    if (result.zip_code && !addressForm.postal_code) {
+        addressForm.postal_code = result.zip_code;
+    }
+}
+
+function clearDestination(): void {
+    addressForm.rajaongkir_destination_id = '';
+    addressForm.rajaongkir_destination_label = '';
+    destinationQuery.value = '';
+    destinationResults.value = [];
+}
 
 const shippingForm = useForm<{ service_code: string }>({
     service_code:
@@ -524,14 +627,86 @@ const steps = [
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="rajaongkir_destination_id">
-                                Destination ID (RajaOngkir)
+                            <Label for="destination_search">
+                                District / destination
+                                <span v-if="komerceEnabled" class="text-red-600"
+                                    >*</span
+                                >
                             </Label>
-                            <Input
-                                id="rajaongkir_destination_id"
-                                v-model="addressForm.rajaongkir_destination_id"
-                                placeholder="Optional"
-                            />
+                            <div class="relative">
+                                <Input
+                                    id="destination_search"
+                                    v-model="destinationQuery"
+                                    type="search"
+                                    autocomplete="off"
+                                    :placeholder="
+                                        komerceEnabled
+                                            ? 'Search city, district, or zip code'
+                                            : 'Optional when Komerce is disabled'
+                                    "
+                                    @focus="
+                                        destinationQuery.trim().length >= 2 &&
+                                        searchDestinations(
+                                            destinationQuery.trim(),
+                                        )
+                                    "
+                                />
+                                <button
+                                    v-if="addressForm.rajaongkir_destination_id"
+                                    type="button"
+                                    class="absolute inset-y-0 right-2 text-xs text-zinc-500 hover:text-zinc-800"
+                                    @click="clearDestination"
+                                >
+                                    Clear
+                                </button>
+                                <div
+                                    v-if="destinationResults.length"
+                                    class="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+                                >
+                                    <button
+                                        v-for="result in destinationResults"
+                                        :key="result.id"
+                                        type="button"
+                                        class="block w-full px-3 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                                        @click="selectDestination(result)"
+                                    >
+                                        {{ result.label }}
+                                    </button>
+                                </div>
+                            </div>
+                            <p
+                                v-if="destinationSearching"
+                                class="text-xs text-zinc-500"
+                            >
+                                Searching…
+                            </p>
+                            <p
+                                v-else-if="destinationSearchError"
+                                class="text-xs text-red-600"
+                            >
+                                {{ destinationSearchError }}
+                            </p>
+                            <p
+                                v-else-if="
+                                    addressForm.rajaongkir_destination_id
+                                "
+                                class="text-xs text-zinc-500"
+                            >
+                                Selected ID:
+                                {{ addressForm.rajaongkir_destination_id }}
+                            </p>
+                            <p
+                                v-if="
+                                    addressForm.errors
+                                        .rajaongkir_destination_id
+                                "
+                                class="text-xs text-red-600"
+                            >
+                                {{
+                                    addressForm.errors
+                                        .rajaongkir_destination_id
+                                }}
+                            </p>
                         </div>
 
                         <div class="flex">

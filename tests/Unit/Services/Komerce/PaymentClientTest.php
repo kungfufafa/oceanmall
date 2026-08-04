@@ -88,6 +88,54 @@ final class PaymentClientTest extends TestCase
         });
     }
 
+    public function test_create_virtual_account_uses_payment_api_key_over_legacy(): void
+    {
+        config()->set('komerce.api_key', 'legacy-key');
+        config()->set('komerce.payment_api_key', 'payment-key');
+        config()->set('komerce.qrisly_api_key', 'qrisly-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
+                'success' => true,
+                'data' => ['payment_id' => 'pay_va'],
+            ]),
+        ]);
+
+        (new PaymentClient)->createVirtualAccount([
+            'channel_code' => 'BRIVA',
+            'order_id' => 'ORDER-VA',
+            'amount' => 1000,
+            'customer' => ['name' => 'A', 'email' => 'a@test', 'phone' => '1'],
+        ]);
+
+        Http::assertSent(fn (Request $request): bool => $request->hasHeader('x-api-key', 'payment-key'));
+    }
+
+    public function test_create_qris_uses_payment_api_key(): void
+    {
+        config()->set('komerce.api_key', 'legacy-key');
+        config()->set('komerce.payment_api_key', 'payment-key');
+        config()->set('komerce.qrisly_api_key', 'qrisly-key');
+        config()->set('komerce.qrisly_qris_id', '99');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
+                'success' => true,
+                'data' => ['payment_id' => 'pay_qris'],
+            ]),
+        ]);
+
+        (new PaymentClient)->createQris([
+            'order_id' => 'ORDER-QRIS',
+            'amount' => 1000,
+            'customer' => ['name' => 'A', 'email' => 'a@test', 'phone' => '1'],
+        ]);
+
+        Http::assertSent(fn (Request $request): bool => $request->hasHeader('x-api-key', 'payment-key'));
+    }
+
     public function test_get_status_fetches_payment_status_by_reference(): void
     {
         config()->set('komerce.api_key', 'test-komerce-key');
@@ -111,6 +159,30 @@ final class PaymentClientTest extends TestCase
             return $request->method() === 'GET'
                 && $request->url() === 'https://payment.example.test/user/api/v1/user/payment/status/pay_123'
                 && $request->hasHeader('x-api-key', 'test-komerce-key');
+        });
+    }
+
+    public function test_cancel_posts_payment_id_and_reason(): void
+    {
+        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/cancel' => Http::response([
+                'success' => true,
+                'data' => ['payment_id' => 'pay_123', 'status' => 'CANCELLED'],
+            ]),
+        ]);
+
+        $response = (new PaymentClient)->cancel('pay_123', 'Payment expired');
+
+        $this->assertSame('CANCELLED', $response['data']['status']);
+
+        Http::assertSent(function (Request $request): bool {
+            return $request->method() === 'POST'
+                && $request->url() === 'https://payment.example.test/user/api/v1/user/payment/cancel'
+                && $request['payment_id'] === 'pay_123'
+                && $request['reason'] === 'Payment expired';
         });
     }
 }

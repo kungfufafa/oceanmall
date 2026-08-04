@@ -19,7 +19,22 @@ trait UsesKomerceHttp
             ->acceptJson()
             ->asJson()
             ->withHeaders([
-                'x-api-key' => $this->apiKey(),
+                'x-api-key' => $this->apiKey('komerce.payment_api_key'),
+            ]);
+    }
+
+    protected function qrislyHttp(): PendingRequest
+    {
+        if (! qrisly_enabled()) {
+            throw KomerceNotConfiguredException::make();
+        }
+
+        return Http::baseUrl($this->baseUrl('komerce.qrisly_base_url'))
+            ->timeout($this->timeout())
+            ->acceptJson()
+            ->asJson()
+            ->withHeaders([
+                'x-api-key' => $this->apiKey('komerce.qrisly_api_key'),
             ]);
     }
 
@@ -32,7 +47,7 @@ trait UsesKomerceHttp
             ->acceptJson()
             ->asForm()
             ->withHeaders([
-                'key' => $this->apiKey(),
+                'key' => $this->apiKey('komerce.shipping_cost_api_key'),
             ]);
     }
 
@@ -45,7 +60,7 @@ trait UsesKomerceHttp
             ->acceptJson()
             ->asJson()
             ->withHeaders([
-                'x-api-key' => $this->apiKey(),
+                'x-api-key' => $this->apiKey('komerce.shipping_delivery_api_key'),
             ]);
     }
 
@@ -60,9 +75,15 @@ trait UsesKomerceHttp
         }
     }
 
-    private function apiKey(): string
+    private function apiKey(string $configKey): string
     {
-        return (string) config('komerce.api_key', '');
+        $specific = trim((string) config($configKey, ''));
+
+        if ($specific !== '') {
+            return $specific;
+        }
+
+        return trim((string) config('komerce.api_key', ''));
     }
 
     private function baseUrl(string $key): string

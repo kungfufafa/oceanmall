@@ -39,6 +39,9 @@ final class OverrideAllocationTest extends TestCase
         ]);
         $this->app->instance(FetchDeliveryRates::class, $rates);
 
+        // Stock was already decreased at source for the order; destination still holds stock.
+        $fixture['product']->decreaseStock($fixture['fromInventory']->id, 2);
+
         resolve(OverrideAllocation::class)->handle($fixture['order'], [[
             'shipment_line_id' => $fixture['sourceLine']->id,
             'purchasable_type' => $fixture['product']->getMorphClass(),
@@ -71,6 +74,10 @@ final class OverrideAllocationTest extends TestCase
             'from_inventory_id' => $fixture['fromInventory']->id,
             'to_inventory_id' => $fixture['toInventory']->id,
         ]);
+
+        // Source restored +1 (3), destination debited -1 (4 if started at 5)
+        $this->assertSame(4, $fixture['product']->fresh()->stockInventory($fixture['fromInventory']->id));
+        $this->assertSame(4, $fixture['product']->fresh()->stockInventory($fixture['toInventory']->id));
     }
 
     public function test_rejects_shipments_that_already_have_awb(): void

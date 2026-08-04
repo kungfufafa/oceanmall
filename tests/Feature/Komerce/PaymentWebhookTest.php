@@ -14,11 +14,13 @@ use Shopper\Core\Models\Order;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Enum\TransactionType;
 use Shopper\Payment\Models\PaymentTransaction;
+use Tests\Support\SignsKomercePaymentCallbacks;
 use Tests\TestCase;
 
 final class PaymentWebhookTest extends TestCase
 {
     use RefreshDatabase;
+    use SignsKomercePaymentCallbacks;
 
     public function test_paid_callback_marks_order_paid_once_when_remote_status_is_paid(): void
     {
@@ -62,15 +64,13 @@ final class PaymentWebhookTest extends TestCase
             'amount' => 100000,
         ];
 
-        $this->withHeader('X-Callback-Api-Key', 'webhook-secret')
-            ->postJson('/webhooks/komerce/payment', $payload)
+        $this->postSignedKomercePaymentWebhook($payload)
             ->assertOk()
             ->assertJson(['status' => 'handled']);
 
         $this->travel(1)->minutes();
 
-        $this->withHeader('X-Callback-Api-Key', 'webhook-secret')
-            ->postJson('/webhooks/komerce/payment', $payload)
+        $this->postSignedKomercePaymentWebhook($payload)
             ->assertOk()
             ->assertJson(['status' => 'already_processed']);
 
@@ -90,14 +90,33 @@ final class PaymentWebhookTest extends TestCase
         });
     }
 
-    public function test_callback_with_invalid_secret_is_rejected(): void
+    public function test_callback_with_invalid_hmac_signature_is_rejected(): void
     {
         config()->set('komerce.webhook_secret', 'webhook-secret');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
 
         Http::fake();
 
-        $this->withHeader('X-Callback-Api-Key', 'wrong-secret')
+        $this->postSignedKomercePaymentWebhook([
+            'payment_id' => 'KOMPAY-1001',
+            'order_id' => 'ORDER-1001',
+            'status' => 'PAID',
+            'amount' => 100000,
+        ], overrideSignature: 'not-a-valid-hmac')
+            ->assertUnauthorized()
+            ->assertJson(['status' => 'invalid_secret']);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_callback_rejecting_plain_secret_header_requires_hmac(): void
+    {
+        config()->set('komerce.webhook_secret', 'webhook-secret');
+        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+        Http::fake();
+
+        $this->withHeader('X-Callback-Api-Key', 'webhook-secret')
             ->postJson('/webhooks/komerce/payment', [
                 'payment_id' => 'KOMPAY-1001',
                 'order_id' => 'ORDER-1001',
@@ -141,13 +160,12 @@ final class PaymentWebhookTest extends TestCase
             ]),
         ]);
 
-        $this->withHeader('X-Callback-Api-Key', 'webhook-secret')
-            ->postJson('/webhooks/komerce/payment', [
-                'payment_id' => 'KOMPAY-1002',
-                'order_id' => 'ORDER-1002',
-                'status' => 'PAID',
-                'amount' => 150000,
-            ])
+        $this->postSignedKomercePaymentWebhook([
+            'payment_id' => 'KOMPAY-1002',
+            'order_id' => 'ORDER-1002',
+            'status' => 'PAID',
+            'amount' => 150000,
+        ])
             ->assertOk()
             ->assertJson(['status' => 'handled']);
 

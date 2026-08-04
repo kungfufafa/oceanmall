@@ -104,6 +104,14 @@ function shipmentCarrierService(shipment: Shipment): string | null {
 
 const trackingShipmentId = ref<number | null>(null);
 const trackingError = ref<{ id: number; message: string } | null>(null);
+const confirmingReceived = ref(false);
+const receivedError = ref<string | null>(null);
+
+const canConfirmReceived =
+    props.order.status !== 'cancelled' &&
+    props.order.status !== 'completed' &&
+    props.order.payment_status === 'paid' &&
+    props.shipments.some((shipment) => Boolean(shipment.awb || shipment.tracking_number));
 
 function trackShipment(shipment: Shipment): void {
     trackingShipmentId.value = shipment.id;
@@ -123,6 +131,25 @@ function trackShipment(shipment: Shipment): void {
             },
             onFinish: () => {
                 trackingShipmentId.value = null;
+            },
+        },
+    );
+}
+
+function confirmReceived(): void {
+    confirmingReceived.value = true;
+    receivedError.value = null;
+    router.post(
+        `/account/orders/${props.order.id}/confirm-received`,
+        {},
+        {
+            preserveScroll: true,
+            onError: (errors) => {
+                receivedError.value =
+                    errors.received ?? 'Unable to confirm receipt right now.';
+            },
+            onFinish: () => {
+                confirmingReceived.value = false;
             },
         },
     );
@@ -169,6 +196,30 @@ function trackShipment(shipment: Shipment): void {
             <OrderStatusBadge :status="order.payment_status" type="payment" />
             <OrderStatusBadge :status="order.shipping_status" type="shipping" />
         </template>
+    </div>
+
+    <div v-if="canConfirmReceived" class="mt-4">
+        <button
+            type="button"
+            class="inline-flex items-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+            :disabled="confirmingReceived"
+            @click="confirmReceived"
+        >
+            {{ confirmingReceived ? 'Confirming…' : 'Mark as received' }}
+        </button>
+        <p
+            v-if="receivedError"
+            class="mt-2 text-sm text-red-600 dark:text-red-400"
+        >
+            {{ receivedError }}
+        </p>
+    </div>
+
+    <div
+        v-else-if="order.status === 'completed'"
+        class="mt-4 text-sm text-zinc-500"
+    >
+        Order completed — thank you.
     </div>
 
     <div class="mt-8 grid gap-6 lg:grid-cols-3">

@@ -35,6 +35,7 @@ final class OverrideAllocation
             $this->ensureDestinationStock($order, $normalizedMoves);
 
             foreach ($normalizedMoves as $move) {
+                $this->transferStock($move, $order);
                 $targetShipment = $this->moveLine($order, $move);
                 $affectedShipmentIds[] = (int) $targetShipment->id;
             }
@@ -259,6 +260,38 @@ final class OverrideAllocation
         }
 
         return $model;
+    }
+
+    /**
+     * @param  array{purchasable_type: string, purchasable_id: int, qty: int, from_inventory_id: int, to_inventory_id: int}  $move
+     */
+    private function transferStock(array $move, Order $order): void
+    {
+        $purchasable = $this->purchasable($move['purchasable_type'], $move['purchasable_id']);
+
+        if (! method_exists($purchasable, 'mutateStock') || ! method_exists($purchasable, 'decreaseStock')) {
+            return;
+        }
+
+        $purchasable->mutateStock(
+            $move['from_inventory_id'],
+            $move['qty'],
+            0,
+            'allocation_override_restore',
+            'Restore stock at source inventory after allocation override',
+            null,
+            $order,
+        );
+
+        $purchasable->decreaseStock(
+            $move['to_inventory_id'],
+            $move['qty'],
+            0,
+            'allocation_override_debit',
+            'Debit stock at destination inventory after allocation override',
+            null,
+            $order,
+        );
     }
 
     /**

@@ -124,11 +124,16 @@ final class CheckoutController extends Controller
                 'return_url' => route('shop.checkout.stripe-return'),
             ] : null,
             'komercePayment' => $komercePayment,
+            'komerceEnabled' => komerce_enabled(),
         ]);
     }
 
     public function saveShippingAddress(Request $request): RedirectResponse
     {
+        $destinationRule = komerce_enabled()
+            ? ['required', 'string', 'max:50']
+            : ['nullable', 'string', 'max:50'];
+
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
@@ -138,7 +143,8 @@ final class CheckoutController extends Controller
             'city' => ['required', 'string', 'max:255'],
             'state' => ['nullable', 'string', 'max:255'],
             'phone_number' => ['nullable', 'string', 'max:20'],
-            'rajaongkir_destination_id' => ['nullable', 'string', 'max:50'],
+            'rajaongkir_destination_id' => $destinationRule,
+            'rajaongkir_destination_label' => ['nullable', 'string', 'max:255'],
             'destination_id' => ['nullable', 'string', 'max:50'],
         ]);
 

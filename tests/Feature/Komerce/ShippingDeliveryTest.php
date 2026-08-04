@@ -73,12 +73,33 @@ final class ShippingDeliveryTest extends TestCase
         });
     }
 
+    public function test_delivery_client_tracks_with_shipping_and_airway_bill_query_params(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        Http::fake([
+            'https://delivery.example.test/order/api/v1/orders/history-airway-bill*' => Http::response([
+                'meta' => ['code' => 200],
+                'data' => ['status' => 'ON_PROCESS'],
+            ]),
+        ]);
+
+        resolve(ShippingDeliveryClient::class)->track('JNE123', 'JNE');
+
+        Http::assertSent(function (Request $request): bool {
+            return $request->method() === 'GET'
+                && str_starts_with($request->url(), 'https://delivery.example.test/order/api/v1/orders/history-airway-bill')
+                && $request['shipping'] === 'JNE'
+                && $request['airway_bill'] === 'JNE123'
+                && ! array_key_exists('awb', $request->data());
+        });
+    }
+
     public function test_delivery_job_creates_order_requests_pickup_and_stores_tracking(): void
     {
         $this->fakeDeliveryConfig();
 
         [$order, $shipment] = $this->createShipmentReadyForDelivery();
-        $expectedOrderNo = "{$order->number}-SHIP-{$shipment->id}";
 
         Http::fake([
             'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
@@ -105,33 +126,36 @@ final class ShippingDeliveryTest extends TestCase
         $this->assertSame('labeled', $shipment->status);
         $this->assertSame('RO-ORDER-001', data_get($shipment->metadata, 'komerce.order_no'));
 
-        Http::assertSent(function (Request $request) use ($expectedOrderNo): bool {
+        Http::assertSent(function (Request $request): bool {
             $payload = $request->data();
 
             return $request->method() === 'POST'
                 && $request->url() === 'https://delivery.example.test/order/api/v1/orders/store'
-                && data_get($payload, 'order_no') === $expectedOrderNo
-                && data_get($payload, 'origin_id') === '501'
-                && data_get($payload, 'destination_id') === '152'
+                && data_get($payload, 'shipper_destination_id') === 501
+                && data_get($payload, 'receiver_destination_id') === 152
                 && data_get($payload, 'payment_method') === 'BANK TRANSFER'
                 && data_get($payload, 'service_fee') === 0
-                && data_get($payload, 'shipping.carrier_code') === 'jne'
-                && data_get($payload, 'shipping.service_code') === 'REG'
-                && data_get($payload, 'receiver.name') === 'Budi Santoso'
-                && data_get($payload, 'receiver.phone') === '081234567890'
-                && data_get($payload, 'receiver.address') === 'Jl. Merdeka 1'
-                && data_get($payload, 'receiver.postal_code') === '10110'
-                && data_get($payload, 'items.0.name') === 'Kopi Cirebon'
-                && data_get($payload, 'items.0.quantity') === 2
-                && data_get($payload, 'items.0.weight') === 500
-                && data_get($payload, 'total_weight') === 1000;
+                && data_get($payload, 'shipping') === 'JNE'
+                && data_get($payload, 'shipping_type') === 'REG'
+                && data_get($payload, 'receiver_name') === 'Budi Santoso'
+                && data_get($payload, 'receiver_phone') === '081234567890'
+                && data_get($payload, 'receiver_address') === 'Jl. Merdeka 1'
+                && data_get($payload, 'order_details.0.product_name') === 'Kopi Cirebon'
+                && data_get($payload, 'order_details.0.qty') === 2
+                && data_get($payload, 'order_details.0.product_weight') === 500
+                && ! array_key_exists('order_no', $payload)
+                && ! array_key_exists('origin_id', $payload);
         });
 
         Http::assertSent(function (Request $request): bool {
+            $payload = $request->data();
+
             return $request->method() === 'POST'
                 && $request->url() === 'https://delivery.example.test/order/api/v1/pickup/request'
-                && data_get($request->data(), 'order_no') === 'RO-ORDER-001'
-                && ! array_key_exists('order_shipment_id', $request->data());
+                && data_get($payload, 'orders.0.order_no') === 'RO-ORDER-001'
+                && data_get($payload, 'pickup_vehicle') === 'Motor'
+                && isset($payload['pickup_date'], $payload['pickup_time'])
+                && ! array_key_exists('order_no', $payload);
         });
     }
 
@@ -219,10 +243,9 @@ final class ShippingDeliveryTest extends TestCase
 
             return $request->method() === 'POST'
                 && $request->url() === 'https://delivery.example.test/order/api/v1/pickup/request'
-                && $payload === [
-                    'order_no' => 'RO-ORDER-RETRY',
-                    'awb' => 'JNE-RETRY-AWB',
-                ];
+                && data_get($payload, 'orders.0.order_no') === 'RO-ORDER-RETRY'
+                && data_get($payload, 'pickup_vehicle') === 'Motor'
+                && isset($payload['pickup_date'], $payload['pickup_time']);
         });
     }
 

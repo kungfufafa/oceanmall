@@ -48,5 +48,5 @@ and `package.json` (`scripts`) — use those; only the non-obvious notes below a
   actual `settings/security`), checkout endpoints returning 409, and profile update field-name
   mismatches (`first_name`/`last_name`). The environment itself runs the full suite fine.
 - **Payment/shipping (Komerce / RajaOngkir).** Full checkout needs sandbox creds
-  (`KOMERCE_API_KEY`, `KOMERCE_WEBHOOK_SECRET`, RajaOngkir base URLs). Storefront browsing, cart,
+  (`KOMERCE_PAYMENT_API_KEY`, `KOMERCE_SHIPPING_*_API_KEY`, `KOMERCE_WEBHOOK_SECRET`, RajaOngkir base URLs). Storefront browsing, cart,
   and the admin panel work without them. Stripe stays disabled (`PAYMENT_STRIPE_ENABLED=false`).

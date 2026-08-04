@@ -47,7 +47,35 @@ if (! function_exists('komerce_enabled')) {
             return (bool) $explicit;
         }
 
-        return trim((string) config('komerce.api_key', '')) !== '';
+        foreach ([
+            'komerce.api_key',
+            'komerce.payment_api_key',
+            'komerce.shipping_cost_api_key',
+            'komerce.shipping_delivery_api_key',
+            'komerce.qrisly_api_key',
+        ] as $key) {
+            if (trim((string) config($key, '')) !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+if (! function_exists('qrisly_enabled')) {
+    /**
+     * QRISLY product API is opt-in: both API key and merchant qris_id must be set.
+     * When disabled, checkout QRIS falls back to Komerce Payment API (`payment_type=qris`).
+     */
+    function qrisly_enabled(): bool
+    {
+        if (! komerce_enabled()) {
+            return false;
+        }
+
+        return trim((string) config('komerce.qrisly_api_key', '')) !== ''
+            && trim((string) config('komerce.qrisly_qris_id', '')) !== '';
     }
 }
 

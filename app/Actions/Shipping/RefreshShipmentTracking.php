@@ -10,7 +10,11 @@ use RuntimeException;
 
 final readonly class RefreshShipmentTracking
 {
-    public function __construct(private ShippingDeliveryClient $delivery) {}
+    public function __construct(
+        private ShippingDeliveryClient $delivery,
+        private NormalizeShipmentStatus $normalizeStatus,
+        private SyncOrderShippingFromShipments $syncOrderShipping,
+    ) {}
 
     /**
      * Fetch the latest RajaOngkir tracking history for a shipment and
@@ -26,33 +30,62 @@ final readonly class RefreshShipmentTracking
             throw new RuntimeException('This shipment has no airway bill (AWB) to track yet.');
         }
 
-        $response = $this->delivery->track($awb);
+        $shipping = $this->shippingCourier($shipment);
+
+        if ($shipping === null) {
+            throw new RuntimeException('This shipment has no courier (shipping) to track yet.');
+        }
+
+        $response = $this->delivery->track($awb, $shipping);
 
         $history = $this->normalizeHistory($response);
-        $status = $this->resolveStatus($response, $history);
+        $rawStatus = $this->resolveRawStatus($response, $history);
+        $normalized = $this->normalizeStatus->handle($rawStatus, is_string($shipment->status) ? $shipment->status : null);
 
         $metadata = is_array($shipment->metadata) ? $shipment->metadata : [];
         $komerce = is_array($metadata['komerce'] ?? null) ? $metadata['komerce'] : [];
         $komerce['tracking'] = $response;
         $komerce['tracking_history'] = $history;
-        $komerce['tracking_status'] = $status;
+        $komerce['tracking_status'] = $rawStatus;
         $komerce['tracked_at'] = now()->toIso8601String();
         $metadata['komerce'] = $komerce;
 
         $attributes = ['metadata' => $metadata];
 
-        if ($status !== null) {
-            $attributes['status'] = $status;
+        if ($normalized !== null) {
+            $attributes['status'] = $normalized;
         }
 
         $shipment->forceFill($attributes)->save();
 
-        return $shipment;
+        $order = $shipment->order()->first();
+
+        if ($order !== null) {
+            $this->syncOrderShipping->handle($order);
+        }
+
+        return $shipment->refresh();
     }
 
     private function airwayBill(OrderShipment $shipment): ?string
     {
         foreach ([$shipment->awb, data_get($shipment->metadata, 'komerce.awb')] as $candidate) {
+            if (is_scalar($candidate) && trim((string) $candidate) !== '') {
+                return trim((string) $candidate);
+            }
+        }
+
+        return null;
+    }
+
+    private function shippingCourier(OrderShipment $shipment): ?string
+    {
+        foreach ([
+            $shipment->carrier_name,
+            $shipment->carrier_code,
+            data_get($shipment->metadata, 'komerce.shipping'),
+            data_get($shipment->metadata, 'komerce.carrier_name'),
+        ] as $candidate) {
             if (is_scalar($candidate) && trim((string) $candidate) !== '') {
                 return trim((string) $candidate);
             }
@@ -114,7 +147,7 @@ final readonly class RefreshShipmentTracking
      * @param  array<string, mixed>  $response
      * @param  list<array{description: string, datetime: string|null, location: string|null}>  $history
      */
-    private function resolveStatus(array $response, array $history): ?string
+    private function resolveRawStatus(array $response, array $history): ?string
     {
         foreach (['data.status', 'data.delivery_status', 'data.summary.status', 'status'] as $path) {
             $value = data_get($response, $path);
@@ -124,6 +157,8 @@ final readonly class RefreshShipmentTracking
             }
         }
 
-        return null;
+        $last = $history !== [] ? ($history[array_key_last($history)]['description'] ?? null) : null;
+
+        return is_string($last) && $last !== '' ? $last : null;
     }
 }

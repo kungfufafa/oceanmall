@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Account;
 
+use App\Actions\Shipping\NormalizeShipmentStatus;
 use App\Models\OrderShipment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia as Assert;
+use Shopper\Core\Enum\OrderStatus;
+use Shopper\Core\Enum\PaymentStatus;
+use Shopper\Core\Enum\ShippingStatus;
 use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
 use Tests\TestCase;
@@ -100,7 +104,52 @@ final class ShipmentTrackingRefreshTest extends TestCase
         $this->assertSame('2026-08-01 09:00', $history[0]['datetime']);
         $this->assertSame('Jakarta', $history[0]['location']);
         $this->assertSame('ON_PROCESS', data_get($shipment->metadata, 'komerce.tracking_status'));
-        $this->assertSame('ON_PROCESS', $shipment->status);
+        $this->assertSame(NormalizeShipmentStatus::IN_TRANSIT, $shipment->status);
+
+        $order->refresh();
+        $this->assertSame(ShippingStatus::Shipped, $order->shipping_status);
+    }
+
+    public function test_delivered_tracking_syncs_order_shipping_status_and_completes_order(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        Http::fake([
+            'https://delivery.example.test/order/api/v1/orders/history-airway-bill*' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [
+                    'status' => 'DELIVERED',
+                    'manifest' => [
+                        [
+                            'manifest_description' => 'Package delivered to recipient',
+                            'manifest_date' => '2026-08-03',
+                            'manifest_time' => '11:00',
+                            'city_name' => 'Bandung',
+                        ],
+                    ],
+                ],
+            ]),
+        ]);
+
+        [$customer, $order, $shipment] = $this->customerOrderShipment();
+        $order->forceFill([
+            'status' => OrderStatus::Processing,
+            'payment_status' => PaymentStatus::Paid,
+            'shipping_status' => ShippingStatus::Shipped,
+        ])->save();
+
+        $this->actingAs($customer)
+            ->from(route('account.orders.show', $order))
+            ->post(route('account.orders.shipments.track', ['order' => $order, 'shipment' => $shipment]))
+            ->assertRedirect(route('account.orders.show', $order));
+
+        $shipment->refresh();
+        $order->refresh();
+
+        $this->assertSame('DELIVERED', data_get($shipment->metadata, 'komerce.tracking_status'));
+        $this->assertSame(NormalizeShipmentStatus::DELIVERED, $shipment->status);
+        $this->assertSame(ShippingStatus::Delivered, $order->shipping_status);
+        $this->assertSame(OrderStatus::Completed, $order->status);
     }
 
     public function test_track_requires_an_airway_bill(): void

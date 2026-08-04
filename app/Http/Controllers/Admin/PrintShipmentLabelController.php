@@ -7,19 +7,31 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Shipping\PrintShipmentLabels;
 use App\Http\Controllers\Controller;
 use App\Services\Komerce\ShippingDeliveryClient;
+use App\Support\KomerceLabelResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use RuntimeException;
 use Shopper\Core\Models\Order;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
 final class PrintShipmentLabelController extends Controller
 {
-    public function __invoke(Request $request, Order $order, PrintShipmentLabels $printLabels): RedirectResponse|JsonResponse
-    {
+    public function __invoke(
+        Request $request,
+        Order $order,
+        PrintShipmentLabels $printLabels,
+    ): RedirectResponse|JsonResponse|StreamedResponse|Response {
         Gate::authorize('print-shipment-label', $order);
+
+        if (! komerce_enabled()) {
+            return back()->withErrors([
+                'label' => __('Shipping labels need Komerce delivery configured. Add your Shipping Delivery API key, then try again.'),
+            ]);
+        }
 
         $validated = $request->validate([
             'page' => ['nullable', 'string', 'in:'.implode(',', ShippingDeliveryClient::LABEL_PAGES)],
@@ -35,31 +47,30 @@ final class PrintShipmentLabelController extends Controller
         } catch (Throwable $e) {
             report($e);
 
-            return back()->withErrors(['label' => __('Unable to generate the shipping label right now. Please try again later.')]);
+            return back()->withErrors([
+                'label' => __('We could not generate this shipping label right now. Confirm the shipment has a delivery order and pickup, then try again.'),
+            ]);
         }
 
-        $labelUrl = $this->resolveLabelUrl($response);
+        $labelUrl = KomerceLabelResponse::absoluteUrl($response);
 
         if ($labelUrl !== null) {
             return redirect()->away($labelUrl);
         }
 
-        return response()->json(['data' => $response['data'] ?? $response]);
-    }
+        $pdf = KomerceLabelResponse::pdfBinary($response);
 
-    /**
-     * @param  array<string, mixed>  $response
-     */
-    private function resolveLabelUrl(array $response): ?string
-    {
-        foreach (['data.path', 'data.url', 'data.label_url', 'path', 'url'] as $key) {
-            $value = data_get($response, $key);
+        if ($pdf !== null) {
+            $filename = sprintf('label-order-%s.pdf', $order->number);
 
-            if (is_string($value) && preg_match('#^https?://#i', $value) === 1) {
-                return $value;
-            }
+            return response($pdf, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            ]);
         }
 
-        return null;
+        return back()->withErrors([
+            'label' => __('Komerce returned a label response we could not open. Check the delivery order in Collaborator, or try again in a moment.'),
+        ]);
     }
 }

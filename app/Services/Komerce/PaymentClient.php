@@ -14,6 +14,8 @@ final class PaymentClient
 
     private const STATUS_ENDPOINT = '/api/v1/user/payment/status';
 
+    private const CANCEL_ENDPOINT = '/api/v1/user/payment/cancel';
+
     /**
      * Create a virtual-account payment.
      *
@@ -61,6 +63,24 @@ final class PaymentClient
     {
         $response = $this->paymentHttp()
             ->get(self::STATUS_ENDPOINT.'/'.rawurlencode($reference))
+            ->throw()
+            ->json();
+
+        return is_array($response) ? $response : [];
+    }
+
+    /**
+     * Cancel a pending Komerce payment.
+     *
+     * @return array<string, mixed>
+     */
+    public function cancel(string $paymentId, string $reason = 'Order payment expired'): array
+    {
+        $response = $this->paymentHttp()
+            ->post(self::CANCEL_ENDPOINT, [
+                'payment_id' => $paymentId,
+                'reason' => $reason,
+            ])
             ->throw()
             ->json();
 

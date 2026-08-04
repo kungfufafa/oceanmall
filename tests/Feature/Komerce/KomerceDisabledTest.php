@@ -24,6 +24,11 @@ final class KomerceDisabledTest extends TestCase
     private function disableKomerce(): void
     {
         config()->set('komerce.api_key', '');
+        config()->set('komerce.payment_api_key', '');
+        config()->set('komerce.shipping_cost_api_key', '');
+        config()->set('komerce.shipping_delivery_api_key', '');
+        config()->set('komerce.qrisly_api_key', '');
+        config()->set('komerce.qrisly_qris_id', '');
         config()->set('komerce.enabled', null);
     }
 
@@ -47,6 +52,14 @@ final class KomerceDisabledTest extends TestCase
     {
         config()->set('komerce.enabled', null);
         config()->set('komerce.api_key', 'live-key');
+
+        $this->assertTrue(komerce_enabled());
+    }
+
+    public function test_komerce_is_enabled_when_only_shipping_cost_key_present(): void
+    {
+        $this->disableKomerce();
+        config()->set('komerce.shipping_cost_api_key', 'shipping-cost-key');
 
         $this->assertTrue(komerce_enabled());
     }
@@ -108,13 +121,28 @@ final class KomerceDisabledTest extends TestCase
         config()->set('komerce.webhook_secret', 'webhook-secret');
         Http::fake();
 
-        // A valid secret still short-circuits to 503 because the integration is off
+        $payload = [
+            'payment_id' => 'KOMPAY-1',
+            'status' => 'PAID',
+        ];
+        $body = json_encode($payload, JSON_THROW_ON_ERROR);
+        $signature = hash_hmac('sha256', $body, 'webhook-secret');
+
+        // A valid HMAC still short-circuits to 503 because the integration is off
         // (no API key), so no remote payment-status call is ever attempted.
-        $this->withHeader('X-Callback-Api-Key', 'webhook-secret')
-            ->postJson(route('webhooks.komerce.payment'), [
-                'payment_id' => 'KOMPAY-1',
-                'status' => 'PAID',
-            ])->assertStatus(503)->assertJson(['status' => 'disabled']);
+        $this->call(
+            'POST',
+            route('webhooks.komerce.payment'),
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_ACCEPT' => 'application/json',
+                'HTTP_X_CALLBACK_API_KEY' => $signature,
+            ],
+            $body,
+        )->assertStatus(503)->assertJson(['status' => 'disabled']);
 
         Http::assertNothingSent();
     }
