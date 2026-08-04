@@ -34,6 +34,8 @@ final class KomerceDisabledTest extends TestCase
 
     private function admin(): User
     {
+        $this->configureShopperCpanel();
+
         $admin = User::factory()->create();
         Role::query()->firstOrCreate(['name' => config('shopper.admin.roles.admin'), 'guard_name' => 'web']);
         $admin->assignRole(config('shopper.admin.roles.admin'));
@@ -166,7 +168,7 @@ final class KomerceDisabledTest extends TestCase
 
         $this->from(route('account.orders.show', $order))
             ->actingAs($this->admin())
-            ->get(route('admin.orders.print-label', $order))
+            ->get(route('shopper.orders.fulfillment.print-label', $order))
             ->assertSessionHasErrors('label');
 
         Http::assertNothingSent();

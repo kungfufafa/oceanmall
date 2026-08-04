@@ -279,20 +279,32 @@ if ($labelUrl === null && KomerceLabelResponse::pdfBinary($labelResponse) === nu
 }
 $ok('print_label', 'url='.($labelUrl ?? 'pdf-binary'));
 
-// Confirm admin HTTP route works (non-Inertia HTML avoids asset version 409)
+// Confirm cpanel order detail + print-label routes resolve
+$detailUrl = route('shopper.orders.detail', $order);
+$labelUrlRoute = route('shopper.orders.fulfillment.print-label', $order);
+$ok('cpanel_routes', 'detail='.$detailUrl.' label='.$labelUrlRoute);
+
 $http = $app->make(\Illuminate\Contracts\Http\Kernel::class);
-$showReq = \Illuminate\Http\Request::create('/admin/orders/'.$order->id, 'GET');
+$showReq = \Illuminate\Http\Request::create($detailUrl, 'GET');
 $showReq->setLaravelSession($app['session.store']);
 $showReq->setUserResolver(static fn () => $admin);
 Auth::setUser($admin);
 $showRes = $http->handle($showReq);
 $status = $showRes->getStatusCode();
+$body = $showRes->getContent();
 $http->terminate($showReq, $showRes);
 if ($status >= 400 && $status !== 409) {
-    $fail('admin_order_show_http', 'http='.$status);
+    $fail('cpanel_order_detail_http', 'http='.$status);
 }
-$ok('admin_order_show_http', 'http='.$status.( $status === 409 ? ' (inertia version refresh — ok for CLI)' : ''));
-
+if ($status === 200 && ! str_contains($body, 'RajaOngkir / Komerce shipping')) {
+    $warn = static function (string $step, string $detail) use (&$steps): void {
+        $steps[] = compact('step') + ['ok' => true, 'warn' => true, 'detail' => $detail];
+        echo "WARN [$step] — $detail\n";
+    };
+    $warn('cpanel_panel_html', 'page ok but panel markup not found (Livewire deferred?)');
+} else {
+    $ok('cpanel_order_detail_http', 'http='.$status);
+}
 // ── Delivery webhook: in transit → delivered ─────────────────────────────────
 $secret = (string) config('komerce.webhook_secret', '');
 $postWebhook = static function (array $payload) use ($app, $secret): array {

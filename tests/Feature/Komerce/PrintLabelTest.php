@@ -27,6 +27,8 @@ final class PrintLabelTest extends TestCase
 
     private function admin(): User
     {
+        $this->configureShopperCpanel();
+
         $admin = User::factory()->create();
         Role::query()->firstOrCreate([
             'name' => config('shopper.admin.roles.admin'),
@@ -112,7 +114,7 @@ final class PrintLabelTest extends TestCase
         ]);
 
         $this->actingAs($this->admin())
-            ->get(route('admin.orders.print-label', $order))
+            ->get(route('shopper.orders.fulfillment.print-label', $order))
             ->assertRedirect('https://delivery.example.test/storage/label/RO-ORDER-777.pdf');
 
         Http::assertSent(function (Request $request): bool {
@@ -138,7 +140,7 @@ final class PrintLabelTest extends TestCase
         ]);
 
         $this->actingAs($this->admin())
-            ->get(route('admin.orders.print-label', $order))
+            ->get(route('shopper.orders.fulfillment.print-label', $order))
             ->assertRedirect('https://delivery.example.test/storage/label-relative.pdf');
     }
 
@@ -155,7 +157,7 @@ final class PrintLabelTest extends TestCase
         ]);
 
         $this->actingAs($this->admin())
-            ->get(route('admin.orders.print-label', $order))
+            ->get(route('shopper.orders.fulfillment.print-label', $order))
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf')
             ->assertSee('%PDF-fake-label', false);
@@ -163,13 +165,15 @@ final class PrintLabelTest extends TestCase
 
     public function test_print_label_requires_admin_role(): void
     {
+        $this->configureShopperCpanel();
         $this->fakeDeliveryConfig();
         [$order] = $this->orderWithDeliveryOrder();
         Http::fake();
 
+        // Under /cpanel, Shopper redirects AuthorizationException to its forbidden page.
         $this->actingAs(User::factory()->create())
-            ->get(route('admin.orders.print-label', $order))
-            ->assertForbidden();
+            ->getJson(route('shopper.orders.fulfillment.print-label', $order))
+            ->assertRedirect(route('shopper.forbidden'));
 
         Http::assertNothingSent();
     }
@@ -180,9 +184,9 @@ final class PrintLabelTest extends TestCase
         [$order] = $this->orderWithDeliveryOrder(komerceOrderNo: null);
         Http::fake();
 
-        $this->from(route('admin.orders.show', $order))
+        $this->from(route('shopper.orders.detail', $order))
             ->actingAs($this->admin())
-            ->get(route('admin.orders.print-label', $order))
+            ->get(route('shopper.orders.fulfillment.print-label', $order))
             ->assertSessionHasErrors('label');
 
         Http::assertNothingSent();
@@ -195,9 +199,9 @@ final class PrintLabelTest extends TestCase
         [$order] = $this->orderWithDeliveryOrder();
         Http::fake();
 
-        $this->from(route('admin.orders.show', $order))
+        $this->from(route('shopper.orders.detail', $order))
             ->actingAs($this->admin())
-            ->get(route('admin.orders.print-label', $order))
+            ->get(route('shopper.orders.fulfillment.print-label', $order))
             ->assertSessionHasErrors('label');
 
         Http::assertNothingSent();

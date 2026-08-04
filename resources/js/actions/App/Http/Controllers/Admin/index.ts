@@ -1,11 +1,9 @@
-import OrderShowController from './OrderShowController'
-import OverrideAllocationController from './OverrideAllocationController'
 import PrintShipmentLabelController from './PrintShipmentLabelController'
+import OverrideAllocationController from './OverrideAllocationController'
 
 const Admin = {
-    OrderShowController: Object.assign(OrderShowController, OrderShowController),
-    OverrideAllocationController: Object.assign(OverrideAllocationController, OverrideAllocationController),
     PrintShipmentLabelController: Object.assign(PrintShipmentLabelController, PrintShipmentLabelController),
+    OverrideAllocationController: Object.assign(OverrideAllocationController, OverrideAllocationController),
 }
 
 export default Admin

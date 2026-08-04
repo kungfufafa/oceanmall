@@ -182,14 +182,16 @@ final class OverrideAllocationTest extends TestCase
 
     public function test_override_route_requires_admin_role(): void
     {
+        $this->configureShopperCpanel();
         $fixture = $this->shipmentFixture();
         $this->app->instance(FetchDeliveryRates::class, $this->fakeRates([
             $fixture['fromInventory']->id => [$this->rate('jne', 'REG', 11000)],
             $fixture['toInventory']->id => [$this->rate('jnt', 'EZ', 15000)],
         ]));
 
+        // Under /cpanel, Shopper redirects AuthorizationException to its forbidden page.
         $this->actingAs(User::factory()->create())
-            ->postJson(route('admin.orders.override-allocation', $fixture['order']), [
+            ->postJson(route('shopper.orders.fulfillment.override-allocation', $fixture['order']), [
                 'moves' => [[
                     'shipment_line_id' => $fixture['sourceLine']->id,
                     'qty' => 1,
@@ -197,14 +199,14 @@ final class OverrideAllocationTest extends TestCase
                     'to_inventory_id' => $fixture['toInventory']->id,
                 ]],
             ])
-            ->assertForbidden();
+            ->assertRedirect(route('shopper.forbidden'));
 
         $admin = User::factory()->create();
-        Role::query()->create(['name' => config('shopper.admin.roles.admin'), 'guard_name' => 'web']);
+        Role::query()->firstOrCreate(['name' => config('shopper.admin.roles.admin'), 'guard_name' => 'web']);
         $admin->assignRole(config('shopper.admin.roles.admin'));
 
         $this->actingAs($admin)
-            ->postJson(route('admin.orders.override-allocation', $fixture['order']), [
+            ->postJson(route('shopper.orders.fulfillment.override-allocation', $fixture['order']), [
                 'moves' => [[
                     'shipment_line_id' => $fixture['sourceLine']->id,
                     'qty' => 1,

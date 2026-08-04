@@ -49,7 +49,8 @@ Marks all shipments delivered, order completed, shipping_status delivered. Idemp
 
 ### Admin ops
 
-`GET /admin/orders/{order}` (admin gate) — print label + override form.
+`GET /cpanel/orders/{order}/detail` (Shopper) — print label + override via Livewire RajaOngkir panel.
+Legacy `GET /admin/orders/{order}` redirects there.
 
 Override also restores stock at source and debits destination via `mutateStock` / `decreaseStock`.
 
@@ -63,4 +64,4 @@ Checkout requires `rajaongkir_destination_id` when `komerce_enabled()`.
 
 - Soft reservation before place-order (stock still commits at order create; expiry releases it).
 - Delivery webhook controller (polling replaces it for now).
-- Shopper Livewire cpanel extension (Inertia `/admin` used instead).
+- Separate Inertia `/admin` app (ops stay in Shopper `/cpanel`).

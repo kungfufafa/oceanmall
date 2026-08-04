@@ -28,6 +28,8 @@ final class WarehouseOpsE2ETest extends TestCase
 
     private function admin(): User
     {
+        $this->configureShopperCpanel();
+
         $admin = User::factory()->create();
         Role::query()->firstOrCreate([
             'name' => config('shopper.admin.roles.admin'),
@@ -144,19 +146,15 @@ final class WarehouseOpsE2ETest extends TestCase
         $this->assertSame(ShippingStatus::Shipped, $order->shipping_status);
 
         $this->actingAs($admin)
-            ->get(route('admin.orders.show', $order))
+            ->get(route('shopper.orders.detail', $order))
             ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->component('admin/order-show')
-                ->where('shipments.0.can_print_label', true)
-                ->where('shipments.0.can_override', false)
-                ->where('shipments.0.delivery_order_no', 'RO-WH-1')
-            );
+            ->assertSee('RajaOngkir / Komerce shipping', false)
+            ->assertSee('RO-WH-1', false)
+            ->assertSee('Cetak label', false);
 
         $this->actingAs($admin)
-            ->get(route('admin.orders.print-label', $order))
+            ->get(route('shopper.orders.fulfillment.print-label', $order))
             ->assertRedirect('https://delivery.example.test/storage/label/RO-WH-1.pdf');
-
         $payload = [
             'order_no' => 'RO-WH-1',
             'cnote' => 'JNE-WH-1',

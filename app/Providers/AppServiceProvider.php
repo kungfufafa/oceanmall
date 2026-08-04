@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Livewire\Shopper\KomerceOrderShipping;
 use App\Models\User;
 use App\Stock\AllocationPlanStockAllocator;
 use App\Support\CheckoutAllocationContext;
@@ -13,8 +14,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Livewire\Livewire;
 use Shopper\Core\Contracts\StockAllocator;
 use Shopper\Core\Models\Order;
+use Shopper\View\OrderRenderHook;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -34,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureAuthorization();
+        $this->configureShopperFulfillment();
     }
 
     /**
@@ -69,6 +73,30 @@ class AppServiceProvider extends ServiceProvider
         Gate::define(
             'print-shipment-label',
             static fn (User $user, ?Order $order = null): bool => $user->isAdmin(),
+        );
+    }
+
+    protected function configureShopperFulfillment(): void
+    {
+        Livewire::component('komerce-order-shipping', KomerceOrderShipping::class);
+
+        shopper()->renderHook(
+            OrderRenderHook::DETAIL_MAIN_AFTER,
+            static function (): string {
+                $order = request()->route('order');
+
+                if (! $order instanceof Order) {
+                    return '';
+                }
+
+                if (! auth()->user()?->isAdmin()) {
+                    return '';
+                }
+
+                return view('shopper.partials.komerce-order-shipping-hook', [
+                    'order' => $order,
+                ])->render();
+            },
         );
     }
 }

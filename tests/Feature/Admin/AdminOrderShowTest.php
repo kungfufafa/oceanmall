@@ -7,7 +7,7 @@ namespace Tests\Feature\Admin;
 use App\Models\OrderShipment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Inertia\Testing\AssertableInertia as Assert;
+use Livewire\Livewire;
 use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
 use Spatie\Permission\Models\Role;
@@ -19,6 +19,8 @@ final class AdminOrderShowTest extends TestCase
 
     private function admin(): User
     {
+        $this->configureShopperCpanel();
+
         $admin = User::factory()->create();
         Role::query()->firstOrCreate([
             'name' => config('shopper.admin.roles.admin'),
@@ -29,10 +31,18 @@ final class AdminOrderShowTest extends TestCase
         return $admin;
     }
 
-    public function test_admin_can_view_order_ops_page(): void
+    public function test_legacy_admin_order_route_redirects_to_cpanel_detail(): void
     {
-        $this->withoutVite();
+        $admin = $this->admin();
+        $order = Order::factory()->create(['currency_code' => 'IDR']);
 
+        $this->actingAs($admin)
+            ->get(route('admin.orders.show', $order))
+            ->assertRedirect(route('shopper.orders.detail', $order));
+    }
+
+    public function test_cpanel_order_detail_includes_komerce_shipping_panel_for_admin(): void
+    {
         $admin = $this->admin();
         $order = Order::factory()->create(['currency_code' => 'IDR']);
         $inventory = Inventory::factory()->create(['name' => 'Gudang Jakarta']);
@@ -47,24 +57,24 @@ final class AdminOrderShowTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get(route('admin.orders.show', $order))
+            ->get(route('shopper.orders.detail', $order))
             ->assertOk()
-            ->assertInertia(
-                fn (Assert $page) => $page
-                    ->component('admin/order-show')
-                    ->where('order.number', (string) $order->number)
-                    ->has('shipments', 1)
-                    ->has('inventories'),
-            );
+            ->assertSee('RajaOngkir / Komerce shipping', false);
+
+        Livewire::actingAs($admin)
+            ->test(\App\Livewire\Shopper\KomerceOrderShipping::class, ['order' => $order])
+            ->assertSee('Gudang Jakarta');
     }
 
-    public function test_non_admin_cannot_view_order_ops_page(): void
+    public function test_non_admin_cannot_print_fulfillment_label(): void
     {
+        $this->configureShopperCpanel();
         $user = User::factory()->create();
         $order = Order::factory()->create();
 
+        // Under /cpanel, Shopper redirects AuthorizationException to its forbidden page.
         $this->actingAs($user)
-            ->get(route('admin.orders.show', $order))
-            ->assertForbidden();
+            ->getJson(route('shopper.orders.fulfillment.print-label', $order))
+            ->assertRedirect(route('shopper.forbidden'));
     }
 }

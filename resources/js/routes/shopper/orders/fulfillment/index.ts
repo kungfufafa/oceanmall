@@ -1,71 +1,8 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
-* @see routes/web.php:122
-* @route '/admin/orders/{order}'
-*/
-export const show = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: show.url(args, options),
-    method: 'get',
-})
-
-show.definition = {
-    methods: ["get","head"],
-    url: '/admin/orders/{order}',
-} satisfies RouteDefinition<["get","head"]>
-
-/**
-* @see routes/web.php:122
-* @route '/admin/orders/{order}'
-*/
-show.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
-    if (typeof args === 'string' || typeof args === 'number') {
-        args = { order: args }
-    }
-
-    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
-        args = { order: args.id }
-    }
-
-    if (Array.isArray(args)) {
-        args = {
-            order: args[0],
-        }
-    }
-
-    args = applyUrlDefaults(args)
-
-    const parsedArgs = {
-        order: typeof args.order === 'object'
-        ? args.order.id
-        : args.order,
-    }
-
-    return show.definition.url
-            .replace('{order}', parsedArgs.order.toString())
-            .replace(/\/+$/, '') + queryParams(options)
-}
-
-/**
-* @see routes/web.php:122
-* @route '/admin/orders/{order}'
-*/
-show.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: show.url(args, options),
-    method: 'get',
-})
-
-/**
-* @see routes/web.php:122
-* @route '/admin/orders/{order}'
-*/
-show.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
-    url: show.url(args, options),
-    method: 'head',
-})
-
-/**
-* @see routes/web.php:124
-* @route '/admin/orders/{order}/label'
+* @see \App\Http\Controllers\Admin\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Admin/PrintShipmentLabelController.php:23
+* @route '/cpanel/orders/{order}/fulfillment/label'
 */
 export const printLabel = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: printLabel.url(args, options),
@@ -74,12 +11,13 @@ export const printLabel = (args: { order: number | { id: number } } | [order: nu
 
 printLabel.definition = {
     methods: ["get","head"],
-    url: '/admin/orders/{order}/label',
+    url: '/cpanel/orders/{order}/fulfillment/label',
 } satisfies RouteDefinition<["get","head"]>
 
 /**
-* @see routes/web.php:124
-* @route '/admin/orders/{order}/label'
+* @see \App\Http\Controllers\Admin\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Admin/PrintShipmentLabelController.php:23
+* @route '/cpanel/orders/{order}/fulfillment/label'
 */
 printLabel.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
@@ -110,8 +48,9 @@ printLabel.url = (args: { order: number | { id: number } } | [order: number | { 
 }
 
 /**
-* @see routes/web.php:124
-* @route '/admin/orders/{order}/label'
+* @see \App\Http\Controllers\Admin\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Admin/PrintShipmentLabelController.php:23
+* @route '/cpanel/orders/{order}/fulfillment/label'
 */
 printLabel.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: printLabel.url(args, options),
@@ -119,8 +58,9 @@ printLabel.get = (args: { order: number | { id: number } } | [order: number | { 
 })
 
 /**
-* @see routes/web.php:124
-* @route '/admin/orders/{order}/label'
+* @see \App\Http\Controllers\Admin\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Admin/PrintShipmentLabelController.php:23
+* @route '/cpanel/orders/{order}/fulfillment/label'
 */
 printLabel.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: printLabel.url(args, options),
@@ -128,8 +68,9 @@ printLabel.head = (args: { order: number | { id: number } } | [order: number | {
 })
 
 /**
-* @see routes/web.php:132
-* @route '/admin/orders/{order}/override-allocation'
+* @see \App\Http\Controllers\Admin\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Admin/OverrideAllocationController.php:18
+* @route '/cpanel/orders/{order}/fulfillment/override-allocation'
 */
 export const overrideAllocation = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: overrideAllocation.url(args, options),
@@ -138,12 +79,13 @@ export const overrideAllocation = (args: { order: number | { id: number } } | [o
 
 overrideAllocation.definition = {
     methods: ["post"],
-    url: '/admin/orders/{order}/override-allocation',
+    url: '/cpanel/orders/{order}/fulfillment/override-allocation',
 } satisfies RouteDefinition<["post"]>
 
 /**
-* @see routes/web.php:132
-* @route '/admin/orders/{order}/override-allocation'
+* @see \App\Http\Controllers\Admin\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Admin/OverrideAllocationController.php:18
+* @route '/cpanel/orders/{order}/fulfillment/override-allocation'
 */
 overrideAllocation.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
@@ -174,18 +116,18 @@ overrideAllocation.url = (args: { order: number | { id: number } } | [order: num
 }
 
 /**
-* @see routes/web.php:132
-* @route '/admin/orders/{order}/override-allocation'
+* @see \App\Http\Controllers\Admin\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Admin/OverrideAllocationController.php:18
+* @route '/cpanel/orders/{order}/fulfillment/override-allocation'
 */
 overrideAllocation.post = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: overrideAllocation.url(args, options),
     method: 'post',
 })
 
-const orders = {
-    show: Object.assign(show, show),
+const fulfillment = {
     printLabel: Object.assign(printLabel, printLabel),
     overrideAllocation: Object.assign(overrideAllocation, overrideAllocation),
 }
 
-export default orders
+export default fulfillment

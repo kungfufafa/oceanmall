@@ -9,7 +9,6 @@ use App\Http\Controllers\Account\OrderController as AccountOrderController;
 use App\Http\Controllers\Account\RetryKomercePaymentController;
 use App\Http\Controllers\Account\SyncKomercePaymentStatusController;
 use App\Http\Controllers\Account\TrackShipmentController;
-use App\Http\Controllers\Admin\OrderShowController;
 use App\Http\Controllers\Admin\OverrideAllocationController;
 use App\Http\Controllers\Admin\PrintShipmentLabelController;
 use App\Http\Controllers\Shop\CartController;
@@ -30,6 +29,7 @@ use App\Http\Controllers\Webhooks\KomerceDeliveryWebhookController;
 use App\Http\Controllers\Webhooks\KomercePaymentWebhookController;
 use App\Http\Controllers\Webhooks\KomerceQrislyWebhookController;
 use Illuminate\Support\Facades\Route;
+use Shopper\Core\Models\Order;
 
 // Storefront
 Route::get('/', HomeController::class)->name('home');
@@ -118,13 +118,33 @@ Route::middleware(['auth', 'verified'])->prefix('account')->name('account.')->gr
 });
 
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function (): void {
-    Route::get('orders/{order}', OrderShowController::class)
+    // Legacy aliases — warehouse ops now live under Shopper /cpanel.
+    Route::get('orders/{order}', static fn (Order $order) => redirect()->route('shopper.orders.detail', $order))
         ->name('orders.show');
-    Route::post('orders/{order}/override-allocation', OverrideAllocationController::class)
+    Route::get('orders/{order}/label', static fn (Order $order) => redirect()->route(
+        'shopper.orders.fulfillment.print-label',
+        array_filter([
+            'order' => $order,
+            'shipment' => request()->query('shipment'),
+            'page' => request()->query('page'),
+        ]),
+    ))->name('orders.print-label');
+    Route::post('orders/{order}/override-allocation', static fn (Order $order) => redirect()
+        ->route('shopper.orders.detail', $order)
+        ->with('status', __('Gunakan panel RajaOngkir di halaman order /cpanel untuk pindah stok.')))
         ->name('orders.override-allocation');
-    Route::get('orders/{order}/label', PrintShipmentLabelController::class)
-        ->name('orders.print-label');
 });
+
+// Warehouse fulfillment under /cpanel (same prefix as Shopper), but outside
+// Shopper sidebar ACL so print/override only need Gate::authorize.
+Route::middleware(['auth', 'verified'])
+    ->prefix(config('shopper.admin.prefix', 'cpanel'))
+    ->group(function (): void {
+        Route::get('orders/{order}/fulfillment/label', PrintShipmentLabelController::class)
+            ->name('shopper.orders.fulfillment.print-label');
+        Route::post('orders/{order}/fulfillment/override-allocation', OverrideAllocationController::class)
+            ->name('shopper.orders.fulfillment.override-allocation');
+    });
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');

@@ -133,10 +133,10 @@ Jangan commit `.env` atau API key asli.
 6. Di storefront checkout: isi alamat + **cari district** (RajaOngkir destination) → pilih kurir → pilih **QRIS** (atau VA) → Place order.
 7. Salin instruksi bayar (nomor VA / QRIS). Response Payment API memakai field `va_number` / `qr_string` / `expired_at` / `payment_url` — storefront sudah memetakan ke panel VA/QRIS.
 8. Order harus beralih ke `payment_status=paid`; job membuat AWB per shipment.
-9. Admin ops: buka `/admin/orders/{id}` untuk print label / override gudang (sebelum AWB).
+9. Admin ops: buka `/cpanel/orders/{id}/detail` — panel **RajaOngkir / Komerce shipping** (cetak label / pindah gudang sebelum AWB).
 10. Customer di `/account/orders/{id}`: Track package → status dinormalisasi; atau **Mark as received** untuk menutup order.
 11. UAT otomatis hulu→hilir (QRIS): `php scripts/live-customer-qris-e2e-uat.php` — lihat juga `docs/superpowers/specs/2026-08-04-customer-storefront-walkthrough.md`.
-12. UAT gudang/admin (paid → AWB → cetak label → webhook delivered): `php scripts/live-warehouse-ops-e2e-uat.php` — lihat `docs/superpowers/specs/2026-08-04-warehouse-ops-walkthrough.md`. Admin ops UI: `/admin/orders/{id}`.
+12. UAT gudang/admin (paid → AWB → cetak label → webhook delivered): `php scripts/live-warehouse-ops-e2e-uat.php` — lihat `docs/superpowers/specs/2026-08-04-warehouse-ops-walkthrough.md`. Ops UI: `/cpanel/orders/{id}/detail`.
 
 Catatan QRISLY: tanpa `KOMERCE_QRISLY_QRIS_ID`, QRISLY dimatikan otomatis dan QRIS tetap lewat Payment API.
 
@@ -146,7 +146,7 @@ Catatan QRISLY: tanpa `KOMERCE_QRISLY_QRIS_ID`, QRISLY dimatikan otomatis dan QR
 | --- | --- | --- |
 | Customer | Cari district → checkout → bayar | `/checkout` |
 | System | Webhook paid → create AWB | `POST /webhooks/komerce/payment` + queue |
-| Admin | Print label / override | `GET /admin/orders/{id}` |
+| Admin | Print label / override | `/cpanel/orders/{id}/detail` (panel RajaOngkir) |
 | Customer | Track / mark received | `/account/orders/{id}` |
 | System | Expire unpaid + release stock | `komerce:expire-unpaid-orders` (setiap 15 mnt) |
 | System | Poll tracking | `komerce:refresh-shipment-tracking` (hourly) |
