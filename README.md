@@ -136,6 +136,7 @@ Jangan commit `.env` atau API key asli.
 9. Admin ops: buka `/admin/orders/{id}` untuk print label / override gudang (sebelum AWB).
 10. Customer di `/account/orders/{id}`: Track package → status dinormalisasi; atau **Mark as received** untuk menutup order.
 11. UAT otomatis hulu→hilir (QRIS): `php scripts/live-customer-qris-e2e-uat.php` — lihat juga `docs/superpowers/specs/2026-08-04-customer-storefront-walkthrough.md`.
+12. UAT gudang/admin (paid → AWB → cetak label → webhook delivered): `php scripts/live-warehouse-ops-e2e-uat.php` — lihat `docs/superpowers/specs/2026-08-04-warehouse-ops-walkthrough.md`. Admin ops UI: `/admin/orders/{id}`.
 
 Catatan QRISLY: tanpa `KOMERCE_QRISLY_QRIS_ID`, QRISLY dimatikan otomatis dan QRIS tetap lewat Payment API.
 
