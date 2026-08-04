@@ -79,7 +79,7 @@ watch(search, (value) => {
             <template v-else>
                 <p class="om-meta mb-6">
                     {{ products.total }} hasil untuk "<span
-                        class="font-medium text-zinc-900"
+                        class="font-medium text-foreground"
                         >{{ query }}</span
                     >"
                 </p>

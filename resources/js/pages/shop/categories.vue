@@ -2,6 +2,7 @@
 import { Head, Link } from '@inertiajs/vue3';
 import { Smartphone } from 'lucide-vue-next';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
+import ShopCard from '@/components/shop/card.vue';
 import Container from '@/components/shop/container.vue';
 import EmptyState from '@/components/shop/empty-state.vue';
 import { home } from '@/routes';
@@ -45,37 +46,43 @@ function productLabel(count: number): string {
                 v-for="category in categories"
                 :key="category.id"
                 :href="shop.category.url({ category: category.slug })"
-                class="flex flex-col overflow-hidden rounded-md border border-zinc-200 bg-white"
+                class="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-                <div
-                    class="flex aspect-[4/3] items-center justify-center overflow-hidden bg-zinc-100"
+                <ShopCard
+                    :padded="false"
+                    class="h-full overflow-hidden border-border bg-card transition group-hover:border-primary/50"
+                    content-class="p-0"
                 >
-                    <img
-                        v-if="category.thumbnail"
-                        :src="category.thumbnail"
-                        :alt="category.name"
-                        loading="lazy"
-                        class="size-full object-cover object-center"
-                    />
-                    <Smartphone
-                        v-else
-                        class="size-8 text-[var(--om-navy)]"
-                        aria-hidden="true"
-                    />
-                </div>
-                <div class="px-2.5 py-2">
-                    <h3
-                        class="line-clamp-1 text-[13px] font-semibold text-zinc-900"
+                    <div
+                        class="flex aspect-[4/3] items-center justify-center overflow-hidden bg-muted"
                     >
-                        {{ category.name }}
-                    </h3>
-                    <p
-                        v-if="category.products_count !== undefined"
-                        class="om-meta mt-0.5 !text-[11px]"
-                    >
-                        {{ productLabel(category.products_count) }}
-                    </p>
-                </div>
+                        <img
+                            v-if="category.thumbnail"
+                            :src="category.thumbnail"
+                            :alt="category.name"
+                            loading="lazy"
+                            class="size-full object-cover object-center"
+                        />
+                        <Smartphone
+                            v-else
+                            class="size-8 text-primary"
+                            aria-hidden="true"
+                        />
+                    </div>
+                    <div class="px-2.5 py-2">
+                        <h3
+                            class="line-clamp-1 text-[13px] font-semibold text-foreground"
+                        >
+                            {{ category.name }}
+                        </h3>
+                        <p
+                            v-if="category.products_count !== undefined"
+                            class="om-meta mt-0.5 !text-[11px]"
+                        >
+                            {{ productLabel(category.products_count) }}
+                        </p>
+                    </div>
+                </ShopCard>
             </Link>
         </div>
     </Container>

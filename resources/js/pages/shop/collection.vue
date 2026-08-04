@@ -28,6 +28,11 @@ const props = defineProps<{
 
 const sort = ref<string>(props.filters.sort);
 
+const sortOptions = [
+    { value: 'latest', label: 'Terbaru' },
+    { value: 'name', label: 'Nama' },
+];
+
 const description = computed(() =>
     props.collection.description
         ? stripHtml(props.collection.description)
@@ -57,11 +62,10 @@ watch(sort, (value) => {
             <FilterSelect
                 id="collection-sort"
                 v-model="sort"
+                :options="sortOptions"
+                placeholder="Urutkan"
                 class="mr-1 max-w-[7.5rem] truncate"
-            >
-                <option value="latest">Terbaru</option>
-                <option value="name">Nama</option>
-            </FilterSelect>
+            />
         </template>
     </AppPageHeader>
 
@@ -77,11 +81,10 @@ watch(sort, (value) => {
             <FilterSelect
                 id="collection-sort-desktop"
                 v-model="sort"
+                :options="sortOptions"
+                placeholder="Urutkan"
                 class="shrink-0"
-            >
-                <option value="latest">Terbaru</option>
-                <option value="name">Nama</option>
-            </FilterSelect>
+            />
         </div>
 
         <p v-if="description" class="om-meta mb-4 line-clamp-2 lg:hidden">

@@ -9,6 +9,8 @@ import FilterSelect from '@/components/shop/filter-select.vue';
 import PagePagination from '@/components/shop/page-pagination.vue';
 import ProductCard from '@/components/shop/product-card.vue';
 import SearchField from '@/components/shop/search-field.vue';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { home } from '@/routes';
 import * as shop from '@/routes/shop';
 import type { Brand, Category, Product } from '@/types/shop';
@@ -42,6 +44,21 @@ const brand = ref<string>(
 );
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
+
+const brandOptions = computed(() => [
+    { value: '', label: 'Semua merek' },
+    ...props.brands.map((item) => ({
+        value: String(item.id),
+        label: item.name,
+    })),
+]);
+
+const sortOptions = [
+    { value: 'latest', label: 'Terbaru' },
+    { value: 'name', label: 'Nama A–Z' },
+    { value: 'price_asc', label: 'Harga terendah' },
+    { value: 'price_desc', label: 'Harga tertinggi' },
+];
 
 const hasActiveFilters = computed(
     () =>
@@ -146,75 +163,70 @@ function clearFilters(): void {
 
         <SearchField v-model="search" placeholder="Cari di katalog…" />
 
-        <!-- Categories: underline tabs, not chip soup -->
-        <nav
+        <Tabs
             v-if="categories.length"
-            class="mt-3 flex gap-4 overflow-x-auto border-b border-zinc-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            aria-label="Kategori"
+            :model-value="
+                filters.category === null ? 'all' : String(filters.category)
+            "
+            class="mt-3"
+            @update:model-value="
+                (v) => filterByCategory(v === 'all' ? null : Number(v))
+            "
         >
-            <button
-                type="button"
-                class="-mb-px shrink-0 border-b-2 pb-2.5 text-[13px] font-semibold transition"
-                :class="
-                    filters.category === null
-                        ? 'border-[var(--om-navy)] text-[var(--om-navy)]'
-                        : 'border-transparent text-zinc-500 hover:text-zinc-800'
-                "
-                @click="filterByCategory(null)"
+            <TabsList
+                class="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-border bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                aria-label="Kategori"
             >
-                Semua
-            </button>
-            <button
-                v-for="cat in categories"
-                :key="cat.id"
-                type="button"
-                class="-mb-px shrink-0 border-b-2 pb-2.5 text-[13px] font-semibold transition"
-                :class="
-                    filters.category === cat.id
-                        ? 'border-[var(--om-navy)] text-[var(--om-navy)]'
-                        : 'border-transparent text-zinc-500 hover:text-zinc-800'
-                "
-                @click="filterByCategory(cat.id)"
-            >
-                {{ cat.name }}
-            </button>
-        </nav>
+                <TabsTrigger
+                    value="all"
+                    class="shrink-0 rounded-none border-b-2 border-transparent px-2 pb-2.5 text-[13px] font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                    Semua
+                </TabsTrigger>
+                <TabsTrigger
+                    v-for="cat in categories"
+                    :key="cat.id"
+                    :value="String(cat.id)"
+                    class="shrink-0 rounded-none border-b-2 border-transparent px-2 pb-2.5 text-[13px] font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                    {{ cat.name }}
+                </TabsTrigger>
+            </TabsList>
+        </Tabs>
 
         <!-- One compact toolbar: merek + sort + count -->
         <div class="mt-3 flex flex-wrap items-center gap-2">
             <label class="sr-only" for="shop-brand">Merek</label>
-            <FilterSelect id="shop-brand" v-model="brand">
-                <option value="">Semua merek</option>
-                <option
-                    v-for="item in brands"
-                    :key="item.id"
-                    :value="String(item.id)"
-                >
-                    {{ item.name }}
-                </option>
-            </FilterSelect>
+            <FilterSelect
+                id="shop-brand"
+                v-model="brand"
+                :options="brandOptions"
+                placeholder="Merek"
+            />
 
             <label class="sr-only" for="shop-sort">Urutkan</label>
-            <FilterSelect id="shop-sort" v-model="sort">
-                <option value="latest">Terbaru</option>
-                <option value="name">Nama A–Z</option>
-                <option value="price_asc">Harga terendah</option>
-                <option value="price_desc">Harga tertinggi</option>
-            </FilterSelect>
+            <FilterSelect
+                id="shop-sort"
+                v-model="sort"
+                :options="sortOptions"
+                placeholder="Urutkan"
+            />
 
-            <p class="ml-auto text-[12px] text-zinc-500">
-                <span class="font-semibold text-zinc-800">{{
+            <p class="ml-auto text-[12px] text-muted-foreground">
+                <span class="font-semibold text-foreground">{{
                     products.total
                 }}</span>
                 produk
-                <button
+                <Button
                     v-if="hasActiveFilters"
                     type="button"
-                    class="ml-2 font-semibold text-[var(--om-navy)]"
+                    variant="link"
+                    size="sm"
+                    class="ml-2 h-auto px-0 text-[12px] font-semibold"
                     @click="clearFilters"
                 >
                     Reset
-                </button>
+                </Button>
             </p>
         </div>
 
