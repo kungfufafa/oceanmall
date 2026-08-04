@@ -77,4 +77,28 @@ final class DestinationSearchTest extends TestCase
             ])
             ->assertSessionHasErrors('rajaongkir_destination_id');
     }
+
+    public function test_shipping_address_accepts_numeric_rajaongkir_destination_id(): void
+    {
+        config()->set('komerce.api_key', 'test-key');
+        config()->set('komerce.enabled', true);
+
+        $user = User::factory()->create();
+        $country = \Shopper\Core\Models\Country::factory()->create(['cca2' => 'ID']);
+        $zone = \Shopper\Core\Models\Zone::factory()->create(['is_enabled' => true]);
+        $zone->countries()->attach($country->id);
+
+        $this->actingAs($user)
+            ->withSession(['zone_country_code' => 'ID'])
+            ->post(route('shop.checkout.shipping-address'), [
+                'first_name' => 'Budi',
+                'last_name' => 'Santoso',
+                'street_address' => 'Jl. Merdeka 1',
+                'postal_code' => '10110',
+                'city' => 'Jakarta',
+                'rajaongkir_destination_id' => 17547,
+            ])
+            ->assertRedirect(route('shop.checkout.index'))
+            ->assertSessionHas(\App\CheckoutSession::SHIPPING_ADDRESS.'.rajaongkir_destination_id', '17547');
+    }
 }

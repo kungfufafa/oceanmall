@@ -190,6 +190,14 @@ final class CheckoutController extends Controller
             ? ['required', 'string', 'max:50']
             : ['nullable', 'string', 'max:50'];
 
+        // Coerce numeric destination ids from JSON/Inertia before string rules.
+        $request->merge([
+            'rajaongkir_destination_id' => $this->normalizeDestinationId(
+                $request->input('rajaongkir_destination_id') ?? $request->input('destination_id'),
+            ),
+            'destination_id' => $this->normalizeDestinationId($request->input('destination_id')),
+        ]);
+
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
@@ -208,8 +216,8 @@ final class CheckoutController extends Controller
         $data['country_id'] = $zone?->countryId;
 
         $destinationId = $data['rajaongkir_destination_id'] ?? $data['destination_id'] ?? null;
-        if ($destinationId !== null) {
-            $data['rajaongkir_destination_id'] = $destinationId;
+        if ($destinationId !== null && $destinationId !== '') {
+            $data['rajaongkir_destination_id'] = (string) $destinationId;
         }
 
         if (! $data['country_id']) {
@@ -744,5 +752,20 @@ final class CheckoutController extends Controller
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function normalizeDestinationId(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_int($value) || is_float($value) || is_string($value)) {
+            $normalized = trim((string) $value);
+
+            return $normalized === '' ? null : $normalized;
+        }
+
+        return null;
     }
 }

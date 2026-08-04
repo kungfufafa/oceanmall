@@ -185,16 +185,23 @@ async function searchDestinations(query: string): Promise<void> {
 }
 
 function selectDestination(result: DestinationResult): void {
-    addressForm.rajaongkir_destination_id = result.id;
+    addressForm.rajaongkir_destination_id = String(result.id);
     addressForm.rajaongkir_destination_label = result.label;
     destinationQuery.value = result.label;
     destinationResults.value = [];
+    addressForm.clearErrors(
+        'rajaongkir_destination_id',
+        'postal_code',
+        'city',
+    );
 
-    if (result.city_name && !addressForm.city) {
+    // Always sync city/zip from RajaOngkir so typed placeholders don't
+    // leave the form looking filled while Inertia still posts blanks.
+    if (result.city_name) {
         addressForm.city = result.city_name;
     }
 
-    if (result.zip_code && !addressForm.postal_code) {
+    if (result.zip_code) {
         addressForm.postal_code = result.zip_code;
     }
 }
@@ -381,7 +388,31 @@ function goToStep(target: 1 | 2 | 3): void {
 }
 
 function submitAddress(): void {
-    addressForm.post(checkout.shippingAddress.url(), { preserveScroll: true });
+    if (
+        props.komerceEnabled &&
+        !String(addressForm.rajaongkir_destination_id ?? '').trim()
+    ) {
+        addressForm.setError(
+            'rajaongkir_destination_id',
+            'Pilih kecamatan dari daftar pencarian.',
+        );
+
+        return;
+    }
+
+    addressForm
+        .transform((data) => ({
+            ...data,
+            rajaongkir_destination_id: String(
+                data.rajaongkir_destination_id ?? '',
+            ).trim(),
+            rajaongkir_destination_label: String(
+                data.rajaongkir_destination_label ?? '',
+            ).trim(),
+            postal_code: String(data.postal_code ?? '').trim(),
+            city: String(data.city ?? '').trim(),
+        }))
+        .post(checkout.shippingAddress.url(), { preserveScroll: true });
 }
 
 function submitShipping(): void {
@@ -704,7 +735,11 @@ const steps = [
                             <button
                                 type="submit"
                                 class="om-btn-primary inline-flex items-center justify-center px-5 disabled:opacity-50"
-                                :disabled="addressForm.processing"
+                                :disabled="
+                                    addressForm.processing ||
+                                    (komerceEnabled &&
+                                        !addressForm.rajaongkir_destination_id)
+                                "
                             >
                                 Lanjut ke pengiriman
                             </button>
