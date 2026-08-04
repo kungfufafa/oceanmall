@@ -17,6 +17,7 @@ const props = defineProps<{
     packages: ShipmentPackage[];
     deliveryOptionsByShipment: Record<number | string, DeliveryOption[]>;
     modelValue: Record<number | string, string>;
+    emptyHint?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -80,9 +81,12 @@ defineExpose({ totalShipping, allSelected });
 
             <div
                 v-if="!optionsFor(pkg.inventory_id).length"
-                class="om-meta"
+                class="text-sm text-amber-800"
             >
-                Belum ada opsi pengiriman untuk paket ini.
+                {{
+                    emptyHint ||
+                    'Belum ada opsi pengiriman untuk paket ini. Pastikan gudang punya origin RajaOngkir dan destinasi sudah dipilih.'
+                }}
             </div>
 
             <div v-else class="flex flex-col gap-2">

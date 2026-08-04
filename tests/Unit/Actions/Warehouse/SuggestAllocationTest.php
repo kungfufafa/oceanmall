@@ -106,6 +106,31 @@ final class SuggestAllocationTest extends TestCase
         resolve(SuggestAllocation::class)->handle($cart, []);
     }
 
+    public function test_komerce_enabled_skips_inventories_without_rajaongkir_origin(): void
+    {
+        config()->set('komerce.enabled', true);
+        config()->set('komerce.api_key', 'test-key');
+
+        $cart = $this->cart();
+        $withoutOrigin = Inventory::factory()->create([
+            'is_default' => true,
+            'rajaongkir_origin_id' => null,
+        ]);
+        $withOrigin = Inventory::factory()->create([
+            'is_default' => false,
+            'rajaongkir_origin_id' => '501',
+        ]);
+        $product = Product::factory()->standard()->create();
+        $product->mutateStock($withoutOrigin->id, 5);
+        $product->mutateStock($withOrigin->id, 5);
+        $this->addCartLine($cart, $product, 2);
+
+        $plan = resolve(SuggestAllocation::class)->handle($cart, ['city' => 'Jakarta']);
+
+        $this->assertCount(1, $plan->shipments);
+        $this->assertSame($withOrigin->id, $plan->shipments[0]->inventory_id);
+    }
+
     private function cart(): Cart
     {
         return Cart::query()->create(['currency_code' => 'IDR']);

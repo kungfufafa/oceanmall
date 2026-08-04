@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Bell } from 'lucide-vue-next';
-import { notifications as accountNotifications } from '@/routes/account';
+import accountNotifications from '@/routes/account/notifications';
 import * as shop from '@/routes/shop';
 
 type NotificationItem = {

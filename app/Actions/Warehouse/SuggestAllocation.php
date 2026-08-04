@@ -24,7 +24,7 @@ final readonly class SuggestAllocation
 
         $shipments = [];
         $shipmentOrder = [];
-        $inventories = Inventory::query()->get();
+        $inventories = $this->eligibleInventories();
         $remainingStock = [];
 
         foreach ($cart->lines as $line) {
@@ -72,6 +72,26 @@ final readonly class SuggestAllocation
                 $shipmentOrder,
             ),
         );
+    }
+
+    /**
+     * Inventories that can fulfill storefront shipments.
+     *
+     * When Komerce/RajaOngkir is enabled, only warehouses with a
+     * `rajaongkir_origin_id` are used — otherwise rate quotes stay empty.
+     *
+     * @return Collection<int, Inventory>
+     */
+    private function eligibleInventories(): Collection
+    {
+        $query = Inventory::query();
+
+        if (komerce_enabled()) {
+            $query->whereNotNull('rajaongkir_origin_id')
+                ->where('rajaongkir_origin_id', '!=', '');
+        }
+
+        return $query->get();
     }
 
     /**

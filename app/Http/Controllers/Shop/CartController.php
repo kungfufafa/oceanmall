@@ -82,7 +82,16 @@ final class CartController extends Controller
             return back();
         }
 
-        resolve(CartManager::class)->update($cart, $line, ['quantity' => $data['quantity']]);
+        try {
+            resolve(CartManager::class)->update($cart, $line, ['quantity' => $data['quantity']]);
+        } catch (InsufficientStockException) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Stok tidak mencukupi.',
+            ]);
+
+            return back()->withErrors(['cart' => 'Stok tidak mencukupi.']);
+        }
 
         $this->invalidateCheckoutSession();
 

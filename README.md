@@ -86,7 +86,7 @@ OceanMall checkout aktif memakai **Komerce Payment** (VA / QRIS) + **RajaOngkir 
 | `RAJAONGKIR_COST_BASE_URL` | Default: `https://rajaongkir.komerce.id` |
 | `RAJAONGKIR_DELIVERY_BASE_URL` | Sandbox delivery / AWB base URL |
 | `RAJAONGKIR_COURIERS` | Kurir aktif, comma-separated (default: `jne,jnt,sicepat`) |
-| `KOMERCE_WEBHOOK_SECRET` | Secret buatan sendiri; dikirim sebagai `callback_API_KEY`. Callback Payment diverifikasi via **HMAC-SHA256** (`X-Callback-Api-Key`) |
+| `KOMERCE_WEBHOOK_SECRET` | Secret buatan sendiri; dikirim sebagai `callback_API_KEY`. **Semua** webhook Komerce (payment, delivery, qrisly) diverifikasi via **HMAC-SHA256** (`X-Callback-Api-Key` = HMAC(raw JSON body, secret)) |
 | `KOMERCE_PICKUP_VEHICLE` | Kendaraan pickup (default: `Motor`) |
 | `KOMERCE_PICKUP_TIME` | Jam pickup default (default: `10:00`) |
 | `KOMERCE_TIMEOUT` | Timeout HTTP client (detik) |
@@ -99,6 +99,21 @@ POST {APP_URL}/webhooks/komerce/payment
 POST {APP_URL}/webhooks/komerce/delivery
 POST {APP_URL}/webhooks/komerce/qrisly
 ```
+
+Semua endpoint di atas wajib mengirim header `X-Callback-Api-Key` berisi HMAC-SHA256 body dengan `KOMERCE_WEBHOOK_SECRET`. Request tanpa signature ditolak (401).
+
+### Production ops (wajib jalan)
+
+Checkout Komerce bergantung pada background jobs. Tanpa ini AWB/tracking/expire unpaid tidak jalan:
+
+| Proses | Cara |
+| --- | --- |
+| Queue worker | `php artisan queue:work` (atau `composer run dev`) |
+| Scheduler | Cron tiap menit: `* * * * * php artisan schedule:run` (dev: `schedule:work`) |
+| Expire unpaid | `komerce:expire-unpaid-orders` (jadwal di `routes/console.php`) |
+| Tracking poll | `komerce:refresh-shipment-tracking` (hourly) |
+
+Inventory gudang **harus** punya `rajaongkir_origin_id` — tanpa itu checkout step 2 kosong.
 
 Di Collaborator → Developer → Webhook:
 

@@ -76,6 +76,16 @@ final class MarkOrderPaidFromKomerce
             }
         }
 
+        if ($this->amountMismatches($order, $transaction, $remotePayment, $provider)) {
+            report(new \RuntimeException(sprintf(
+                'Komerce payment amount mismatch for order %s (payment %s).',
+                $order->number,
+                $paymentId,
+            )));
+
+            return 'amount_mismatch';
+        }
+
         $wasUnpaid = $order->payment_status !== PaymentStatus::Paid;
 
         DB::transaction(function () use ($order, $transaction, $paymentId, $remotePayment, $remoteStatus, $provider): void {
@@ -196,6 +206,30 @@ final class MarkOrderPaidFromKomerce
     private function isPaidStatus(string $status): bool
     {
         return in_array(strtoupper(trim($status)), ['PAID', 'SUCCESS', 'SUCCEEDED'], true);
+    }
+
+    /**
+     * Reject paid callbacks whose remote amount is far from the order total.
+     * Allows up to 999 IDR drift for QRISLY unique-amount suffixes.
+     *
+     * @param  array<string, mixed>  $remotePayment
+     */
+    private function amountMismatches(
+        Order $order,
+        ?PaymentTransaction $transaction,
+        array $remotePayment,
+        string $provider,
+    ): bool {
+        $remoteAmount = $this->remoteAmount($remotePayment, $provider);
+
+        if ($remoteAmount === null) {
+            return false;
+        }
+
+        $expected = (int) ($transaction?->amount ?? $order->price_amount);
+        $tolerance = $provider === 'qrisly' ? 999 : 0;
+
+        return abs($remoteAmount - $expected) > $tolerance;
     }
 
     /**

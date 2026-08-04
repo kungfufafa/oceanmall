@@ -134,8 +134,54 @@ final class CheckoutController extends Controller
             ] : null,
             'komercePayment' => $komercePayment,
             'komerceEnabled' => komerce_enabled(),
+            'shippingRatesHint' => $this->shippingRatesHint(
+                is_array($shippingAddress) ? $shippingAddress : null,
+                $allocation,
+                $deliveryOptions,
+                $deliveryOptionsByShipment,
+            ),
             'couponCode' => $cart->coupon_code,
         ]);
+    }
+
+    /**
+     * Actionable copy when step 2 has no courier options.
+     *
+     * @param  array<string, mixed>|null  $shippingAddress
+     * @param  list<array<string, mixed>>|null  $allocation
+     * @param  list<array<string, mixed>>  $deliveryOptions
+     * @param  array<int|string, list<array<string, mixed>>>  $deliveryOptionsByShipment
+     */
+    private function shippingRatesHint(
+        ?array $shippingAddress,
+        ?array $allocation,
+        array $deliveryOptions,
+        array $deliveryOptionsByShipment,
+    ): ?string {
+        if ($shippingAddress === null) {
+            return null;
+        }
+
+        $hasAnyRate = $deliveryOptions !== []
+            || collect($deliveryOptionsByShipment)->contains(fn (mixed $opts): bool => is_array($opts) && $opts !== []);
+
+        if ($hasAnyRate) {
+            return null;
+        }
+
+        if (! komerce_enabled()) {
+            return __('Pengiriman Komerce/RajaOngkir belum dikonfigurasi. Hubungi admin toko.');
+        }
+
+        if (blank(data_get($shippingAddress, 'rajaongkir_destination_id'))) {
+            return __('Pilih kecamatan/destinasi dari pencarian agar ongkir bisa dihitung.');
+        }
+
+        if ($allocation === null || $allocation === []) {
+            return __('Tidak ada gudang dengan origin RajaOngkir yang bisa memenuhi stok keranjangmu. Hubungi admin toko.');
+        }
+
+        return __('Tidak ada opsi kurir untuk destinasi ini. Coba ubah alamat atau hubungi admin toko.');
     }
 
     public function saveShippingAddress(Request $request): RedirectResponse
@@ -468,12 +514,14 @@ final class CheckoutController extends Controller
             report($e);
 
             if ($order !== null) {
+                // Order owns reserved stock — clear cart/checkout so the customer
+                // retries payment on the account order instead of re-ordering.
                 session()->forget(CheckoutSession::KEY);
                 resolve(CartSessionManager::class)->forget();
 
                 return redirect()
-                    ->route('shop.checkout.success', ['order' => $order->id])
-                    ->with('error', __('Your order was placed but payment setup failed. Please contact support or try again.'));
+                    ->route('account.orders.show', ['order' => $order->id])
+                    ->with('error', __('Your order was placed but payment setup failed. You can retry payment from this order page.'));
             }
 
             return back()->withErrors(['order' => __('An error occurred while placing your order. Please try again.')]);

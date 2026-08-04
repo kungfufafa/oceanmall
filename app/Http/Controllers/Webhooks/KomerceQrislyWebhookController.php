@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Webhooks;
 
 use App\Actions\Checkout\MarkOrderPaidFromKomerce;
+use App\Http\Controllers\Concerns\VerifiesKomerceWebhookSecret;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,13 +14,25 @@ use Illuminate\Http\Request;
  * Receiver for QRISLY outbound webhooks registered in Collaborator.
  *
  * Docs expect HTTP 200 with `{ success, message }`.
+ * Authenticated with the same HMAC-SHA256 callback secret as Payment
+ * (`X-Callback-Api-Key` = HMAC(raw body, KOMERCE_WEBHOOK_SECRET)).
  *
  * @see https://rajaongkir.com/docs/qrisly/getting-started/webhook
  */
 final class KomerceQrislyWebhookController extends Controller
 {
+    use VerifiesKomerceWebhookSecret;
+
     public function __invoke(Request $request, MarkOrderPaidFromKomerce $markOrderPaid): JsonResponse
     {
+        if (! $this->hasValidKomerceWebhookSecret($request)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid webhook secret.',
+                'status' => 'invalid_secret',
+            ], 401);
+        }
+
         if (! qrisly_enabled()) {
             return response()->json([
                 'success' => false,
@@ -67,6 +80,7 @@ final class KomerceQrislyWebhookController extends Controller
         $http = match ($status) {
             'no_transaction', 'no_order' => 404,
             'not_paid' => 409,
+            'amount_mismatch' => 422,
             default => 200,
         };
 

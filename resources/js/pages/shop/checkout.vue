@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Check, ChevronRight, Lock, ShoppingBag } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import AuthTextField from '@/components/auth/auth-text-field.vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Card from '@/components/shop/card.vue';
@@ -10,12 +10,15 @@ import CouponField from '@/components/shop/coupon-field.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
 import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
 import ShipmentRatePicker from '@/components/shop/shipment-rate-picker.vue';
-import StripePaymentForm from '@/components/shop/stripe-payment-form.vue';
 import { useShop } from '@/composables/useShop';
 import { formatMoney } from '@/lib/format';
 import { cart as cartRoute } from '@/routes/shop';
 import * as checkout from '@/routes/shop/checkout';
 import type { Address, Cart, CartContext, DeliveryOption } from '@/types/shop';
+
+const StripePaymentForm = defineAsyncComponent(
+    () => import('@/components/shop/stripe-payment-form.vue'),
+);
 
 type ShipmentPackage = {
     inventory_id: number;
@@ -77,6 +80,7 @@ const props = defineProps<{
     } | null;
     komercePayment: KomercePaymentInstructions | null;
     komerceEnabled: boolean;
+    shippingRatesHint?: string | null;
     couponCode?: string | null;
 }>();
 
@@ -715,12 +719,20 @@ const steps = [
                                 Metode pengiriman
                             </h2>
 
+                            <div
+                                v-if="shippingRatesHint"
+                                class="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+                            >
+                                {{ shippingRatesHint }}
+                            </div>
+
                             <ShipmentRatePicker
                                 v-model="ratesByShipment"
                                 :packages="allocation!"
                                 :delivery-options-by-shipment="
                                     deliveryOptionsByShipment
                                 "
+                                :empty-hint="shippingRatesHint"
                             />
 
                             <div class="flex">
@@ -739,14 +751,17 @@ const steps = [
                     <template v-else>
                         <div v-if="!deliveryOptions.length">
                             <div
-                                class="flex items-center gap-4 rounded-md border border-zinc-200 p-4"
+                                class="flex items-center gap-4 rounded-md border border-amber-200 bg-amber-50 p-4"
                             >
                                 <ShoppingBag
-                                    class="size-5 text-zinc-400"
+                                    class="size-5 text-amber-600"
                                     aria-hidden="true"
                                 />
-                                <p class="text-sm text-zinc-600">
-                                    Tidak ada opsi pengiriman untuk alamatmu.
+                                <p class="text-sm text-amber-900">
+                                    {{
+                                        shippingRatesHint ||
+                                        'Tidak ada opsi pengiriman untuk alamatmu.'
+                                    }}
                                 </p>
                             </div>
                             <button

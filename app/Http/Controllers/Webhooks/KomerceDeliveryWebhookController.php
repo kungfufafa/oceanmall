@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Webhooks;
 
 use App\Actions\Shipping\ApplyDeliveryWebhookStatus;
+use App\Http\Controllers\Concerns\VerifiesKomerceWebhookSecret;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,11 +15,20 @@ use Illuminate\Http\Request;
  * https://collaborator.komerce.id/webhook (Add Webhook URL).
  *
  * Payload: { order_no, cnote, status }
+ *
+ * Authenticated with the same HMAC-SHA256 callback secret as Payment
+ * (`X-Callback-Api-Key` = HMAC(raw body, KOMERCE_WEBHOOK_SECRET)).
  */
 final class KomerceDeliveryWebhookController extends Controller
 {
+    use VerifiesKomerceWebhookSecret;
+
     public function __invoke(Request $request, ApplyDeliveryWebhookStatus $apply): JsonResponse
     {
+        if (! $this->hasValidKomerceWebhookSecret($request)) {
+            return response()->json(['status' => 'invalid_secret'], 401);
+        }
+
         if (! komerce_enabled()) {
             return response()->json(['status' => 'disabled'], 503);
         }

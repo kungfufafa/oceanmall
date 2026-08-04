@@ -600,7 +600,7 @@ final class KomerceCheckoutTest extends TestCase
         });
     }
 
-    public function test_place_order_komerce_payment_failure_redirects_to_success_with_pending_order(): void
+    public function test_place_order_komerce_payment_failure_redirects_to_account_order_with_pending_order(): void
     {
         $this->komerceFakeConfig();
 
@@ -641,8 +641,8 @@ final class KomerceCheckoutTest extends TestCase
                 'payment_method_id' => $paymentMethod->id,
             ]);
 
-        // Must redirect to success page (order exists) — NOT back to checkout
-        $response->assertRedirect(route('shop.checkout.success', ['order' => $order->id]));
+        // Order exists — send customer to account order so they can retry payment.
+        $response->assertRedirect(route('account.orders.show', ['order' => $order->id]));
         $response->assertSessionHas('error');
     }
 

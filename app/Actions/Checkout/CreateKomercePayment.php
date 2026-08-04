@@ -49,6 +49,10 @@ final class CreateKomercePayment
     {
         $channelCode = $selectedMethod['channel_code'] ?? null;
 
+        if ($paymentType === 'bank_transfer' && ($channelCode === null || $channelCode === '')) {
+            throw new RuntimeException('Komerce VA payment requires a channel_code (bank).');
+        }
+
         $customer = $order->customer;
         $firstName = (string) ($customer?->first_name ?? '');
         $lastName = (string) ($customer?->last_name ?? '');

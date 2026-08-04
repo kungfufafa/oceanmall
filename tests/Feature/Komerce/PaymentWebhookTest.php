@@ -129,6 +129,54 @@ final class PaymentWebhookTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_paid_callback_rejects_amount_mismatch(): void
+    {
+        config()->set('komerce.webhook_secret', 'webhook-secret');
+        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+
+        $order = Order::factory()->create([
+            'number' => 'ORDER-AMOUNT',
+            'price_amount' => 100000,
+            'currency_code' => 'IDR',
+            'status' => OrderStatus::New,
+            'payment_status' => PaymentStatus::Pending,
+        ]);
+
+        PaymentTransaction::query()->create([
+            'order_id' => $order->id,
+            'driver' => 'komerce',
+            'type' => TransactionType::Initiate,
+            'status' => TransactionStatus::Pending,
+            'amount' => 100000,
+            'currency_code' => 'IDR',
+            'reference' => 'KOMPAY-AMOUNT',
+        ]);
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/status/KOMPAY-AMOUNT' => Http::response([
+                'success' => true,
+                'data' => [
+                    'payment_id' => 'KOMPAY-AMOUNT',
+                    'status' => 'PAID',
+                    'amount' => 1,
+                ],
+            ]),
+        ]);
+
+        $this->postSignedKomercePaymentWebhook([
+            'payment_id' => 'KOMPAY-AMOUNT',
+            'order_id' => 'ORDER-AMOUNT',
+            'status' => 'PAID',
+            'amount' => 1,
+        ])
+            ->assertStatus(422)
+            ->assertJson(['status' => 'amount_mismatch']);
+
+        $order->refresh();
+        $this->assertSame(PaymentStatus::Pending, $order->payment_status);
+    }
+
     public function test_paid_callback_can_find_order_by_komerce_payment_ref_metadata(): void
     {
         config()->set('komerce.webhook_secret', 'webhook-secret');

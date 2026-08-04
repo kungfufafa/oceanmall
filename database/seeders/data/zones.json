@@ -22,8 +22,9 @@
       }
     ],
     "payment_methods": [
-      "cod",
-      "komerce-va-qris"
+      "komerce-va-bca",
+      "komerce-va-bri",
+      "komerce-qris"
     ],
     "collections": []
   }

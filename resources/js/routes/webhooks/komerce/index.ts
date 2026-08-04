@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Webhooks\KomercePaymentWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:15
+* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:17
 * @route '/webhooks/komerce/payment'
 */
 export const payment = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ payment.definition = {
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomercePaymentWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:15
+* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:17
 * @route '/webhooks/komerce/payment'
 */
 payment.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ payment.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomercePaymentWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:15
+* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:17
 * @route '/webhooks/komerce/payment'
 */
 payment.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ payment.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomercePaymentWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:15
+* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:17
 * @route '/webhooks/komerce/payment'
 */
 const paymentForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ const paymentForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomercePaymentWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:15
+* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:17
 * @route '/webhooks/komerce/payment'
 */
 paymentForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -57,7 +57,7 @@ payment.form = paymentForm
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomerceDeliveryWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomerceDeliveryWebhookController.php:20
+* @see app/Http/Controllers/Webhooks/KomerceDeliveryWebhookController.php:26
 * @route '/webhooks/komerce/delivery'
 */
 export const delivery = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -72,7 +72,7 @@ delivery.definition = {
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomerceDeliveryWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomerceDeliveryWebhookController.php:20
+* @see app/Http/Controllers/Webhooks/KomerceDeliveryWebhookController.php:26
 * @route '/webhooks/komerce/delivery'
 */
 delivery.url = (options?: RouteQueryOptions) => {
@@ -81,7 +81,7 @@ delivery.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomerceDeliveryWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomerceDeliveryWebhookController.php:20
+* @see app/Http/Controllers/Webhooks/KomerceDeliveryWebhookController.php:26
 * @route '/webhooks/komerce/delivery'
 */
 delivery.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -91,7 +91,7 @@ delivery.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomerceDeliveryWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomerceDeliveryWebhookController.php:20
+* @see app/Http/Controllers/Webhooks/KomerceDeliveryWebhookController.php:26
 * @route '/webhooks/komerce/delivery'
 */
 const deliveryForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -101,7 +101,7 @@ const deliveryForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> 
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomerceDeliveryWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomerceDeliveryWebhookController.php:20
+* @see app/Http/Controllers/Webhooks/KomerceDeliveryWebhookController.php:26
 * @route '/webhooks/komerce/delivery'
 */
 deliveryForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -113,7 +113,7 @@ delivery.form = deliveryForm
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomerceQrislyWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomerceQrislyWebhookController.php:21
+* @see app/Http/Controllers/Webhooks/KomerceQrislyWebhookController.php:26
 * @route '/webhooks/komerce/qrisly'
 */
 export const qrisly = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -128,7 +128,7 @@ qrisly.definition = {
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomerceQrislyWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomerceQrislyWebhookController.php:21
+* @see app/Http/Controllers/Webhooks/KomerceQrislyWebhookController.php:26
 * @route '/webhooks/komerce/qrisly'
 */
 qrisly.url = (options?: RouteQueryOptions) => {
@@ -137,7 +137,7 @@ qrisly.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomerceQrislyWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomerceQrislyWebhookController.php:21
+* @see app/Http/Controllers/Webhooks/KomerceQrislyWebhookController.php:26
 * @route '/webhooks/komerce/qrisly'
 */
 qrisly.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -147,7 +147,7 @@ qrisly.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomerceQrislyWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomerceQrislyWebhookController.php:21
+* @see app/Http/Controllers/Webhooks/KomerceQrislyWebhookController.php:26
 * @route '/webhooks/komerce/qrisly'
 */
 const qrislyForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -157,7 +157,7 @@ const qrislyForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> =>
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomerceQrislyWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomerceQrislyWebhookController.php:21
+* @see app/Http/Controllers/Webhooks/KomerceQrislyWebhookController.php:26
 * @route '/webhooks/komerce/qrisly'
 */
 qrislyForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

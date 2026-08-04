@@ -13,23 +13,70 @@ class PaymentMethodSeeder extends Seeder
     {
         $this->command->warn(PHP_EOL.'Creating payment methods...');
 
+        // COD kept for ops flexibility but off by default — prepaid Komerce is the production path.
         PaymentMethod::query()->updateOrCreate(
             ['slug' => 'cod'],
             [
                 'title' => 'Cash on delivery',
                 'description' => 'Bayar di tempat saat barang diterima.',
-                'is_enabled' => true,
+                'is_enabled' => false,
                 'driver' => 'manual',
             ],
         );
 
         PaymentMethod::query()->updateOrCreate(
+            ['slug' => 'komerce-va-bca'],
+            [
+                'title' => 'BCA Virtual Account',
+                'description' => 'Bayar via BCA Virtual Account (Komerce).',
+                'is_enabled' => true,
+                'driver' => 'komerce',
+                'metadata' => json_encode([
+                    'payment_type' => 'bank_transfer',
+                    'channel_code' => 'BCA',
+                ], JSON_THROW_ON_ERROR),
+            ],
+        );
+
+        PaymentMethod::query()->updateOrCreate(
+            ['slug' => 'komerce-va-bri'],
+            [
+                'title' => 'BRI Virtual Account',
+                'description' => 'Bayar via BRI Virtual Account (Komerce).',
+                'is_enabled' => true,
+                'driver' => 'komerce',
+                'metadata' => json_encode([
+                    'payment_type' => 'bank_transfer',
+                    'channel_code' => 'BRIVA',
+                ], JSON_THROW_ON_ERROR),
+            ],
+        );
+
+        PaymentMethod::query()->updateOrCreate(
+            ['slug' => 'komerce-qris'],
+            [
+                'title' => 'QRIS',
+                'description' => 'Bayar via QRIS (Komerce).',
+                'is_enabled' => true,
+                'driver' => 'komerce',
+                'metadata' => json_encode([
+                    'payment_type' => 'qris',
+                ], JSON_THROW_ON_ERROR),
+            ],
+        );
+
+        // Legacy combined slug: keep row but disabled so ZoneSeeder upgrades cleanly.
+        PaymentMethod::query()->updateOrCreate(
             ['slug' => 'komerce-va-qris'],
             [
                 'title' => 'Virtual Account / QRIS (Komerce)',
-                'description' => 'Bayar via Virtual Account bank atau QRIS melalui Komerce.',
-                'is_enabled' => true,
+                'description' => 'Legacy combined method — use komerce-va-* or komerce-qris.',
+                'is_enabled' => false,
                 'driver' => 'komerce',
+                'metadata' => json_encode([
+                    'payment_type' => 'bank_transfer',
+                    'channel_code' => 'BCA',
+                ], JSON_THROW_ON_ERROR),
             ],
         );
 

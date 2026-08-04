@@ -12,11 +12,13 @@ use Shopper\Core\Models\Order;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Enum\TransactionType;
 use Shopper\Payment\Models\PaymentTransaction;
+use Tests\Support\SignsKomercePaymentCallbacks;
 use Tests\TestCase;
 
 final class QrislyWebhookTest extends TestCase
 {
     use RefreshDatabase;
+    use SignsKomercePaymentCallbacks;
 
     public function test_qrisly_webhook_marks_order_paid_on_payment_success(): void
     {
@@ -24,6 +26,7 @@ final class QrislyWebhookTest extends TestCase
         config()->set('komerce.qrisly_api_key', 'qrisly-key');
         config()->set('komerce.qrisly_qris_id', '18');
         config()->set('komerce.qrisly_base_url', 'https://qrisly.example.test/user');
+        config()->set('komerce.webhook_secret', 'webhook-secret');
 
         $order = Order::factory()->create([
             'number' => 'ORD-QRISLY-WH',
@@ -61,7 +64,7 @@ final class QrislyWebhookTest extends TestCase
             ]),
         ]);
 
-        $this->postJson(route('webhooks.komerce.qrisly'), [
+        $this->postSignedKomerceQrislyWebhook([
             'event' => 'payment.success',
             'timestamp' => '2026-08-04T10:00:00Z',
             'data' => [
@@ -84,10 +87,29 @@ final class QrislyWebhookTest extends TestCase
     {
         config()->set('komerce.qrisly_api_key', '');
         config()->set('komerce.qrisly_qris_id', '');
+        config()->set('komerce.webhook_secret', 'webhook-secret');
 
-        $this->postJson(route('webhooks.komerce.qrisly'), [
+        $this->postSignedKomerceQrislyWebhook([
             'event' => 'payment.success',
             'data' => ['qris_history_id' => '1'],
         ])->assertStatus(503)->assertJson(['status' => 'disabled']);
+    }
+
+    public function test_qrisly_webhook_rejects_unsigned_payload(): void
+    {
+        config()->set('komerce.api_key', 'legacy');
+        config()->set('komerce.qrisly_api_key', 'qrisly-key');
+        config()->set('komerce.qrisly_qris_id', '18');
+        config()->set('komerce.webhook_secret', 'webhook-secret');
+
+        $this->postJson(route('webhooks.komerce.qrisly'), [
+            'event' => 'payment.success',
+            'data' => [
+                'qris_history_id' => '9001',
+                'payment_status' => 'paid',
+            ],
+        ])
+            ->assertUnauthorized()
+            ->assertJson(['status' => 'invalid_secret']);
     }
 }

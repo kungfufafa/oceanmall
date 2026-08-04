@@ -137,7 +137,7 @@ const gallery = computed<string[]>(() => {
     const urls = [
         props.product.thumbnail,
         ...(props.product.images ?? []).map((image) => image.url),
-    ].filter((url): url is string => Boolean(url) && !url.includes('placeholder'));
+    ].filter((url): url is string => Boolean(url) && !url!.includes('placeholder'));
 
     return [...new Set(urls)];
 });
