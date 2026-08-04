@@ -195,7 +195,7 @@ Disarankan pecah implementasi, tanpa mengubah target model:
 
 1. Kurir aktif awal: mana saja (JNE, J&T, SiCepat, …)?
 2. COD lewat RajaOngkir Delivery — perlu di v1, atau prepaid only dulu?
-3. Prefix/admin override UI: extend Filament Shopper atau halaman Inertia khusus?
+3. Override UI: Shopper `/cpanel` order detail Livewire panel only (no separate `/admin`).
 
 ## References
 

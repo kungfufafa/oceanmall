@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature\Admin;
+namespace Tests\Feature\Cpanel;
 
 use App\Models\OrderShipment;
 use App\Models\User;
@@ -13,7 +13,7 @@ use Shopper\Core\Models\Order;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
-final class AdminOrderShowTest extends TestCase
+final class CpanelOrderDetailTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -31,14 +31,14 @@ final class AdminOrderShowTest extends TestCase
         return $admin;
     }
 
-    public function test_legacy_admin_order_route_redirects_to_cpanel_detail(): void
+    public function test_admin_path_is_not_a_backoffice_route(): void
     {
         $admin = $this->admin();
         $order = Order::factory()->create(['currency_code' => 'IDR']);
 
         $this->actingAs($admin)
-            ->get(route('admin.orders.show', $order))
-            ->assertRedirect(route('shopper.orders.detail', $order));
+            ->get('/admin/orders/'.$order->id)
+            ->assertNotFound();
     }
 
     public function test_cpanel_order_detail_includes_komerce_shipping_panel_for_admin(): void

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
-* @see \App\Http\Controllers\Admin\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Admin/PrintShipmentLabelController.php:23
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 export const printLabel = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -15,8 +15,8 @@ printLabel.definition = {
 } satisfies RouteDefinition<["get","head"]>
 
 /**
-* @see \App\Http\Controllers\Admin\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Admin/PrintShipmentLabelController.php:23
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 printLabel.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -48,8 +48,8 @@ printLabel.url = (args: { order: number | { id: number } } | [order: number | { 
 }
 
 /**
-* @see \App\Http\Controllers\Admin\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Admin/PrintShipmentLabelController.php:23
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 printLabel.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -58,8 +58,8 @@ printLabel.get = (args: { order: number | { id: number } } | [order: number | { 
 })
 
 /**
-* @see \App\Http\Controllers\Admin\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Admin/PrintShipmentLabelController.php:23
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 printLabel.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -68,8 +68,8 @@ printLabel.head = (args: { order: number | { id: number } } | [order: number | {
 })
 
 /**
-* @see \App\Http\Controllers\Admin\OverrideAllocationController::__invoke
-* @see app/Http/Controllers/Admin/OverrideAllocationController.php:18
+* @see \App\Http\Controllers\Cpanel\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Cpanel/OverrideAllocationController.php:18
 * @route '/cpanel/orders/{order}/fulfillment/override-allocation'
 */
 export const overrideAllocation = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -83,8 +83,8 @@ overrideAllocation.definition = {
 } satisfies RouteDefinition<["post"]>
 
 /**
-* @see \App\Http\Controllers\Admin\OverrideAllocationController::__invoke
-* @see app/Http/Controllers/Admin/OverrideAllocationController.php:18
+* @see \App\Http\Controllers\Cpanel\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Cpanel/OverrideAllocationController.php:18
 * @route '/cpanel/orders/{order}/fulfillment/override-allocation'
 */
 overrideAllocation.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -116,8 +116,8 @@ overrideAllocation.url = (args: { order: number | { id: number } } | [order: num
 }
 
 /**
-* @see \App\Http\Controllers\Admin\OverrideAllocationController::__invoke
-* @see app/Http/Controllers/Admin/OverrideAllocationController.php:18
+* @see \App\Http\Controllers\Cpanel\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Cpanel/OverrideAllocationController.php:18
 * @route '/cpanel/orders/{order}/fulfillment/override-allocation'
 */
 overrideAllocation.post = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({

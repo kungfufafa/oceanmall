@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature\Admin;
+namespace Tests\Feature\Cpanel;
 
 use App\Actions\Checkout\FetchDeliveryRates;
 use App\Actions\Warehouse\OverrideAllocation;

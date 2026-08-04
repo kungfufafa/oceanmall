@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
-* @see \App\Http\Controllers\Admin\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Admin/PrintShipmentLabelController.php:23
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 const PrintShipmentLabelController = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -15,8 +15,8 @@ PrintShipmentLabelController.definition = {
 } satisfies RouteDefinition<["get","head"]>
 
 /**
-* @see \App\Http\Controllers\Admin\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Admin/PrintShipmentLabelController.php:23
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 PrintShipmentLabelController.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -48,8 +48,8 @@ PrintShipmentLabelController.url = (args: { order: number | { id: number } } | [
 }
 
 /**
-* @see \App\Http\Controllers\Admin\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Admin/PrintShipmentLabelController.php:23
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 PrintShipmentLabelController.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -58,8 +58,8 @@ PrintShipmentLabelController.get = (args: { order: number | { id: number } } | [
 })
 
 /**
-* @see \App\Http\Controllers\Admin\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Admin/PrintShipmentLabelController.php:23
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 PrintShipmentLabelController.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({

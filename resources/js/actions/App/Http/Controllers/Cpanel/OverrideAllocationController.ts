@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
-* @see \App\Http\Controllers\Admin\OverrideAllocationController::__invoke
-* @see app/Http/Controllers/Admin/OverrideAllocationController.php:18
+* @see \App\Http\Controllers\Cpanel\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Cpanel/OverrideAllocationController.php:18
 * @route '/cpanel/orders/{order}/fulfillment/override-allocation'
 */
 const OverrideAllocationController = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -15,8 +15,8 @@ OverrideAllocationController.definition = {
 } satisfies RouteDefinition<["post"]>
 
 /**
-* @see \App\Http\Controllers\Admin\OverrideAllocationController::__invoke
-* @see app/Http/Controllers/Admin/OverrideAllocationController.php:18
+* @see \App\Http\Controllers\Cpanel\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Cpanel/OverrideAllocationController.php:18
 * @route '/cpanel/orders/{order}/fulfillment/override-allocation'
 */
 OverrideAllocationController.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -48,8 +48,8 @@ OverrideAllocationController.url = (args: { order: number | { id: number } } | [
 }
 
 /**
-* @see \App\Http\Controllers\Admin\OverrideAllocationController::__invoke
-* @see app/Http/Controllers/Admin/OverrideAllocationController.php:18
+* @see \App\Http\Controllers\Cpanel\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Cpanel/OverrideAllocationController.php:18
 * @route '/cpanel/orders/{order}/fulfillment/override-allocation'
 */
 OverrideAllocationController.post = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({

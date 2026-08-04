@@ -2,7 +2,7 @@ import Shop from './Shop'
 import StripeWebhookController from './StripeWebhookController'
 import Webhooks from './Webhooks'
 import Account from './Account'
-import Admin from './Admin'
+import Cpanel from './Cpanel'
 import Settings from './Settings'
 
 const Controllers = {
@@ -10,7 +10,7 @@ const Controllers = {
     StripeWebhookController: Object.assign(StripeWebhookController, StripeWebhookController),
     Webhooks: Object.assign(Webhooks, Webhooks),
     Account: Object.assign(Account, Account),
-    Admin: Object.assign(Admin, Admin),
+    Cpanel: Object.assign(Cpanel, Cpanel),
     Settings: Object.assign(Settings, Settings),
 }
 

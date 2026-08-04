@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature\Admin;
+namespace Tests\Feature\Cpanel;
 
 use App\Actions\Shipping\NormalizeShipmentStatus;
 use App\Jobs\CreateRajaOngkirDeliveryForShipment;

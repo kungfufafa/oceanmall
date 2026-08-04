@@ -4,14 +4,12 @@
 
 Backoffice fulfillment verified after customer payment.
 
-**Ops UI is Shopper `/cpanel`** — not a separate `/admin` app. RajaOngkir/Komerce shipping panel is embedded on:
+**Ops UI is Shopper `/cpanel` only** — no separate `/admin` backoffice. RajaOngkir/Komerce shipping panel is embedded on:
 
 `/cpanel/orders/{id}/detail`
 
-Legacy `/admin/orders/{id}` redirects there.
-
 1. **Domain script** — `php scripts/live-warehouse-ops-e2e-uat.php`
-2. **Feature test** — `WarehouseOpsE2ETest` + `AdminOrderShowTest`
+2. **Feature test** — `WarehouseOpsE2ETest` + `CpanelOrderDetailTest`
 3. **Browser** — cpanel order detail print label UI
 
 ### Domain warehouse checklist
