@@ -30,35 +30,31 @@ const percentage = computed<number | null>(() => {
 </script>
 
 <template>
-    <div class="group relative">
-        <div
-            class="relative aspect-square overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800"
-        >
+    <div class="relative">
+        <div class="relative aspect-square overflow-hidden rounded-md bg-zinc-100">
             <img
                 v-if="thumbnail"
                 :src="thumbnail"
                 :alt="product.name"
                 loading="lazy"
-                class="size-full object-cover object-center transition duration-300 group-hover:scale-105"
+                class="size-full object-cover object-center"
             />
             <span
                 v-if="percentage"
-                class="absolute top-3 left-3 inline-flex items-center rounded-full bg-red-500 px-2.5 py-0.5 text-xs font-medium text-white"
+                class="absolute top-1.5 left-1.5 rounded bg-[#E11D48] px-1.5 py-0.5 text-[10px] font-bold text-white"
             >
                 -{{ percentage }}%
             </span>
         </div>
 
-        <h3
-            class="mt-3 text-sm text-zinc-700 transition group-hover:text-zinc-900 dark:text-zinc-300 dark:group-hover:text-white"
-        >
+        <h3 class="mt-2 line-clamp-2 text-[12px] leading-snug font-medium text-zinc-800">
             <Link :href="shop.product.url({ product: product.slug })">
                 <span class="absolute inset-0" />
                 {{ product.name }}
             </Link>
         </h3>
 
-        <p v-if="product.brand" class="mt-0.5 text-xs text-zinc-500">
+        <p v-if="product.brand" class="mt-0.5 text-[10px] text-zinc-500">
             {{ product.brand.name }}
         </p>
 

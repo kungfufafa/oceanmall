@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
-import InputError from '@/components/input-error.vue';
-import PasswordInput from '@/components/password-input.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
+import { computed, ref } from 'vue';
+import AuthPasswordField from '@/components/auth/auth-password-field.vue';
+import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
+import AuthTextField from '@/components/auth/auth-text-field.vue';
 import { update } from '@/routes/password';
 
 defineOptions({
     layout: {
-        title: 'Reset password',
-        description: 'Please enter your new password below',
+        title: 'Reset Password',
+        description: 'Masukkan password baru untuk akunmu.',
     },
 });
 
@@ -23,68 +20,65 @@ const props = defineProps<{
 }>();
 
 const inputEmail = ref(props.email);
+const password = ref('');
+const passwordConfirmation = ref('');
+
+const canSubmit = computed(
+    () => password.value.length > 0 && passwordConfirmation.value.length > 0,
+);
 </script>
 
 <template>
-    <Head title="Reset password" />
+    <Head title="Reset Password" />
 
     <Form
         v-bind="update.form()"
         :transform="(data) => ({ ...data, token, email })"
         :reset-on-success="['password', 'password_confirmation']"
         v-slot="{ errors, processing }"
+        class="flex flex-col gap-3.5"
     >
-        <div class="grid gap-6">
-            <div class="grid gap-2">
-                <Label for="email">Email</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    name="email"
-                    autocomplete="email"
-                    v-model="inputEmail"
-                    class="mt-1 block w-full"
-                    readonly
-                />
-                <InputError :message="errors.email" class="mt-2" />
-            </div>
+        <AuthTextField
+            id="email"
+            v-model="inputEmail"
+            label="Email"
+            type="email"
+            name="email"
+            autocomplete="email"
+            readonly
+            class="bg-zinc-50 text-zinc-500"
+            :error="errors.email"
+        />
 
-            <div class="grid gap-2">
-                <Label for="password">Password</Label>
-                <PasswordInput
-                    id="password"
-                    name="password"
-                    autocomplete="new-password"
-                    class="mt-1 block w-full"
-                    autofocus
-                    placeholder="Password"
-                    :passwordrules="passwordRules"
-                />
-                <InputError :message="errors.password" />
-            </div>
+        <AuthPasswordField
+            id="password"
+            v-model="password"
+            label="Password baru"
+            name="password"
+            autocomplete="new-password"
+            autofocus
+            placeholder="Masukkan password baru *"
+            :passwordrules="passwordRules"
+            :error="errors.password"
+        />
 
-            <div class="grid gap-2">
-                <Label for="password_confirmation"> Confirm password </Label>
-                <PasswordInput
-                    id="password_confirmation"
-                    name="password_confirmation"
-                    autocomplete="new-password"
-                    class="mt-1 block w-full"
-                    placeholder="Confirm password"
-                    :passwordrules="passwordRules"
-                />
-                <InputError :message="errors.password_confirmation" />
-            </div>
+        <AuthPasswordField
+            id="password_confirmation"
+            v-model="passwordConfirmation"
+            label="Konfirmasi password"
+            name="password_confirmation"
+            autocomplete="new-password"
+            placeholder="Ulangi password baru *"
+            :passwordrules="passwordRules"
+            :error="errors.password_confirmation"
+        />
 
-            <Button
-                type="submit"
-                class="mt-4 w-full"
-                :disabled="processing"
-                data-test="reset-password-button"
-            >
-                <Spinner v-if="processing" />
-                Reset password
-            </Button>
-        </div>
+        <AuthSubmitButton
+            class="mt-2"
+            label="Simpan password"
+            :enabled="canSubmit"
+            :processing="processing"
+            data-test="reset-password-button"
+        />
     </Form>
 </template>

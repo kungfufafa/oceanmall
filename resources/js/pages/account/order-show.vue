@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 import OrderStatusBadge from '@/components/account/order-status-badge.vue';
-import Card from '@/components/shop/card.vue';
+import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
+import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
 import { formatMoney } from '@/lib/format';
 import { dashboard } from '@/routes';
 import { orders as accountOrders } from '@/routes/account';
@@ -72,22 +73,46 @@ type Shipment = {
     tracking_history: TrackingEvent[];
 };
 
-const props = defineProps<{ order: Order; shipments: Shipment[] }>();
+const props = defineProps<{
+    order: Order;
+    shipments: Shipment[];
+    komercePayment?: KomercePaymentInstructions | null;
+    canRetryPayment?: boolean;
+}>();
 
+const page = usePage();
+const paymentError = computed(
+    () => (page.props.errors as Record<string, string> | undefined)?.payment,
+);
+const retryingPayment = ref(false);
+const checkingPayment = ref(false);
 const shippingPrice = props.shipments.length > 0
     ? props.shipments.reduce((sum, s) => sum + s.cost, 0)
     : (props.order.shipping_option?.price ?? 0);
 const itemsTotal =
     props.order.price_amount - (props.order.tax_amount ?? 0) - shippingPrice;
 
+const flashInfo = computed(() => {
+    const flash = page.props.flash as
+        | { info?: string; success?: string }
+        | undefined;
+    return flash?.info ?? null;
+});
+const flashSuccess = computed(() => {
+    const flash = page.props.flash as
+        | { info?: string; success?: string }
+        | undefined;
+    return flash?.success ?? null;
+});
+
 function thumbnail(item: OrderItem): string | null {
     return item.product?.thumbnail ?? item.product?.images?.[0]?.url ?? null;
 }
 
 function formatDate(value: string): string {
-    return new Date(value).toLocaleDateString('en-US', {
+    return new Date(value).toLocaleDateString('id-ID', {
+        day: 'numeric',
         month: 'short',
-        day: '2-digit',
         year: 'numeric',
     });
 }
@@ -126,7 +151,7 @@ function trackShipment(shipment: Shipment): void {
                     id: shipment.id,
                     message:
                         errors.tracking ??
-                        'Unable to update tracking right now.',
+                        'Pelacakan belum bisa diperbarui saat ini.',
                 };
             },
             onFinish: () => {
@@ -146,7 +171,8 @@ function confirmReceived(): void {
             preserveScroll: true,
             onError: (errors) => {
                 receivedError.value =
-                    errors.received ?? 'Unable to confirm receipt right now.';
+                    errors.received ??
+                    'Konfirmasi penerimaan belum bisa diproses saat ini.';
             },
             onFinish: () => {
                 confirmingReceived.value = false;
@@ -154,37 +180,53 @@ function confirmReceived(): void {
         },
     );
 }
+
+function retryPayment(): void {
+    retryingPayment.value = true;
+    router.post(`/account/orders/${props.order.id}/retry-payment`, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            retryingPayment.value = false;
+        },
+    });
+}
+
+function syncPayment(): void {
+    checkingPayment.value = true;
+    router.post(`/account/orders/${props.order.id}/sync-payment`, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            checkingPayment.value = false;
+        },
+    });
+}
 </script>
 
 <template>
-    <Head :title="`Order ${order.number}`" />
+    <Head :title="`Pesanan ${order.number}`" />
 
-    <nav class="flex items-center gap-2 text-sm text-zinc-500">
+    <nav class="om-meta flex items-center gap-2">
         <Link
             :href="dashboard.url()"
-            class="hover:text-zinc-900 dark:hover:text-white"
-            >Account</Link
+            class="hover:text-[var(--om-navy)]"
+            >Akun</Link
         >
         <span>/</span>
         <Link
             :href="accountOrders.url()"
-            class="hover:text-zinc-900 dark:hover:text-white"
-            >Orders</Link
+            class="hover:text-[var(--om-navy)]"
+            >Pesanan</Link
         >
         <span>/</span>
-        <span class="text-zinc-900 dark:text-white">Order details</span>
+        <span class="text-[var(--om-navy)]">Detail pesanan</span>
     </nav>
 
     <div class="mt-6">
-        <h1
-            class="font-heading text-2xl font-bold text-zinc-900 dark:text-white"
-        >
-            Order details
-        </h1>
-        <p class="mt-1 text-sm text-zinc-500">
-            Ordered on {{ formatDate(order.created_at) }}
+        <h1 class="om-page-title">Detail pesanan</h1>
+        <p class="om-meta mt-1">
+            Dipesan {{ formatDate(order.created_at) }}
             <span class="mx-2">|</span>
-            Order #{{ order.number }}
+            Pesanan #{{ order.number }}
         </p>
     </div>
 
@@ -198,326 +240,390 @@ function confirmReceived(): void {
         </template>
     </div>
 
+    <div
+        v-if="flashSuccess && !(komercePayment || canRetryPayment)"
+        class="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-[13px] text-emerald-900"
+    >
+        {{ flashSuccess }}
+    </div>
+
+    <div
+        v-if="komercePayment || canRetryPayment"
+        class="mt-5 overflow-hidden rounded-md border border-amber-200 bg-amber-50/40"
+    >
+        <div class="border-b border-amber-200/80 px-3.5 py-2.5">
+            <h2 class="text-[13px] font-semibold text-amber-950">
+                Menunggu pembayaran
+            </h2>
+            <p class="mt-0.5 text-[11px] text-amber-900/80">
+                Bayar dulu supaya pesanan bisa diproses & dikirim.
+            </p>
+        </div>
+        <div class="space-y-3 bg-white p-3.5">
+            <p v-if="paymentError" class="text-[12px] text-red-600">
+                {{ paymentError }}
+            </p>
+            <p
+                v-else-if="flashInfo"
+                class="rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-2 text-[12px] text-zinc-700"
+            >
+                {{ flashInfo }}
+            </p>
+            <p
+                v-else-if="flashSuccess"
+                class="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[12px] text-emerald-900"
+            >
+                {{ flashSuccess }}
+            </p>
+            <KomercePaymentPanel
+                v-if="komercePayment"
+                :payment="komercePayment"
+            />
+            <p
+                v-else-if="canRetryPayment"
+                class="text-[13px] text-zinc-600"
+            >
+                Instruksi pembayaran belum siap. Ketuk tombol di bawah untuk
+                membuatnya.
+            </p>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <button
+                    v-if="komercePayment"
+                    type="button"
+                    class="om-btn-primary inline-flex flex-1 items-center justify-center px-4 disabled:opacity-50"
+                    :disabled="checkingPayment"
+                    @click="syncPayment"
+                >
+                    {{
+                        checkingPayment
+                            ? 'Mengecek…'
+                            : 'Sudah bayar? Cek status'
+                    }}
+                </button>
+                <button
+                    v-if="canRetryPayment"
+                    type="button"
+                    class="om-btn-outline inline-flex flex-1 items-center justify-center px-4 disabled:opacity-50"
+                    :disabled="retryingPayment"
+                    @click="retryPayment"
+                >
+                    {{
+                        retryingPayment
+                            ? 'Memproses…'
+                            : komercePayment
+                              ? 'Buat ulang pembayaran'
+                              : 'Bayar sekarang'
+                    }}
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div v-if="canConfirmReceived" class="mt-4">
         <button
             type="button"
-            class="inline-flex items-center rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+            class="om-btn-primary inline-flex items-center justify-center px-4 disabled:opacity-60"
             :disabled="confirmingReceived"
             @click="confirmReceived"
         >
-            {{ confirmingReceived ? 'Confirming…' : 'Mark as received' }}
+            {{ confirmingReceived ? 'Memproses…' : 'Tandai sudah diterima' }}
         </button>
-        <p
-            v-if="receivedError"
-            class="mt-2 text-sm text-red-600 dark:text-red-400"
-        >
+        <p v-if="receivedError" class="mt-2 text-sm text-red-600">
             {{ receivedError }}
         </p>
     </div>
 
     <div
         v-else-if="order.status === 'completed'"
-        class="mt-4 text-sm text-zinc-500"
+        class="om-meta mt-4"
     >
-        Order completed — thank you.
+        Pesanan selesai — terima kasih.
     </div>
 
     <div class="mt-8 grid gap-6 lg:grid-cols-3">
-        <div v-if="order.shipping_address">
-            <Card>
-                <h3
-                    class="font-heading text-sm font-semibold text-zinc-900 dark:text-white"
+        <div
+            v-if="order.shipping_address"
+            class="rounded-md border border-zinc-200 bg-white p-4"
+        >
+            <h3 class="om-page-title !text-sm">Alamat pengiriman</h3>
+            <address class="om-meta mt-3 not-italic">
+                <p class="font-medium text-[var(--om-navy)]">
+                    {{
+                        order.shipping_address.full_name ??
+                        `${order.shipping_address.first_name ?? ''} ${order.shipping_address.last_name ?? ''}`.trim()
+                    }}
+                </p>
+                <p>{{ order.shipping_address.street_address }}</p>
+                <p v-if="order.shipping_address.street_address_plus">
+                    {{ order.shipping_address.street_address_plus }}
+                </p>
+                <p>
+                    {{ order.shipping_address.city }}
+                    {{ order.shipping_address.postal_code }}
+                </p>
+                <p
+                    v-if="
+                        order.shipping_address.country?.name ||
+                        order.shipping_address.country_name
+                    "
                 >
-                    Shipping address
-                </h3>
-                <address class="mt-3 text-sm text-zinc-500 not-italic">
-                    <p class="font-medium text-zinc-900 dark:text-white">
-                        {{
-                            order.shipping_address.full_name ??
-                            `${order.shipping_address.first_name ?? ''} ${order.shipping_address.last_name ?? ''}`.trim()
-                        }}
-                    </p>
-                    <p>{{ order.shipping_address.street_address }}</p>
-                    <p v-if="order.shipping_address.street_address_plus">
-                        {{ order.shipping_address.street_address_plus }}
-                    </p>
-                    <p>
-                        {{ order.shipping_address.city }}
-                        {{ order.shipping_address.postal_code }}
-                    </p>
-                    <p
-                        v-if="
-                            order.shipping_address.country?.name ||
-                            order.shipping_address.country_name
-                        "
-                    >
-                        {{
-                            order.shipping_address.country?.name ??
-                            order.shipping_address.country_name
-                        }}
-                    </p>
-                </address>
-            </Card>
+                    {{
+                        order.shipping_address.country?.name ??
+                        order.shipping_address.country_name
+                    }}
+                </p>
+            </address>
         </div>
 
-        <div class="lg:col-span-2">
-            <Card>
-                <h3
-                    class="font-heading text-sm font-semibold text-zinc-900 dark:text-white"
+        <div
+            class="rounded-md border border-zinc-200 bg-white p-4 lg:col-span-2"
+        >
+            <h3 class="om-page-title !text-sm">Ringkasan pesanan</h3>
+            <dl class="mt-3 space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <dt class="text-zinc-500">Produk</dt>
+                    <dd class="text-[var(--om-navy)]">
+                        {{ formatMoney(itemsTotal, order.currency_code) }}
+                    </dd>
+                </div>
+                <div class="flex justify-between">
+                    <dt class="text-zinc-500">
+                        Ongkir
+                        <span
+                            v-if="order.shipping_option?.carrier?.name"
+                            class="text-zinc-400"
+                            >({{
+                                order.shipping_option.carrier.name
+                            }})</span
+                        >
+                    </dt>
+                    <dd class="text-[var(--om-navy)]">
+                        {{
+                            shippingPrice > 0
+                                ? formatMoney(
+                                      shippingPrice,
+                                      order.currency_code,
+                                  )
+                                : 'Gratis'
+                        }}
+                    </dd>
+                </div>
+                <div
+                    v-if="(order.tax_amount ?? 0) > 0"
+                    class="flex justify-between"
                 >
-                    Order summary
-                </h3>
-                <dl class="mt-3 space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <dt class="text-zinc-500">Items</dt>
-                        <dd class="text-zinc-900 dark:text-white">
-                            {{ formatMoney(itemsTotal, order.currency_code) }}
+                    <dt class="text-zinc-500">Pajak</dt>
+                    <dd class="text-[var(--om-navy)]">
+                        {{
+                            formatMoney(
+                                order.tax_amount!,
+                                order.currency_code,
+                            )
+                        }}
+                    </dd>
+                </div>
+                <div
+                    class="flex justify-between border-t border-zinc-200 pt-2"
+                >
+                    <dt class="font-semibold text-[var(--om-navy)]">Total</dt>
+                    <dd class="font-semibold text-[var(--om-navy)]">
+                        {{
+                            formatMoney(
+                                order.price_amount,
+                                order.currency_code,
+                            )
+                        }}
+                    </dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <div
+        v-if="shipments.length"
+        class="mt-8 overflow-hidden rounded-md border border-zinc-200 bg-white"
+    >
+        <div class="border-b border-zinc-200 px-5 py-4">
+            <h3 class="om-page-title !text-sm">Pengiriman / Paket</h3>
+            <p class="om-meta mt-1">
+                Lacak setiap paket dalam pesanan ini.
+            </p>
+        </div>
+        <div class="divide-y divide-zinc-200">
+            <div
+                v-for="(shipment, index) in shipments"
+                :key="shipment.id"
+                class="px-5 py-4"
+            >
+                <div
+                    class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                >
+                    <div>
+                        <p class="text-sm font-medium text-[var(--om-navy)]">
+                            Paket {{ index + 1 }}
+                            <span v-if="shipment.inventory_name">
+                                · {{ shipment.inventory_name }}
+                            </span>
+                        </p>
+                        <p class="om-meta mt-1">
+                            {{
+                                shipmentCarrierService(shipment) ??
+                                'Kurir menunggu'
+                            }}
+                        </p>
+                    </div>
+                    <p class="text-sm font-medium text-[var(--om-navy)]">
+                        {{ formatShipmentStatus(shipment.status) }}
+                    </p>
+                </div>
+
+                <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                    <div>
+                        <dt class="text-zinc-500">AWB</dt>
+                        <dd class="mt-1 text-[var(--om-navy)]">
+                            {{ shipment.awb ?? 'Label menunggu' }}
                         </dd>
                     </div>
-                    <div class="flex justify-between">
-                        <dt class="text-zinc-500">
-                            Delivery
-                            <span
-                                v-if="order.shipping_option?.carrier?.name"
-                                class="text-zinc-400"
-                                >({{
-                                    order.shipping_option.carrier.name
-                                }})</span
-                            >
-                        </dt>
-                        <dd class="text-zinc-900 dark:text-white">
+                    <div>
+                        <dt class="text-zinc-500">Nomor resi</dt>
+                        <dd class="mt-1 text-[var(--om-navy)]">
                             {{
-                                shippingPrice > 0
-                                    ? formatMoney(
-                                          shippingPrice,
-                                          order.currency_code,
-                                      )
-                                    : 'Free'
+                                shipment.tracking_number ??
+                                shipment.awb ??
+                                'Label menunggu'
                             }}
                         </dd>
                     </div>
-                    <div
-                        v-if="(order.tax_amount ?? 0) > 0"
-                        class="flex justify-between"
-                    >
-                        <dt class="text-zinc-500">Tax</dt>
-                        <dd class="text-zinc-900 dark:text-white">
+                    <div>
+                        <dt class="text-zinc-500">Biaya ongkir</dt>
+                        <dd class="mt-1 text-[var(--om-navy)]">
                             {{
                                 formatMoney(
-                                    order.tax_amount!,
-                                    order.currency_code,
-                                )
-                            }}
-                        </dd>
-                    </div>
-                    <div
-                        class="flex justify-between border-t border-zinc-200 pt-2 dark:border-zinc-700"
-                    >
-                        <dt class="font-semibold text-zinc-900 dark:text-white">
-                            Total
-                        </dt>
-                        <dd class="font-semibold text-zinc-900 dark:text-white">
-                            {{
-                                formatMoney(
-                                    order.price_amount,
-                                    order.currency_code,
+                                    shipment.cost,
+                                    shipment.currency,
                                 )
                             }}
                         </dd>
                     </div>
                 </dl>
-            </Card>
+
+                <div v-if="shipment.awb" class="mt-4">
+                    <button
+                        type="button"
+                        :disabled="trackingShipmentId === shipment.id"
+                        class="om-btn-outline inline-flex items-center justify-center px-3 !h-9 !text-sm disabled:opacity-60"
+                        @click="trackShipment(shipment)"
+                    >
+                        {{
+                            trackingShipmentId === shipment.id
+                                ? 'Melacak…'
+                                : 'Lacak paket'
+                        }}
+                    </button>
+
+                    <p
+                        v-if="trackingError?.id === shipment.id"
+                        class="mt-2 text-sm text-red-600"
+                    >
+                        {{ trackingError.message }}
+                    </p>
+
+                    <ol
+                        v-if="shipment.tracking_history.length"
+                        class="mt-4 space-y-3 border-l border-zinc-200 pl-4"
+                    >
+                        <li
+                            v-for="(event, eventIndex) in shipment.tracking_history"
+                            :key="eventIndex"
+                            class="relative"
+                        >
+                            <span
+                                class="absolute -left-[21px] top-1 size-2 rounded-full bg-zinc-400"
+                            />
+                            <p class="text-sm text-[var(--om-navy)]">
+                                {{ event.description }}
+                            </p>
+                            <p
+                                v-if="event.datetime || event.location"
+                                class="om-meta mt-0.5 !text-xs"
+                            >
+                                <span v-if="event.datetime">{{
+                                    event.datetime
+                                }}</span>
+                                <span
+                                    v-if="event.datetime && event.location"
+                                >
+                                    ·
+                                </span>
+                                <span v-if="event.location">{{
+                                    event.location
+                                }}</span>
+                            </p>
+                        </li>
+                    </ol>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div v-if="shipments.length" class="mt-8 overflow-hidden">
-        <Card class="!p-0">
-            <div class="border-b border-zinc-200 px-5 py-4 dark:border-white/10">
-                <h3
-                    class="font-heading text-sm font-semibold text-zinc-900 dark:text-white"
-                >
-                    Shipments / Packages
-                </h3>
-                <p class="mt-1 text-sm text-zinc-500">
-                    Track each package in this order.
-                </p>
-            </div>
-            <div class="divide-y divide-zinc-200 dark:divide-white/10">
+    <div
+        class="mt-8 overflow-hidden rounded-md border border-zinc-200 bg-white"
+    >
+        <div class="divide-y divide-zinc-200">
+            <div
+                v-for="item in order.items"
+                :key="item.id"
+                class="flex gap-4 px-5 py-4"
+            >
                 <div
-                    v-for="(shipment, index) in shipments"
-                    :key="shipment.id"
-                    class="px-5 py-4"
+                    class="size-24 shrink-0 overflow-hidden rounded-md bg-zinc-100 ring-1 ring-zinc-200"
                 >
-                    <div
-                        class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
-                    >
-                        <div>
-                            <p
-                                class="font-heading text-sm font-medium text-zinc-900 dark:text-white"
-                            >
-                                Paket {{ index + 1 }}
-                                <span v-if="shipment.inventory_name">
-                                    · {{ shipment.inventory_name }}
-                                </span>
-                            </p>
-                            <p class="mt-1 text-sm text-zinc-500">
-                                {{
-                                    shipmentCarrierService(shipment) ??
-                                    'Carrier pending'
-                                }}
-                            </p>
-                        </div>
-                        <p
-                            class="text-sm font-medium text-zinc-900 dark:text-white"
-                        >
-                            {{ formatShipmentStatus(shipment.status) }}
-                        </p>
-                    </div>
-
-                    <dl
-                        class="mt-4 grid gap-3 text-sm sm:grid-cols-3"
-                    >
-                        <div>
-                            <dt class="text-zinc-500">AWB</dt>
-                            <dd class="mt-1 text-zinc-900 dark:text-white">
-                                {{ shipment.awb ?? 'Pending label' }}
-                            </dd>
-                        </div>
-                        <div>
-                            <dt class="text-zinc-500">Tracking</dt>
-                            <dd class="mt-1 text-zinc-900 dark:text-white">
-                                {{
-                                    shipment.tracking_number ??
-                                    shipment.awb ??
-                                    'Pending label'
-                                }}
-                            </dd>
-                        </div>
-                        <div>
-                            <dt class="text-zinc-500">Shipping cost</dt>
-                            <dd class="mt-1 text-zinc-900 dark:text-white">
-                                {{
-                                    formatMoney(
-                                        shipment.cost,
-                                        shipment.currency,
-                                    )
-                                }}
-                            </dd>
-                        </div>
-                    </dl>
-
-                    <div v-if="shipment.awb" class="mt-4">
-                        <button
-                            type="button"
-                            :disabled="trackingShipmentId === shipment.id"
-                            class="inline-flex items-center rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                            @click="trackShipment(shipment)"
-                        >
-                            {{
-                                trackingShipmentId === shipment.id
-                                    ? 'Tracking…'
-                                    : 'Track package'
-                            }}
-                        </button>
-
-                        <p
-                            v-if="trackingError?.id === shipment.id"
-                            class="mt-2 text-sm text-red-600 dark:text-red-400"
-                        >
-                            {{ trackingError.message }}
-                        </p>
-
-                        <ol
-                            v-if="shipment.tracking_history.length"
-                            class="mt-4 space-y-3 border-l border-zinc-200 pl-4 dark:border-white/10"
-                        >
-                            <li
-                                v-for="(event, eventIndex) in shipment.tracking_history"
-                                :key="eventIndex"
-                                class="relative"
-                            >
-                                <span
-                                    class="absolute -left-[21px] top-1 size-2 rounded-full bg-zinc-400 dark:bg-zinc-500"
-                                />
-                                <p class="text-sm text-zinc-900 dark:text-white">
-                                    {{ event.description }}
-                                </p>
-                                <p
-                                    v-if="event.datetime || event.location"
-                                    class="mt-0.5 text-xs text-zinc-500"
-                                >
-                                    <span v-if="event.datetime">{{ event.datetime }}</span>
-                                    <span v-if="event.datetime && event.location"> · </span>
-                                    <span v-if="event.location">{{ event.location }}</span>
-                                </p>
-                            </li>
-                        </ol>
-                    </div>
+                    <img
+                        v-if="thumbnail(item)"
+                        :src="thumbnail(item)!"
+                        :alt="item.name"
+                        loading="lazy"
+                        class="size-full object-cover object-center"
+                    />
                 </div>
-            </div>
-        </Card>
-    </div>
-
-    <div class="mt-8 overflow-hidden">
-        <Card class="!p-0">
-            <div class="divide-y divide-zinc-200 dark:divide-white/10">
-                <div
-                    v-for="item in order.items"
-                    :key="item.id"
-                    class="flex gap-4 px-5 py-4"
-                >
-                    <div
-                        class="size-24 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700"
+                <div class="min-w-0 flex-1">
+                    <Link
+                        v-if="item.product?.slug"
+                        :href="
+                            shop.product.url({ product: item.product.slug })
+                        "
+                        class="line-clamp-2 text-sm font-medium text-[var(--om-navy)] hover:underline"
                     >
-                        <img
-                            v-if="thumbnail(item)"
-                            :src="thumbnail(item)!"
-                            :alt="item.name"
-                            loading="lazy"
-                            class="size-full object-cover object-center"
-                        />
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <Link
-                            v-if="item.product?.slug"
-                            :href="
-                                shop.product.url({ product: item.product.slug })
-                            "
-                            class="line-clamp-2 font-heading text-sm font-medium text-zinc-900 hover:underline dark:text-white"
-                        >
-                            {{ item.name }}
-                        </Link>
-                        <p
-                            v-else
-                            class="line-clamp-2 font-heading text-sm font-medium text-zinc-900 dark:text-white"
-                        >
-                            {{ item.name }}
-                        </p>
-                        <p v-if="item.sku" class="mt-0.5 text-xs text-zinc-500">
-                            SKU: {{ item.sku }}
-                        </p>
-                        <p class="mt-1 text-sm text-zinc-500">
-                            Qty: {{ item.quantity }} ·
-                            {{
-                                formatMoney(
-                                    item.unit_price_amount,
-                                    order.currency_code,
-                                )
-                            }}
-                        </p>
-                    </div>
+                        {{ item.name }}
+                    </Link>
                     <p
-                        class="shrink-0 text-sm font-medium text-zinc-900 dark:text-white"
+                        v-else
+                        class="line-clamp-2 text-sm font-medium text-[var(--om-navy)]"
                     >
+                        {{ item.name }}
+                    </p>
+                    <p v-if="item.sku" class="om-meta mt-0.5 !text-xs">
+                        SKU: {{ item.sku }}
+                    </p>
+                    <p class="om-meta mt-1">
+                        Jml: {{ item.quantity }} ·
                         {{
                             formatMoney(
-                                item.unit_price_amount * item.quantity,
+                                item.unit_price_amount,
                                 order.currency_code,
                             )
                         }}
                     </p>
                 </div>
+                <p class="shrink-0 text-sm font-medium text-[var(--om-navy)]">
+                    {{
+                        formatMoney(
+                            item.unit_price_amount * item.quantity,
+                            order.currency_code,
+                        )
+                    }}
+                </p>
             </div>
-        </Card>
+        </div>
     </div>
 </template>

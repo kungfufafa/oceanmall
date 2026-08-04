@@ -1,0 +1,50 @@
+<script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
+import ProductCard from '@/components/shop/product-card.vue';
+import type { Product } from '@/types/shop';
+
+withDefaults(
+    defineProps<{
+        title: string;
+        href: string;
+        products: Product[];
+        linkLabel?: string;
+        tone?: 'plain' | 'soft';
+    }>(),
+    {
+        linkLabel: 'Semua',
+        tone: 'plain',
+    },
+);
+</script>
+
+<template>
+    <section
+        v-if="products.length"
+        :class="[
+            'mt-5',
+            tone === 'soft' && 'bg-zinc-50 py-4',
+        ]"
+    >
+        <div class="mx-auto max-w-7xl px-4 sm:px-6">
+            <div class="mb-3 flex items-baseline justify-between gap-3">
+                <h2 class="om-page-title">{{ title }}</h2>
+                <Link :href="href" class="om-action-primary shrink-0">
+                    {{ linkLabel }}
+                </Link>
+            </div>
+
+            <div
+                class="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] snap-x snap-mandatory sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden"
+            >
+                <div
+                    v-for="product in products"
+                    :key="product.id"
+                    class="w-[9.5rem] shrink-0 snap-start sm:w-[10.5rem]"
+                >
+                    <ProductCard :product="product" />
+                </div>
+            </div>
+        </div>
+    </section>
+</template>

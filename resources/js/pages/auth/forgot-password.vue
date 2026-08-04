@@ -1,66 +1,62 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import InputError from '@/components/input-error.vue';
-import TextLink from '@/components/text-link.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
+import { computed, ref } from 'vue';
+import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
+import AuthTextField from '@/components/auth/auth-text-field.vue';
 import { login } from '@/routes';
-import { email } from '@/routes/password';
+import { email as emailRoute } from '@/routes/password';
 
 defineOptions({
     layout: {
-        title: 'Forgot password',
-        description: 'Enter your email to receive a password reset link',
+        title: 'Lupa Password',
+        description:
+            'Masukkan email terdaftar. Kami kirim link untuk atur ulang password.',
+        actionLabel: 'Masuk',
+        actionHref: login.url(),
     },
 });
 
 defineProps<{
     status?: string;
 }>();
+
+const email = ref('');
+const canSubmit = computed(() => email.value.trim().length > 0);
 </script>
 
 <template>
-    <Head title="Forgot password" />
+    <Head title="Lupa Password" />
 
     <div
         v-if="status"
-        class="mb-4 text-center text-sm font-medium text-green-600"
+        class="mb-5 rounded-lg bg-emerald-50 px-3.5 py-3 text-[13px] font-medium text-emerald-700"
     >
         {{ status }}
     </div>
 
-    <div class="space-y-6">
-        <Form v-bind="email.form()" v-slot="{ errors, processing }">
-            <div class="grid gap-2">
-                <Label for="email">Email address</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    name="email"
-                    autocomplete="off"
-                    autofocus
-                    placeholder="email@example.com"
-                />
-                <InputError :message="errors.email" />
-            </div>
+    <Form
+        v-bind="emailRoute.form()"
+        v-slot="{ errors, processing }"
+        class="flex flex-col gap-3.5"
+    >
+        <AuthTextField
+            id="email"
+            v-model="email"
+            label="Email"
+            type="email"
+            name="email"
+            autocomplete="email"
+            autofocus
+            placeholder="Masukkan emailmu *"
+            :error="errors.email"
+        />
 
-            <div class="my-6 flex items-center justify-start">
-                <Button
-                    class="w-full"
-                    :disabled="processing"
-                    data-test="email-password-reset-link-button"
-                >
-                    <Spinner v-if="processing" />
-                    Email password reset link
-                </Button>
-            </div>
-        </Form>
-
-        <div class="space-x-1 text-center text-sm text-muted-foreground">
-            <span>Or, return to</span>
-            <TextLink :href="login()">log in</TextLink>
-        </div>
-    </div>
+        <AuthSubmitButton
+            class="mt-1"
+            label="Kirim link reset"
+            :enabled="canSubmit"
+            :processing="processing"
+            data-test="email-password-reset-link-button"
+        />
+    </Form>
 </template>

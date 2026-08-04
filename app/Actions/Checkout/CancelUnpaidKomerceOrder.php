@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Checkout;
 
+use App\Actions\Notify\NotifyOrderCustomer;
 use App\Actions\Stock\ReleaseOrderShipmentStock;
+use App\Enums\OrderNotificationType;
 use App\Services\Komerce\PaymentClient;
 use Illuminate\Support\Facades\DB;
 use Shopper\Core\Enum\OrderStatus;
@@ -19,6 +21,7 @@ final readonly class CancelUnpaidKomerceOrder
     public function __construct(
         private PaymentClient $payments,
         private ReleaseOrderShipmentStock $releaseStock,
+        private NotifyOrderCustomer $notifyOrderCustomer,
     ) {}
 
     public function handle(Order $order, string $reason = 'Payment expired'): Order
@@ -53,7 +56,10 @@ final readonly class CancelUnpaidKomerceOrder
 
             $this->releaseStock->handle($order->refresh());
 
-            return $order->refresh();
+            $order = $order->refresh();
+            $this->notifyOrderCustomer->handle($order, OrderNotificationType::Cancelled);
+
+            return $order;
         });
     }
 

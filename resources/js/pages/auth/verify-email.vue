@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import { Form, Head } from '@inertiajs/vue3';
-import TextLink from '@/components/text-link.vue';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
+import { Form, Head, Link } from '@inertiajs/vue3';
+import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
 import { logout } from '@/routes';
 import { send } from '@/routes/verification';
 
 defineOptions({
     layout: {
-        title: 'Verify email',
+        title: 'Verifikasi Email',
         description:
-            'Please verify your email address by clicking on the link we just emailed to you.',
+            'Cek inbox emailmu dan klik link verifikasi yang kami kirim.',
     },
 });
 
@@ -20,28 +18,27 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Email verification" />
+    <Head title="Verifikasi Email" />
 
     <div
         v-if="status === 'verification-link-sent'"
-        class="mb-4 text-center text-sm font-medium text-green-600"
+        class="mb-5 rounded-xl bg-emerald-50 px-3.5 py-3 text-[13px] font-medium text-emerald-700"
     >
-        A new verification link has been sent to the email address you provided
-        during registration.
+        Link verifikasi baru sudah dikirim ke emailmu.
     </div>
 
-    <Form
-        v-bind="send.form()"
-        class="space-y-6 text-center"
-        v-slot="{ processing }"
-    >
-        <Button :disabled="processing" variant="secondary">
-            <Spinner v-if="processing" />
-            Resend verification email
-        </Button>
+    <Form v-bind="send.form()" v-slot="{ processing }" class="flex flex-col gap-4">
+        <AuthSubmitButton
+            label="Kirim ulang email verifikasi"
+            :enabled="true"
+            :processing="processing"
+        />
 
-        <TextLink :href="logout()" as="button" class="mx-auto block text-sm">
-            Log out
-        </TextLink>
+        <Link
+            :href="logout.url()"
+            class="py-2 text-center text-[13px] font-bold text-[var(--om-navy)]"
+        >
+            Keluar
+        </Link>
     </Form>
 </template>

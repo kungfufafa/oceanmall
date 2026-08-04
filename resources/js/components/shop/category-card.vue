@@ -12,7 +12,7 @@ defineProps<{ category: Category }>();
         class="group relative flex flex-col items-center"
     >
         <div
-            class="relative size-24 overflow-hidden rounded-full bg-zinc-100 ring-2 ring-transparent transition group-hover:ring-zinc-900 dark:bg-zinc-800 dark:group-hover:ring-white"
+            class="relative size-20 overflow-hidden rounded-2xl bg-zinc-100 ring-1 ring-zinc-200 transition group-hover:ring-[var(--om-navy)] sm:size-24"
         >
             <img
                 v-if="category.thumbnail"
@@ -23,7 +23,7 @@ defineProps<{ category: Category }>();
             />
         </div>
         <span
-            class="mt-3 text-center text-sm font-medium text-zinc-900 transition group-hover:text-zinc-600 dark:text-white dark:group-hover:text-zinc-300"
+            class="mt-2.5 line-clamp-2 text-center text-xs font-medium text-zinc-800 transition group-hover:text-[var(--om-navy)] sm:text-sm"
         >
             {{ category.name }}
         </span>

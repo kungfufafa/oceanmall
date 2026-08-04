@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Account\ConfirmOrderReceivedController::__invoke
-* @see app/Http/Controllers/Account/ConfirmOrderReceivedController.php:15
+* @see app/Http/Controllers/Account/ConfirmOrderReceivedController.php:16
 * @route '/account/orders/{order}/confirm-received'
 */
 const ConfirmOrderReceivedController = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ ConfirmOrderReceivedController.definition = {
 
 /**
 * @see \App\Http\Controllers\Account\ConfirmOrderReceivedController::__invoke
-* @see app/Http/Controllers/Account/ConfirmOrderReceivedController.php:15
+* @see app/Http/Controllers/Account/ConfirmOrderReceivedController.php:16
 * @route '/account/orders/{order}/confirm-received'
 */
 ConfirmOrderReceivedController.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ ConfirmOrderReceivedController.url = (args: { order: number | { id: number } } |
 
 /**
 * @see \App\Http\Controllers\Account\ConfirmOrderReceivedController::__invoke
-* @see app/Http/Controllers/Account/ConfirmOrderReceivedController.php:15
+* @see app/Http/Controllers/Account/ConfirmOrderReceivedController.php:16
 * @route '/account/orders/{order}/confirm-received'
 */
 ConfirmOrderReceivedController.post = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ ConfirmOrderReceivedController.post = (args: { order: number | { id: number } } 
 
 /**
 * @see \App\Http\Controllers\Account\ConfirmOrderReceivedController::__invoke
-* @see app/Http/Controllers/Account/ConfirmOrderReceivedController.php:15
+* @see app/Http/Controllers/Account/ConfirmOrderReceivedController.php:16
 * @route '/account/orders/{order}/confirm-received'
 */
 const ConfirmOrderReceivedControllerForm = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ const ConfirmOrderReceivedControllerForm = (args: { order: number | { id: number
 
 /**
 * @see \App\Http\Controllers\Account\ConfirmOrderReceivedController::__invoke
-* @see app/Http/Controllers/Account/ConfirmOrderReceivedController.php:15
+* @see app/Http/Controllers/Account/ConfirmOrderReceivedController.php:16
 * @route '/account/orders/{order}/confirm-received'
 */
 ConfirmOrderReceivedControllerForm.post = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

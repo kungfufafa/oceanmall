@@ -31,16 +31,12 @@ defineExpose({
         <button
             type="button"
             @click="showPassword = !showPassword"
-            :class="
-                cn(
-                    'absolute inset-y-0 right-0 flex items-center rounded-r-md px-3 text-muted-foreground hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none',
-                )
-            "
-            :aria-label="showPassword ? 'Hide password' : 'Show password'"
+            class="absolute inset-y-0 right-0 flex items-center rounded-r-xl px-3.5 text-[var(--om-navy)] hover:text-[var(--om-navy)] focus-visible:outline-none"
+            :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
             :tabindex="-1"
         >
-            <EyeOff v-if="showPassword" class="size-4" />
-            <Eye v-else class="size-4" />
+            <EyeOff v-if="showPassword" class="size-[18px]" stroke-width="2" />
+            <Eye v-else class="size-[18px]" stroke-width="2" />
         </button>
     </div>
 </template>

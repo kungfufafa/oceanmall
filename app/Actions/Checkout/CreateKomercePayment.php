@@ -82,7 +82,7 @@ final class CreateKomercePayment
 
         $this->persistTransaction($order, $paymentId, $response, $expiryDate, 'payment_api', $paymentType);
 
-        return [
+        $instructions = [
             'payment_id' => $paymentId,
             'payment_type' => $paymentType,
             'provider' => 'payment_api',
@@ -93,6 +93,10 @@ final class CreateKomercePayment
             'amount' => (int) (data_get($response, 'data.amount') ?? $order->price_amount),
             'currency_code' => $order->currency_code,
         ];
+
+        $this->persistInstructions($order, $instructions);
+
+        return $instructions;
     }
 
     /**
@@ -134,7 +138,7 @@ final class CreateKomercePayment
 
         $this->persistTransaction($order, $historyId, $response, $expiryDate, 'qrisly', 'qris');
 
-        return [
+        $instructions = [
             'payment_id' => $historyId,
             'payment_type' => 'qris',
             'provider' => 'qrisly',
@@ -145,6 +149,26 @@ final class CreateKomercePayment
             'amount' => (int) $amount,
             'currency_code' => $order->currency_code,
         ];
+
+        $this->persistInstructions($order, $instructions);
+
+        return $instructions;
+    }
+
+    /**
+     * @param  array<string, mixed>  $instructions
+     */
+    private function persistInstructions(Order $order, array $instructions): void
+    {
+        $order->refresh();
+        $orderMetadata = $this->decodeMetadata($order->getAttribute('metadata'));
+        $komerceMeta = is_array($orderMetadata['komerce'] ?? null) ? $orderMetadata['komerce'] : [];
+        $komerceMeta['payment_instructions'] = $instructions;
+        $orderMetadata['komerce'] = $komerceMeta;
+
+        $order->forceFill([
+            'metadata' => json_encode($orderMetadata, JSON_THROW_ON_ERROR),
+        ])->save();
     }
 
     /**

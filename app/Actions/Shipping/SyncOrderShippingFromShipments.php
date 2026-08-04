@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\Shipping;
 
+use App\Actions\Notify\NotifyOrderCustomer;
+use App\Enums\OrderNotificationType;
 use App\Models\OrderShipment;
 use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\ShippingStatus;
@@ -11,6 +13,8 @@ use Shopper\Core\Models\Order;
 
 final class SyncOrderShippingFromShipments
 {
+    public function __construct(private readonly NotifyOrderCustomer $notifyOrderCustomer) {}
+
     public function handle(Order $order): Order
     {
         $statuses = OrderShipment::query()
@@ -25,6 +29,7 @@ final class SyncOrderShippingFromShipments
             return $order;
         }
 
+        $previousShipping = $order->shipping_status;
         $shippingStatus = $this->aggregateShippingStatus($statuses);
         $updates = ['shipping_status' => $shippingStatus];
 
@@ -36,8 +41,19 @@ final class SyncOrderShippingFromShipments
         }
 
         $order->forceFill($updates)->save();
+        $order = $order->refresh();
 
-        return $order->refresh();
+        if ($previousShipping !== $shippingStatus) {
+            if (in_array($shippingStatus, [ShippingStatus::Shipped, ShippingStatus::PartiallyShipped], true)) {
+                $this->notifyOrderCustomer->handle($order, OrderNotificationType::Shipped);
+            }
+
+            if (in_array($shippingStatus, [ShippingStatus::Delivered, ShippingStatus::PartiallyDelivered], true)) {
+                $this->notifyOrderCustomer->handle($order, OrderNotificationType::Delivered);
+            }
+        }
+
+        return $order;
     }
 
     /**

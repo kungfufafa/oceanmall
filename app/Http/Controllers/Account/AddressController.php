@@ -45,6 +45,11 @@ final class AddressController extends Controller
 
         auth()->user()->addresses()->create($data);
 
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Alamat berhasil ditambahkan.',
+        ]);
+
         return redirect()->route('account.addresses');
     }
 
@@ -56,6 +61,11 @@ final class AddressController extends Controller
 
         $address->update($data);
 
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Alamat berhasil diperbarui.',
+        ]);
+
         return redirect()->route('account.addresses');
     }
 
@@ -64,6 +74,11 @@ final class AddressController extends Controller
         abort_unless($address->user_id === auth()->id(), 403);
 
         $address->delete();
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Alamat dihapus.',
+        ]);
 
         return redirect()->route('account.addresses');
     }
@@ -74,6 +89,11 @@ final class AddressController extends Controller
 
         $this->applyDefault($address, 'shipping_default');
 
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Alamat pengiriman utama diperbarui.',
+        ]);
+
         return redirect()->route('account.addresses');
     }
 
@@ -82,6 +102,11 @@ final class AddressController extends Controller
         abort_unless($address->user_id === auth()->id(), 403);
 
         $this->applyDefault($address, 'billing_default');
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Alamat penagihan utama diperbarui.',
+        ]);
 
         return redirect()->route('account.addresses');
     }

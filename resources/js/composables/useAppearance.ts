@@ -10,8 +10,34 @@ export type UseAppearanceReturn = {
   updateAppearance: (value: Appearance) => void;
 };
 
+/** When true, storefront stays light regardless of user/system preference. */
+let forceLightMode = false;
+
+export function setForceLightMode(enabled: boolean): void {
+  forceLightMode = enabled;
+
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (enabled) {
+    document.documentElement.classList.remove('dark');
+    document.documentElement.style.colorScheme = 'light';
+    return;
+  }
+
+  document.documentElement.style.removeProperty('color-scheme');
+  handleSystemThemeChange();
+}
+
 export function updateTheme(value: Appearance): void {
   if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (forceLightMode) {
+    document.documentElement.classList.remove('dark');
+    document.documentElement.style.colorScheme = 'light';
     return;
   }
 
@@ -60,9 +86,15 @@ const prefersDark = (): boolean => {
 };
 
 const handleSystemThemeChange = () => {
+  if (forceLightMode) {
+    document.documentElement.classList.remove('dark');
+    document.documentElement.style.colorScheme = 'light';
+    return;
+  }
+
   const currentAppearance = getStoredAppearance();
 
-  updateTheme(currentAppearance || 'system');
+  updateTheme(currentAppearance || 'light');
 };
 
 export function initializeTheme(): void {
@@ -70,15 +102,14 @@ export function initializeTheme(): void {
     return;
   }
 
-  // Initialize theme from saved preference or default to system...
+  // Default light — OceanMall storefront is light-first.
   const savedAppearance = getStoredAppearance();
-  updateTheme(savedAppearance || 'system');
+  updateTheme(savedAppearance || 'light');
 
-  // Set up system theme change listener...
   mediaQuery()?.addEventListener('change', handleSystemThemeChange);
 }
 
-const appearance = ref<Appearance>('system');
+const appearance = ref<Appearance>('light');
 
 export function useAppearance(): UseAppearanceReturn {
   onMounted(() => {
@@ -92,6 +123,10 @@ export function useAppearance(): UseAppearanceReturn {
   });
 
   const resolvedAppearance = computed<ResolvedAppearance>(() => {
+    if (forceLightMode) {
+      return 'light';
+    }
+
     if (appearance.value === 'system') {
       return prefersDark() ? 'dark' : 'light';
     }
@@ -102,12 +137,8 @@ export function useAppearance(): UseAppearanceReturn {
   function updateAppearance(value: Appearance) {
     appearance.value = value;
 
-    // Store in localStorage for client-side persistence...
     localStorage.setItem('appearance', value);
-
-    // Store in cookie for SSR...
     setCookie('appearance', value);
-
     updateTheme(value);
   }
 

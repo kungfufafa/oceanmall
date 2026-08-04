@@ -9,11 +9,13 @@ use App\Actions\Checkout\CreateKomercePayment;
 use App\Actions\Checkout\FetchDeliveryRates;
 use App\Actions\Checkout\FetchPaymentMethods;
 use App\Actions\CreateOrder;
+use App\Actions\Notify\NotifyOrderCustomer;
 use App\Actions\Warehouse\SuggestAllocation;
 use App\Actions\ZoneSessionManager;
 use App\CheckoutSession;
 use App\DTO\AllocationPlan;
 use App\DTO\ShipmentDraft;
+use App\Enums\OrderNotificationType;
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
@@ -84,9 +86,16 @@ final class CheckoutController extends Controller
         }
 
         $paymentOptions = [];
+        $countryId = data_get($shippingAddress, 'country_id')
+            ?? ZoneSessionManager::ensureSession()?->countryId;
 
-        if ($countryId = data_get($shippingAddress, 'country_id')) {
-            $paymentOptions = resolve(FetchPaymentMethods::class)->handle($countryId);
+        if ($countryId && is_array($shippingAddress) && ! data_get($shippingAddress, 'country_id')) {
+            $shippingAddress['country_id'] = $countryId;
+            session()->put(CheckoutSession::SHIPPING_ADDRESS, $shippingAddress);
+        }
+
+        if ($countryId) {
+            $paymentOptions = resolve(FetchPaymentMethods::class)->handle((int) $countryId);
         }
 
         $maxStep = match (true) {
@@ -125,6 +134,7 @@ final class CheckoutController extends Controller
             ] : null,
             'komercePayment' => $komercePayment,
             'komerceEnabled' => komerce_enabled(),
+            'couponCode' => $cart->coupon_code,
         ]);
     }
 
@@ -148,12 +158,18 @@ final class CheckoutController extends Controller
             'destination_id' => ['nullable', 'string', 'max:50'],
         ]);
 
-        $zone = ZoneSessionManager::getSession();
+        $zone = ZoneSessionManager::ensureSession();
         $data['country_id'] = $zone?->countryId;
 
         $destinationId = $data['rajaongkir_destination_id'] ?? $data['destination_id'] ?? null;
         if ($destinationId !== null) {
             $data['rajaongkir_destination_id'] = $destinationId;
+        }
+
+        if (! $data['country_id']) {
+            return back()->withErrors([
+                'city' => 'Wilayah pengiriman belum tersedia. Muat ulang halaman lalu coba lagi.',
+            ]);
         }
 
         session()->put(CheckoutSession::SHIPPING_ADDRESS, $data);
@@ -405,6 +421,7 @@ final class CheckoutController extends Controller
 
         try {
             $order = resolve(CreateOrder::class)->handle();
+            resolve(NotifyOrderCustomer::class)->handle($order, OrderNotificationType::AwaitingPayment);
             $result = resolve(PaymentProcessingService::class)->initiate($order);
 
             session()->forget(CheckoutSession::KEY);
@@ -438,6 +455,7 @@ final class CheckoutController extends Controller
 
         try {
             $order = resolve(CreateOrder::class)->handle();
+            resolve(NotifyOrderCustomer::class)->handle($order, OrderNotificationType::AwaitingPayment);
             $instructions = resolve(CreateKomercePayment::class)->handle($order, $selectedMethod);
 
             session()->forget(CheckoutSession::KEY);
@@ -520,6 +538,7 @@ final class CheckoutController extends Controller
 
                 return $order;
             });
+            resolve(NotifyOrderCustomer::class)->handle($order, OrderNotificationType::Paid);
         } catch (Throwable $e) {
             report($e);
 
@@ -593,13 +612,14 @@ final class CheckoutController extends Controller
     private function resolveSelectedMethod(int $paymentMethodId): array
     {
         $shippingAddress = session()->get(CheckoutSession::SHIPPING_ADDRESS);
-        $countryId = data_get($shippingAddress, 'country_id');
+        $countryId = data_get($shippingAddress, 'country_id')
+            ?? ZoneSessionManager::ensureSession()?->countryId;
 
         if (! $countryId) {
             return [null, redirect()->route('shop.checkout.index')];
         }
 
-        $paymentOptions = resolve(FetchPaymentMethods::class)->handle($countryId);
+        $paymentOptions = resolve(FetchPaymentMethods::class)->handle((int) $countryId);
         $selected = collect($paymentOptions)
             ->first(fn (array $method): bool => $method['id'] === $paymentMethodId);
 

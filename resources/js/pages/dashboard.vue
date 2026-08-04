@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { MapPin, ShoppingBag, User } from 'lucide-vue-next';
-import Card from '@/components/shop/card.vue';
+import { ChevronRight, MapPin, ShoppingBag, User } from 'lucide-vue-next';
 import {
     addresses as accountAddresses,
     orders as accountOrders,
@@ -15,77 +14,64 @@ const firstName =
         ?.first_name ??
     (page.props.auth.user as { name?: string } | null)?.name ??
     '';
+
+const shortcuts = [
+    {
+        href: accountOrders.url(),
+        label: 'Pesanan',
+        hint: 'Lihat riwayat belanja',
+        icon: ShoppingBag,
+    },
+    {
+        href: accountAddresses.url(),
+        label: 'Alamat',
+        hint: 'Kelola alamat pengiriman',
+        icon: MapPin,
+    },
+    {
+        href: profile.edit.url(),
+        label: 'Profil',
+        hint: 'Data akun & email',
+        icon: User,
+    },
+] as const;
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head title="Akun" />
 
-    <h1 class="font-heading text-2xl font-bold text-zinc-900 dark:text-white">
-        Welcome back<span v-if="firstName">, {{ firstName }}</span>
-    </h1>
+    <p class="om-meta">
+        Halo<span v-if="firstName">, {{ firstName }}</span
+        >. Kelola pesanan dan akunmu di sini.
+    </p>
 
-    <div class="mt-8 grid gap-4 sm:grid-cols-3">
-        <Link :href="accountOrders.url()" class="block">
-            <Card class="flex items-center gap-3">
-                <div
-                    class="flex size-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800"
+    <ul class="mt-4 divide-y divide-zinc-100 overflow-hidden rounded-md border border-zinc-200 bg-white">
+        <li v-for="item in shortcuts" :key="item.href">
+            <Link
+                :href="item.href"
+                class="flex items-center gap-3 px-3.5 py-3.5 transition hover:bg-zinc-50"
+            >
+                <span
+                    class="flex size-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[var(--om-navy)]"
                 >
-                    <ShoppingBag
-                        class="size-5 text-zinc-600 dark:text-zinc-400"
+                    <component
+                        :is="item.icon"
+                        class="size-5"
+                        stroke-width="1.75"
                         aria-hidden="true"
                     />
-                </div>
-                <div>
-                    <p
-                        class="text-sm font-medium text-zinc-900 dark:text-white"
-                    >
-                        Orders
-                    </p>
-                    <p class="text-xs text-zinc-500">View your order history</p>
-                </div>
-            </Card>
-        </Link>
-
-        <Link :href="accountAddresses.url()" class="block">
-            <Card class="flex items-center gap-3">
-                <div
-                    class="flex size-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800"
-                >
-                    <MapPin
-                        class="size-5 text-zinc-600 dark:text-zinc-400"
-                        aria-hidden="true"
-                    />
-                </div>
-                <div>
-                    <p
-                        class="text-sm font-medium text-zinc-900 dark:text-white"
-                    >
-                        Addresses
-                    </p>
-                    <p class="text-xs text-zinc-500">Manage your addresses</p>
-                </div>
-            </Card>
-        </Link>
-
-        <Link :href="profile.edit.url()" class="block">
-            <Card class="flex items-center gap-3">
-                <div
-                    class="flex size-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800"
-                >
-                    <User
-                        class="size-5 text-zinc-600 dark:text-zinc-400"
-                        aria-hidden="true"
-                    />
-                </div>
-                <div>
-                    <p
-                        class="text-sm font-medium text-zinc-900 dark:text-white"
-                    >
-                        Profile
-                    </p>
-                    <p class="text-xs text-zinc-500">Manage your account</p>
-                </div>
-            </Card>
-        </Link>
-    </div>
+                </span>
+                <span class="min-w-0 flex-1">
+                    <span class="block text-[13px] font-semibold text-zinc-900">{{
+                        item.label
+                    }}</span>
+                    <span class="om-meta mt-0.5 block">{{ item.hint }}</span>
+                </span>
+                <ChevronRight
+                    class="size-4 shrink-0 text-zinc-300"
+                    aria-hidden="true"
+                />
+            </Link>
+        </li>
+    </ul>
 </template>

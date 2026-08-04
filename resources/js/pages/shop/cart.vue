@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { Minus, Plus, ShoppingBag } from 'lucide-vue-next';
+import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-vue-next';
+import { computed } from 'vue';
+import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
-import { Button } from '@/components/ui/button';
+import CouponField from '@/components/shop/coupon-field.vue';
 import { useCart } from '@/composables/useCart';
 import { useShop } from '@/composables/useShop';
 import { formatMoney } from '@/lib/format';
@@ -10,14 +12,27 @@ import * as shop from '@/routes/shop';
 import * as checkout from '@/routes/shop/checkout';
 import type { Cart, CartContext, Product } from '@/types/shop';
 
-defineProps<{
+const props = defineProps<{
     cart: Cart | null;
     cartContext: CartContext | null;
+    couponCode?: string | null;
 }>();
 
 const page = usePage();
 const { currency, taxLabel } = useShop();
 const cartActions = useCart();
+
+const isEmpty = computed(() => !props.cart || !props.cart.lines.length);
+
+const itemCount = computed(
+    () => props.cart?.lines.reduce((sum, line) => sum + line.quantity, 0) ?? 0,
+);
+
+const totalAmount = computed(
+    () =>
+        (props.cartContext?.subtotal ?? 0) -
+        (props.cartContext?.discountTotal ?? 0),
+);
 
 function productSlug(
     purchasable: Cart['lines'][number]['purchasable'],
@@ -34,249 +49,206 @@ function productSlug(
     return null;
 }
 
+function lineName(purchasable: Cart['lines'][number]['purchasable']): string {
+    return 'name' in purchasable ? purchasable.name : '';
+}
+
 function confirmClear(): void {
-    if (window.confirm('Are you sure you want to clear your cart?')) {
+    if (window.confirm('Yakin ingin mengosongkan keranjang?')) {
         cartActions.clear();
     }
 }
 </script>
 
 <template>
-    <Head title="Cart" />
+    <Head title="Keranjang" />
 
-    <Container class="py-8 sm:py-12">
-        <h1
-            class="font-heading text-2xl font-bold text-zinc-900 dark:text-white"
-        >
-            Shopping Cart
-        </h1>
+    <AppPageHeader
+        class="lg:hidden"
+        title="Keranjang"
+        :end-label="isEmpty ? undefined : 'Kosongkan'"
+        end-tone="muted"
+        @end-click="confirmClear"
+    >
+        <template #title>
+            Keranjang
+            <span v-if="!isEmpty" class="font-medium text-zinc-400">
+                ({{ itemCount }})
+            </span>
+        </template>
+    </AppPageHeader>
+
+    <Container class="pb-8 lg:py-8">
+        <div class="hidden items-center justify-between lg:flex">
+            <h1 class="om-page-title !text-lg">
+                Keranjang
+                <span v-if="!isEmpty" class="font-medium text-zinc-400">
+                    ({{ itemCount }})
+                </span>
+            </h1>
+            <button
+                v-if="!isEmpty"
+                type="button"
+                class="om-action-muted"
+                @click="confirmClear"
+            >
+                Kosongkan
+            </button>
+        </div>
 
         <div
-            v-if="!cart || !cart.lines.length"
-            class="mt-16 flex flex-col items-center justify-center text-center"
+            v-if="isEmpty"
+            class="flex flex-col items-center py-20 text-center"
         >
-            <ShoppingBag
-                class="size-16 text-zinc-300 dark:text-zinc-600"
-                aria-hidden="true"
-            />
-            <h2
-                class="mt-4 text-lg font-semibold text-zinc-900 dark:text-white"
+            <div
+                class="flex size-14 items-center justify-center rounded-full bg-zinc-100"
             >
-                Your cart is empty
-            </h2>
-            <p class="mt-1 text-sm text-zinc-500">
-                Start shopping to add items to your cart.
+                <ShoppingBag
+                    class="size-6 text-zinc-400"
+                    stroke-width="1.75"
+                    aria-hidden="true"
+                />
+            </div>
+            <h2 class="om-page-title mt-4">Keranjang masih kosong</h2>
+            <p class="om-meta mt-1">
+                Yuk belanja dulu, produkmu muncul di sini.
             </p>
-            <Link :href="shop.index.url()" class="mt-6">
-                <Button>Continue Shopping</Button>
+            <Link
+                :href="shop.index.url()"
+                class="om-btn-primary mt-5 inline-flex items-center justify-center px-5"
+            >
+                Belanja sekarang
             </Link>
         </div>
 
-        <div v-else class="mt-8 lg:grid lg:grid-cols-12 lg:gap-x-12">
-            <div class="lg:col-span-7">
-                <ul
-                    role="list"
-                    class="divide-y divide-zinc-200 dark:divide-zinc-700"
+        <div
+            v-else
+            class="lg:mt-6 lg:grid lg:grid-cols-12 lg:gap-x-12"
+        >
+            <ul role="list" class="divide-y divide-zinc-100 lg:col-span-7">
+                <li
+                    v-for="line in cart!.lines"
+                    :key="line.id"
+                    class="flex gap-3 py-3.5"
                 >
-                    <li
-                        v-for="line in cart.lines"
-                        :key="line.id"
-                        class="flex gap-4 py-6"
+                    <div
+                        class="size-16 shrink-0 overflow-hidden rounded-md bg-zinc-100 sm:size-[72px]"
                     >
-                        <div
-                            class="size-20 shrink-0 overflow-hidden rounded-lg bg-zinc-100 sm:size-24 dark:bg-zinc-800"
-                        >
-                            <img
-                                v-if="line.purchasable.thumbnail"
-                                :src="line.purchasable.thumbnail"
-                                :alt="
-                                    'name' in line.purchasable
-                                        ? line.purchasable.name
-                                        : ''
-                                "
-                                class="size-full object-cover object-center"
-                            />
-                        </div>
+                        <img
+                            v-if="line.purchasable.thumbnail"
+                            :src="line.purchasable.thumbnail"
+                            :alt="lineName(line.purchasable)"
+                            class="size-full object-cover object-center"
+                        />
+                    </div>
 
-                        <div class="flex flex-1 flex-col justify-between">
-                            <div class="flex justify-between gap-3">
-                                <div>
-                                    <h3
-                                        class="text-sm font-medium text-zinc-900 dark:text-white"
-                                    >
-                                        <Link
-                                            v-if="productSlug(line.purchasable)"
-                                            :href="
-                                                shop.product.url({
-                                                    product: productSlug(
-                                                        line.purchasable,
-                                                    ) as string,
-                                                })
-                                            "
-                                            class="hover:underline"
-                                        >
-                                            {{
-                                                'name' in line.purchasable
-                                                    ? line.purchasable.name
-                                                    : ''
-                                            }}
-                                        </Link>
-                                        <template v-else>{{
-                                            'name' in line.purchasable
-                                                ? line.purchasable.name
-                                                : ''
-                                        }}</template>
-                                    </h3>
-                                    <p class="mt-0.5 text-sm text-zinc-500">
-                                        {{
-                                            formatMoney(
-                                                line.unit_price_amount,
-                                                currency,
-                                            )
-                                        }}
-                                    </p>
-                                </div>
-                                <p
-                                    class="text-sm font-medium text-zinc-900 dark:text-white"
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <h3
+                                    class="line-clamp-2 text-[13px] leading-snug font-medium text-zinc-900"
                                 >
+                                    <Link
+                                        v-if="productSlug(line.purchasable)"
+                                        :href="
+                                            shop.product.url({
+                                                product: productSlug(
+                                                    line.purchasable,
+                                                ) as string,
+                                            })
+                                        "
+                                    >
+                                        {{ lineName(line.purchasable) }}
+                                    </Link>
+                                    <template v-else>
+                                        {{ lineName(line.purchasable) }}
+                                    </template>
+                                </h3>
+                                <p class="mt-0.5 text-[12px] text-zinc-500">
                                     {{
                                         formatMoney(
-                                            line.unit_price_amount *
-                                                line.quantity,
+                                            line.unit_price_amount,
                                             currency,
                                         )
                                     }}
                                 </p>
                             </div>
 
-                            <div class="mt-2 flex items-center justify-between">
-                                <div
-                                    class="flex items-center rounded-lg border border-zinc-300 dark:border-zinc-600"
-                                >
-                                    <button
-                                        type="button"
-                                        class="px-2 py-1 text-zinc-500 hover:text-zinc-900 disabled:opacity-40 dark:hover:text-white"
-                                        :disabled="line.quantity <= 1"
-                                        aria-label="Decrease"
-                                        @click="
-                                            cartActions.update(
-                                                line.id,
-                                                line.quantity - 1,
-                                            )
-                                        "
-                                    >
-                                        <Minus
-                                            class="size-3"
-                                            aria-hidden="true"
-                                        />
-                                    </button>
-                                    <span
-                                        class="min-w-6 text-center text-xs font-medium text-zinc-900 dark:text-white"
-                                        >{{ line.quantity }}</span
-                                    >
-                                    <button
-                                        type="button"
-                                        class="px-2 py-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                                        aria-label="Increase"
-                                        @click="
-                                            cartActions.update(
-                                                line.id,
-                                                line.quantity + 1,
-                                            )
-                                        "
-                                    >
-                                        <Plus
-                                            class="size-3"
-                                            aria-hidden="true"
-                                        />
-                                    </button>
-                                </div>
+                            <button
+                                type="button"
+                                class="shrink-0 p-1 text-zinc-400"
+                                aria-label="Hapus"
+                                @click="cartActions.remove(line.id)"
+                            >
+                                <Trash2 class="size-4" stroke-width="1.75" />
+                            </button>
+                        </div>
 
+                        <div class="mt-2.5 flex items-center justify-between">
+                            <div
+                                class="inline-flex h-8 items-center rounded-md border border-zinc-200"
+                            >
                                 <button
                                     type="button"
-                                    class="text-sm text-red-500 transition hover:text-red-700"
-                                    @click="cartActions.remove(line.id)"
+                                    class="flex size-8 items-center justify-center text-zinc-500 disabled:opacity-30"
+                                    :disabled="line.quantity <= 1"
+                                    aria-label="Kurangi"
+                                    @click="
+                                        cartActions.update(
+                                            line.id,
+                                            line.quantity - 1,
+                                        )
+                                    "
                                 >
-                                    Remove
+                                    <Minus class="size-3" />
+                                </button>
+                                <span
+                                    class="min-w-7 text-center text-[12px] font-semibold text-zinc-900"
+                                >
+                                    {{ line.quantity }}
+                                </span>
+                                <button
+                                    type="button"
+                                    class="flex size-8 items-center justify-center text-zinc-500"
+                                    aria-label="Tambah"
+                                    @click="
+                                        cartActions.update(
+                                            line.id,
+                                            line.quantity + 1,
+                                        )
+                                    "
+                                >
+                                    <Plus class="size-3" />
                                 </button>
                             </div>
-                        </div>
-                    </li>
-                </ul>
 
-                <div
-                    class="mt-4 flex items-center justify-between border-t border-zinc-200 pt-4 dark:border-zinc-700"
-                >
-                    <Link
-                        :href="shop.index.url()"
-                        class="text-sm text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white"
-                    >
-                        ← Continue Shopping
-                    </Link>
-                    <button
-                        type="button"
-                        class="text-sm text-red-500 transition hover:text-red-700"
-                        @click="confirmClear"
-                    >
-                        Clear Cart
-                    </button>
-                </div>
-            </div>
-
-            <div class="mt-8 lg:col-span-5 lg:mt-0">
-                <div class="rounded-2xl bg-zinc-50 p-6 dark:bg-zinc-800/50">
-                    <h2
-                        class="text-lg font-semibold text-zinc-900 dark:text-white"
-                    >
-                        Order Summary
-                    </h2>
-
-                    <dl class="mt-6 space-y-3 text-sm text-zinc-500">
-                        <div
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700"
-                        >
-                            <dt>Tax</dt>
-                            <dd class="text-base text-zinc-900 dark:text-white">
+                            <p
+                                class="text-[13px] font-bold text-[var(--om-navy)]"
+                            >
                                 {{
                                     formatMoney(
-                                        cartContext?.taxTotal ?? 0,
+                                        line.unit_price_amount * line.quantity,
                                         currency,
                                     )
                                 }}
-                            </dd>
+                            </p>
                         </div>
+                    </div>
+                </li>
+            </ul>
 
-                        <div
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700"
-                        >
-                            <dt>Delivery</dt>
-                            <dd>Calculated at checkout</dd>
-                        </div>
-
-                        <div
-                            v-if="cartContext && cartContext.discountTotal > 0"
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700"
-                        >
-                            <dt>Discount</dt>
-                            <dd class="text-emerald-600">
-                                −{{
-                                    formatMoney(
-                                        cartContext.discountTotal,
-                                        currency,
-                                    )
-                                }}
-                            </dd>
-                        </div>
-
-                        <div class="flex items-center justify-between pt-1">
-                            <dt
-                                class="text-base font-semibold text-zinc-900 dark:text-white"
-                            >
-                                Subtotal {{ taxLabel }}
-                            </dt>
-                            <dd
-                                class="text-base font-semibold text-zinc-900 dark:text-white"
-                            >
+            <aside class="mt-6 lg:col-span-5 lg:mt-0">
+                <div
+                    class="rounded-lg border border-zinc-200 p-4 lg:sticky lg:top-6"
+                >
+                    <h2 class="om-page-title !text-[14px]">Ringkasan</h2>
+                    <div class="mt-3">
+                        <CouponField :coupon-code="couponCode" />
+                    </div>
+                    <dl class="mt-3 space-y-2 text-[13px]">
+                        <div class="flex justify-between text-zinc-500">
+                            <dt>Subtotal {{ taxLabel }}</dt>
+                            <dd class="font-medium text-zinc-900">
                                 {{
                                     formatMoney(
                                         cartContext?.subtotal ?? 0,
@@ -285,21 +257,90 @@ function confirmClear(): void {
                                 }}
                             </dd>
                         </div>
-                    </dl>
-
-                    <div class="mt-6">
-                        <Link :href="checkout.index.url()" class="block">
-                            <Button class="w-full">
-                                {{
-                                    page.props.auth.user
-                                        ? 'Proceed to checkout'
-                                        : 'Sign in to checkout'
+                        <div
+                            v-if="cartContext && cartContext.discountTotal > 0"
+                            class="flex justify-between text-zinc-500"
+                        >
+                            <dt>Diskon</dt>
+                            <dd class="font-medium text-emerald-600">
+                                −{{
+                                    formatMoney(
+                                        cartContext.discountTotal,
+                                        currency,
+                                    )
                                 }}
-                            </Button>
-                        </Link>
+                            </dd>
+                        </div>
+                        <div class="flex justify-between text-zinc-500">
+                            <dt>Ongkir</dt>
+                            <dd>Di checkout</dd>
+                        </div>
+                    </dl>
+                    <div
+                        class="mt-3 flex items-center justify-between border-t border-zinc-100 pt-3"
+                    >
+                        <span class="text-[13px] font-bold text-zinc-900"
+                            >Total</span
+                        >
+                        <span class="om-page-title">
+                            {{ formatMoney(totalAmount, currency) }}
+                        </span>
                     </div>
+                    <Link
+                        :href="checkout.index.url()"
+                        class="om-btn-primary mt-4 hidden w-full items-center justify-center lg:flex"
+                    >
+                        {{
+                            page.props.auth.user
+                                ? 'Bayar'
+                                : 'Masuk untuk bayar'
+                        }}
+                    </Link>
+                    <Link
+                        :href="shop.index.url()"
+                        class="om-action-primary mt-2.5 hidden text-center !text-[12px] lg:block"
+                    >
+                        Lanjut belanja
+                    </Link>
                 </div>
-            </div>
+            </aside>
         </div>
     </Container>
+
+    <!-- Mobile sticky checkout bar -->
+    <div
+        v-if="!isEmpty"
+        class="fixed inset-x-0 z-40 border-t border-zinc-200 bg-white py-2.5 lg:hidden"
+        style="
+            bottom: calc(
+                var(--om-bottom-nav-height) + env(safe-area-inset-bottom, 0px)
+            )
+        "
+    >
+        <Container class="flex items-center gap-3">
+            <div class="min-w-0 flex-1">
+                <p
+                    class="text-zinc-500"
+                    :style="{ fontSize: 'var(--om-text-micro)' }"
+                >
+                    Total {{ taxLabel }}
+                </p>
+                <p class="om-page-title">
+                    {{ formatMoney(totalAmount, currency) }}
+                </p>
+            </div>
+            <Link
+                :href="checkout.index.url()"
+                class="om-btn-primary inline-flex shrink-0 items-center justify-center px-5"
+            >
+                {{ page.props.auth.user ? 'Bayar' : 'Masuk & bayar' }}
+            </Link>
+        </Container>
+    </div>
+
+    <div
+        v-if="!isEmpty"
+        class="h-[calc(var(--om-control-height)+1.25rem)] lg:hidden"
+        aria-hidden="true"
+    />
 </template>

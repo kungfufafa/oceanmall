@@ -72,19 +72,17 @@ defineExpose({ totalShipping, allSelected });
         <div
             v-for="(pkg, pkgIndex) in packages"
             :key="pkg.inventory_id"
-            class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700"
+            class="rounded-md border border-zinc-200 p-4"
         >
-            <h3
-                class="mb-3 text-sm font-semibold text-zinc-900 dark:text-white"
-            >
+            <h3 class="om-page-title mb-3 !text-sm">
                 Paket {{ pkgIndex + 1 }} &middot; {{ pkg.inventory_name }}
             </h3>
 
             <div
                 v-if="!optionsFor(pkg.inventory_id).length"
-                class="text-sm text-zinc-500"
+                class="om-meta"
             >
-                No delivery options available for this package.
+                Belum ada opsi pengiriman untuk paket ini.
             </div>
 
             <div v-else class="flex flex-col gap-2">
@@ -92,11 +90,11 @@ defineExpose({ totalShipping, allSelected });
                     v-for="option in optionsFor(pkg.inventory_id)"
                     :key="String(option.service_code)"
                     :class="[
-                        'flex cursor-pointer items-center justify-between gap-4 rounded-lg p-3 transition',
+                        'flex cursor-pointer items-center justify-between gap-4 rounded-md p-3 transition',
                         String(selected[pkg.inventory_id]) ===
                         String(option.service_code)
-                            ? 'ring-2 ring-zinc-900 dark:ring-white'
-                            : 'ring-1 ring-zinc-200 hover:ring-zinc-300 dark:ring-zinc-700',
+                            ? 'ring-2 ring-[var(--om-navy)]'
+                            : 'ring-1 ring-zinc-200 hover:ring-zinc-300',
                     ]"
                 >
                     <input
@@ -119,23 +117,23 @@ defineExpose({ totalShipping, allSelected });
                         />
                         <div class="flex flex-col">
                             <span
-                                class="text-sm font-medium text-zinc-900 dark:text-white"
+                                class="text-sm font-medium text-[var(--om-navy)]"
                                 >{{ option.service_name }}</span
                             >
                             <span
                                 v-if="option.estimated_days"
-                                class="text-xs text-zinc-500"
-                                >{{ option.estimated_days }} days</span
+                                class="om-meta !text-xs"
+                                >{{ option.estimated_days }} hari</span
                             >
                             <span
                                 v-else-if="option.description"
-                                class="text-xs text-zinc-500"
+                                class="om-meta !text-xs"
                                 >{{ option.description }}</span
                             >
                         </div>
                     </div>
                     <span
-                        class="shrink-0 text-sm font-medium text-zinc-900 dark:text-white"
+                        class="shrink-0 text-sm font-medium text-[var(--om-navy)]"
                         >{{ formatMoney(option.amount, option.currency) }}</span
                     >
                 </label>
@@ -144,10 +142,10 @@ defineExpose({ totalShipping, allSelected });
 
         <div
             v-if="packages.length > 1 && allSelected"
-            class="flex items-center justify-between rounded-lg bg-zinc-50 px-4 py-3 text-sm dark:bg-zinc-800"
+            class="flex items-center justify-between rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm"
         >
-            <span class="text-zinc-600 dark:text-zinc-400">Total shipping</span>
-            <span class="font-semibold text-zinc-900 dark:text-white">{{
+            <span class="text-zinc-600">Total ongkir</span>
+            <span class="font-semibold text-[var(--om-navy)]">{{
                 formatMoney(totalShipping, totalCurrency)
             }}</span>
         </div>

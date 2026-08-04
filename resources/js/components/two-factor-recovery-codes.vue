@@ -1,16 +1,8 @@
 <script setup lang="ts">
 import { Form } from '@inertiajs/vue3';
-import { Eye, EyeOff, LockKeyhole, RefreshCw } from 'lucide-vue-next';
+import { Eye, EyeOff, RefreshCw } from 'lucide-vue-next';
 import { nextTick, onMounted, ref, useTemplateRef } from 'vue';
 import AlertError from '@/components/alert-error.vue';
-import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
 import { regenerateRecoveryCodes } from '@/routes/two-factor';
 
@@ -39,85 +31,90 @@ onMounted(async () => {
 </script>
 
 <template>
-    <Card class="w-full">
-        <CardHeader>
-            <CardTitle class="flex gap-3">
-                <LockKeyhole class="size-4" />2FA recovery codes
-            </CardTitle>
-            <CardDescription>
-                Recovery codes let you regain access if you lose your 2FA
-                device. Store them in a secure password manager.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <div
-                class="flex flex-col gap-3 select-none sm:flex-row sm:items-center sm:justify-between"
-            >
-                <Button @click="toggleRecoveryCodesVisibility" class="w-fit">
-                    <component
-                        :is="isRecoveryCodesVisible ? EyeOff : Eye"
-                        class="size-4"
-                    />
-                    {{ isRecoveryCodesVisible ? 'Hide' : 'View' }} recovery
-                    codes
-                </Button>
+    <div class="w-full space-y-3 rounded-md border border-zinc-200 bg-white p-4">
+        <div>
+            <h3 class="text-[13px] font-semibold text-zinc-900">
+                Kode pemulihan 2FA
+            </h3>
+            <p class="om-meta mt-1 leading-5">
+                Simpan di tempat aman. Dipakai kalau HP autentikator hilang.
+            </p>
+        </div>
 
-                <Form
-                    v-if="isRecoveryCodesVisible && recoveryCodesList.length"
-                    v-bind="regenerateRecoveryCodes.form()"
-                    method="post"
-                    :options="{ preserveScroll: true }"
-                    @success="fetchRecoveryCodes"
-                    #default="{ processing }"
-                >
-                    <Button
-                        variant="secondary"
-                        type="submit"
-                        :disabled="processing"
-                    >
-                        <RefreshCw /> Regenerate codes
-                    </Button>
-                </Form>
-            </div>
-            <div
-                :class="[
-                    'relative overflow-hidden transition-all duration-300',
-                    isRecoveryCodesVisible
-                        ? 'h-auto opacity-100'
-                        : 'h-0 opacity-0',
-                ]"
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+                type="button"
+                class="om-btn-outline inline-flex items-center justify-center gap-2 px-4"
+                @click="toggleRecoveryCodesVisibility"
             >
-                <div v-if="errors?.length" class="mt-6">
-                    <AlertError :errors="errors" />
-                </div>
-                <div v-else class="mt-3 space-y-3">
-                    <div
-                        ref="recoveryCodeSectionRef"
-                        class="grid gap-1 rounded-lg bg-muted p-4 font-mono text-sm"
-                    >
-                        <div v-if="!recoveryCodesList.length" class="space-y-2">
-                            <div
-                                v-for="n in 8"
-                                :key="n"
-                                class="h-4 animate-pulse rounded bg-muted-foreground/20"
-                            ></div>
-                        </div>
-                        <div
-                            v-else
-                            v-for="(code, index) in recoveryCodesList"
-                            :key="index"
-                        >
-                            {{ code }}
-                        </div>
-                    </div>
-                    <p class="text-xs text-muted-foreground select-none">
-                        Each recovery code can be used once to access your
-                        account and will be removed after use. If you need more,
-                        click
-                        <span class="font-bold">Regenerate codes</span> above.
-                    </p>
-                </div>
+                <component
+                    :is="isRecoveryCodesVisible ? EyeOff : Eye"
+                    class="size-4"
+                />
+                {{
+                    isRecoveryCodesVisible
+                        ? 'Sembunyikan kode'
+                        : 'Lihat kode pemulihan'
+                }}
+            </button>
+
+            <Form
+                v-if="isRecoveryCodesVisible && recoveryCodesList.length"
+                v-bind="regenerateRecoveryCodes.form()"
+                method="post"
+                :options="{ preserveScroll: true }"
+                @success="fetchRecoveryCodes"
+                #default="{ processing }"
+            >
+                <button
+                    type="submit"
+                    class="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 text-[13px] font-semibold text-zinc-700 disabled:opacity-50"
+                    :disabled="processing"
+                >
+                    <RefreshCw class="size-4" />
+                    Buat ulang kode
+                </button>
+            </Form>
+        </div>
+
+        <div
+            :class="[
+                'overflow-hidden transition-all duration-300',
+                isRecoveryCodesVisible
+                    ? 'h-auto opacity-100'
+                    : 'h-0 opacity-0',
+            ]"
+        >
+            <div v-if="errors?.length" class="mt-1">
+                <AlertError :errors="errors" />
             </div>
-        </CardContent>
-    </Card>
+            <div v-else class="space-y-2">
+                <div
+                    ref="recoveryCodeSectionRef"
+                    class="grid gap-1 rounded-md bg-zinc-50 p-3 font-mono text-[13px] text-zinc-800"
+                >
+                    <div v-if="!recoveryCodesList.length" class="space-y-2">
+                        <div
+                            v-for="n in 8"
+                            :key="n"
+                            class="h-4 animate-pulse rounded bg-zinc-200"
+                        />
+                    </div>
+                    <div
+                        v-else
+                        v-for="(code, index) in recoveryCodesList"
+                        :key="index"
+                    >
+                        {{ code }}
+                    </div>
+                </div>
+                <p class="om-meta select-none leading-5">
+                    Tiap kode hanya bisa dipakai sekali. Butuh yang baru? Klik
+                    <span class="font-semibold text-zinc-700"
+                        >Buat ulang kode</span
+                    >.
+                </p>
+            </div>
+        </div>
+    </div>
 </template>

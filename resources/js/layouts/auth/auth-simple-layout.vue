@@ -1,43 +1,47 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import AppLogoIcon from '@/components/app-logo-icon.vue';
-import { home } from '@/routes';
+import { onMounted, onUnmounted } from 'vue';
+import AppPageHeader from '@/components/shop/app-page-header.vue';
+import { setForceLightMode } from '@/composables/useAppearance';
+import StoreBottomNav from '@/layouts/storefront/store-bottom-nav.vue';
 
 defineProps<{
     title?: string;
     description?: string;
+    actionLabel?: string;
+    actionHref?: string;
 }>();
+
+onMounted(() => {
+    setForceLightMode(true);
+});
+
+onUnmounted(() => {
+    setForceLightMode(false);
+});
 </script>
 
 <template>
     <div
-        class="flex min-h-svh flex-col items-center justify-center gap-6 bg-background p-6 md:p-10"
+        class="storefront flex min-h-dvh flex-col bg-white font-sans text-zinc-900 antialiased"
+        style="color-scheme: light"
     >
-        <div class="w-full max-w-sm">
-            <div class="flex flex-col gap-8">
-                <div class="flex flex-col items-center gap-4">
-                    <Link
-                        :href="home()"
-                        class="flex flex-col items-center gap-2 font-medium"
-                    >
-                        <div
-                            class="mb-1 flex h-9 w-9 items-center justify-center rounded-md"
-                        >
-                            <AppLogoIcon
-                                class="size-9 fill-current text-[var(--foreground)] dark:text-white"
-                            />
-                        </div>
-                        <span class="sr-only">{{ title }}</span>
-                    </Link>
-                    <div class="space-y-2 text-center">
-                        <h1 class="text-xl font-medium">{{ title }}</h1>
-                        <p class="text-center text-sm text-muted-foreground">
-                            {{ description }}
-                        </p>
-                    </div>
-                </div>
-                <slot />
-            </div>
-        </div>
+        <AppPageHeader
+            :title="title ?? ''"
+            :end-label="actionLabel"
+            :end-href="actionHref"
+            end-tone="primary"
+        />
+
+        <main
+            class="mx-auto w-full max-w-lg flex-1 px-4 pt-4 pb-[calc(var(--om-bottom-nav-height)+env(safe-area-inset-bottom,0px))]"
+        >
+            <p v-if="description" class="om-meta mb-4 leading-snug">
+                {{ description }}
+            </p>
+
+            <slot />
+        </main>
+
+        <StoreBottomNav />
     </div>
 </template>

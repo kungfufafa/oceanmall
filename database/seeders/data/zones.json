@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Indonesia",
+    "slug": "indonesia",
+    "code": "ID",
+    "is_enabled": true,
+    "currency_code": "IDR",
+    "countries": [
+      "IDN"
+    ],
+    "carriers": [
+      "rajaongkir",
+      "manual"
+    ],
+    "shipping_options": [
+      {
+        "carrier": "manual",
+        "name": "Reguler",
+        "description": "Pengiriman reguler 3-5 hari kerja (tarif flat cadangan).",
+        "price": 15000,
+        "is_enabled": true
+      }
+    ],
+    "payment_methods": [
+      "cod",
+      "komerce-va-qris"
+    ],
+    "collections": []
+  }
+]

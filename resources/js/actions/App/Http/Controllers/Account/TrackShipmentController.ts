@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Account\TrackShipmentController::__invoke
-* @see app/Http/Controllers/Account/TrackShipmentController.php:17
+* @see app/Http/Controllers/Account/TrackShipmentController.php:18
 * @route '/account/orders/{order}/shipments/{shipment}/track'
 */
 const TrackShipmentController = (args: { order: number | { id: number }, shipment: number | { id: number } } | [order: number | { id: number }, shipment: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ TrackShipmentController.definition = {
 
 /**
 * @see \App\Http\Controllers\Account\TrackShipmentController::__invoke
-* @see app/Http/Controllers/Account/TrackShipmentController.php:17
+* @see app/Http/Controllers/Account/TrackShipmentController.php:18
 * @route '/account/orders/{order}/shipments/{shipment}/track'
 */
 TrackShipmentController.url = (args: { order: number | { id: number }, shipment: number | { id: number } } | [order: number | { id: number }, shipment: number | { id: number } ], options?: RouteQueryOptions) => {
@@ -46,7 +46,7 @@ TrackShipmentController.url = (args: { order: number | { id: number }, shipment:
 
 /**
 * @see \App\Http\Controllers\Account\TrackShipmentController::__invoke
-* @see app/Http/Controllers/Account/TrackShipmentController.php:17
+* @see app/Http/Controllers/Account/TrackShipmentController.php:18
 * @route '/account/orders/{order}/shipments/{shipment}/track'
 */
 TrackShipmentController.post = (args: { order: number | { id: number }, shipment: number | { id: number } } | [order: number | { id: number }, shipment: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -56,7 +56,7 @@ TrackShipmentController.post = (args: { order: number | { id: number }, shipment
 
 /**
 * @see \App\Http\Controllers\Account\TrackShipmentController::__invoke
-* @see app/Http/Controllers/Account/TrackShipmentController.php:17
+* @see app/Http/Controllers/Account/TrackShipmentController.php:18
 * @route '/account/orders/{order}/shipments/{shipment}/track'
 */
 const TrackShipmentControllerForm = (args: { order: number | { id: number }, shipment: number | { id: number } } | [order: number | { id: number }, shipment: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -66,7 +66,7 @@ const TrackShipmentControllerForm = (args: { order: number | { id: number }, shi
 
 /**
 * @see \App\Http\Controllers\Account\TrackShipmentController::__invoke
-* @see app/Http/Controllers/Account/TrackShipmentController.php:17
+* @see app/Http/Controllers/Account/TrackShipmentController.php:18
 * @route '/account/orders/{order}/shipments/{shipment}/track'
 */
 TrackShipmentControllerForm.post = (args: { order: number | { id: number }, shipment: number | { id: number } } | [order: number | { id: number }, shipment: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

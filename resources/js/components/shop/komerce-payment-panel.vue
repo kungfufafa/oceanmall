@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { Copy } from 'lucide-vue-next';
-import { ref } from 'vue';
-import { Button } from '@/components/ui/button';
+import QRCode from 'qrcode';
+import { computed, onMounted, ref, watch } from 'vue';
+import { formatMoney } from '@/lib/format';
 
 export type KomercePaymentInstructions = {
     payment_id: string;
@@ -19,6 +20,50 @@ const props = defineProps<{
 }>();
 
 const copied = ref(false);
+const qrDataUrl = ref<string | null>(null);
+const qrError = ref(false);
+
+const isVa = computed(() => props.payment.payment_type === 'bank_transfer');
+const isQris = computed(() => props.payment.payment_type === 'qris');
+
+const methodLabel = computed(() => {
+    if (isVa.value) {
+        return `Transfer VA ${props.payment.bank_code ?? ''}`.trim();
+    }
+    if (isQris.value) return 'QRIS';
+    return 'Pembayaran';
+});
+
+const formattedExpiry = computed(() => {
+    if (!props.payment.expiry_date) return null;
+    const date = new Date(props.payment.expiry_date);
+    if (Number.isNaN(date.getTime())) {
+        return String(props.payment.expiry_date);
+    }
+    return date.toLocaleString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+});
+
+async function renderQr(value: string | null | undefined): Promise<void> {
+    qrDataUrl.value = null;
+    qrError.value = false;
+    if (!value) return;
+
+    try {
+        qrDataUrl.value = await QRCode.toDataURL(value, {
+            width: 220,
+            margin: 1,
+            errorCorrectionLevel: 'M',
+        });
+    } catch {
+        qrError.value = true;
+    }
+}
 
 function copy(text: string): void {
     navigator.clipboard.writeText(text).then(() => {
@@ -27,91 +72,139 @@ function copy(text: string): void {
     });
 }
 
-const isVa = props.payment.payment_type === 'bank_transfer';
-const isQris = props.payment.payment_type === 'qris';
+onMounted(() => {
+    if (isQris.value) {
+        void renderQr(props.payment.qris_string);
+    }
+});
+
+watch(
+    () => props.payment.qris_string,
+    (value) => {
+        if (isQris.value) {
+            void renderQr(value);
+        }
+    },
+);
 </script>
 
 <template>
-    <div
-        class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 space-y-4 dark:border-zinc-700 dark:bg-zinc-900"
-    >
-        <div class="flex items-center gap-2">
-            <span
-                class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-            >
-                Awaiting payment
-            </span>
-            <span class="text-xs text-zinc-500">Ref: {{ payment.payment_id }}</span>
+    <div class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+        <div class="border-b border-zinc-100 bg-zinc-50 px-4 py-3">
+            <div class="flex items-center justify-between gap-3">
+                <div>
+                    <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+                        Total dibayar
+                    </p>
+                    <p class="mt-0.5 text-2xl font-bold text-[var(--om-navy)]">
+                        {{ formatMoney(payment.amount, payment.currency_code) }}
+                    </p>
+                </div>
+                <span
+                    class="shrink-0 rounded-md bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-900"
+                >
+                    Belum dibayar
+                </span>
+            </div>
+            <p v-if="formattedExpiry" class="mt-2 text-[12px] text-zinc-600">
+                Bayar sebelum
+                <span class="font-semibold text-zinc-900">{{
+                    formattedExpiry
+                }}</span>
+            </p>
         </div>
 
-        <template v-if="isVa && payment.virtual_account_number">
-            <div>
-                <p class="text-xs font-medium uppercase tracking-wider text-zinc-500 mb-1">
-                    {{ payment.bank_code ?? 'Bank' }} Virtual Account
-                </p>
-                <div class="flex items-center gap-2">
-                    <span
-                        class="font-mono text-xl font-semibold text-zinc-900 dark:text-white tracking-widest"
-                    >
-                        {{ payment.virtual_account_number }}
-                    </span>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        class="h-7 w-7 p-0 text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-                        :title="copied ? 'Copied!' : 'Copy VA number'"
-                        @click="copy(payment.virtual_account_number!)"
-                    >
-                        <Copy class="size-4" aria-hidden="true" />
-                    </Button>
-                </div>
-                <p v-if="copied" class="mt-1 text-xs text-emerald-600">Copied to clipboard</p>
-            </div>
+        <div class="space-y-4 p-4">
+            <p class="text-[13px] font-semibold text-zinc-900">
+                Cara bayar · {{ methodLabel }}
+            </p>
 
-            <ol class="space-y-1 text-sm text-zinc-600 dark:text-zinc-400 list-decimal list-inside">
-                <li>Open your {{ payment.bank_code ?? 'bank' }} mobile app or ATM.</li>
-                <li>Choose "Transfer / Virtual Account".</li>
-                <li>Enter the virtual account number above.</li>
-                <li>Confirm the amount and complete the transfer.</li>
-            </ol>
-        </template>
-
-        <template v-else-if="isQris && payment.qris_string">
-            <div>
-                <p class="text-xs font-medium uppercase tracking-wider text-zinc-500 mb-2">
-                    QRIS Code
-                </p>
-                <div class="flex flex-col items-start gap-3">
-                    <p class="text-xs text-zinc-500">
-                        Scan this QRIS code using your mobile banking or e-wallet app.
+            <template v-if="isVa && payment.virtual_account_number">
+                <div>
+                    <p class="om-meta mb-1.5 !text-[11px]">
+                        Nomor Virtual Account
                     </p>
                     <div
-                        class="rounded-lg bg-white p-3 ring-1 ring-zinc-200 dark:ring-zinc-700"
+                        class="flex items-center justify-between gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3"
                     >
-                        <p class="break-all font-mono text-xs text-zinc-500 max-w-xs">
-                            {{ payment.qris_string }}
-                        </p>
+                        <span
+                            class="font-mono text-lg font-bold tracking-wider text-[var(--om-navy)] sm:text-xl"
+                        >
+                            {{ payment.virtual_account_number }}
+                        </span>
+                        <button
+                            type="button"
+                            class="om-btn-outline inline-flex h-9 shrink-0 items-center gap-1.5 px-3 text-[12px]"
+                            @click="copy(payment.virtual_account_number!)"
+                        >
+                            <Copy class="size-3.5" aria-hidden="true" />
+                            {{ copied ? 'Tersalin' : 'Salin' }}
+                        </button>
                     </div>
-                    <Button
+                </div>
+
+                <ol class="space-y-2 text-[13px] text-zinc-600">
+                    <li class="flex gap-2">
+                        <span
+                            class="flex size-5 shrink-0 items-center justify-center rounded-md bg-[var(--om-navy)] text-[10px] font-bold text-white"
+                            >1</span
+                        >
+                        Buka m-banking / ATM {{ payment.bank_code ?? 'bank' }}
+                    </li>
+                    <li class="flex gap-2">
+                        <span
+                            class="flex size-5 shrink-0 items-center justify-center rounded-md bg-[var(--om-navy)] text-[10px] font-bold text-white"
+                            >2</span
+                        >
+                        Pilih Transfer → Virtual Account
+                    </li>
+                    <li class="flex gap-2">
+                        <span
+                            class="flex size-5 shrink-0 items-center justify-center rounded-md bg-[var(--om-navy)] text-[10px] font-bold text-white"
+                            >3</span
+                        >
+                        Tempel nomor VA, konfirmasi nominal, lalu bayar
+                    </li>
+                </ol>
+            </template>
+
+            <template v-else-if="isQris && payment.qris_string">
+                <div
+                    class="flex flex-col items-center gap-3 rounded-md border border-zinc-100 bg-zinc-50 p-4"
+                >
+                    <img
+                        v-if="qrDataUrl"
+                        :src="qrDataUrl"
+                        alt="Kode QRIS"
+                        class="size-[220px] rounded-md bg-white"
+                        width="220"
+                        height="220"
+                    />
+                    <p
+                        v-else-if="qrError"
+                        class="text-center text-[12px] text-red-600"
+                    >
+                        QR gagal dimuat. Salin kode di bawah.
+                    </p>
+                    <p v-else class="text-[12px] text-zinc-500">
+                        Menyiapkan QR…
+                    </p>
+                    <p class="text-center text-[12px] text-zinc-600">
+                        Scan pakai GoPay, OVO, Dana, ShopeePay, atau m-banking
+                    </p>
+                    <button
                         type="button"
-                        variant="outline"
-                        size="sm"
+                        class="text-[12px] font-semibold text-[var(--om-navy)]"
                         @click="copy(payment.qris_string!)"
                     >
-                        <Copy class="mr-2 size-3.5" aria-hidden="true" />
-                        {{ copied ? 'Copied!' : 'Copy QRIS string' }}
-                    </Button>
+                        {{ copied ? 'Kode tersalin' : 'Salin kode QRIS' }}
+                    </button>
                 </div>
-            </div>
-        </template>
+            </template>
 
-        <div
-            v-if="payment.expiry_date"
-            class="flex items-center gap-1.5 text-xs text-zinc-500 border-t border-zinc-200 pt-3 dark:border-zinc-700"
-        >
-            <span>Pay before:</span>
-            <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ payment.expiry_date }}</span>
+            <p class="text-[10px] text-zinc-400">
+                Ref {{ payment.payment_id }}
+            </p>
         </div>
     </div>
 </template>

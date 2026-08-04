@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { Button } from '@/components/ui/button';
+import AppPageHeader from '@/components/shop/app-page-header.vue';
+import Container from '@/components/shop/container.vue';
 import { useStripeElements } from '@/composables/useStripeElements';
+import { cart as cartRoute } from '@/routes/shop';
 import type { Order } from '@/types/shop';
 
 const props = defineProps<{
@@ -28,31 +30,39 @@ async function pay(): Promise<void> {
 </script>
 
 <template>
-    <Head title="Complete your payment" />
+    <Head title="Selesaikan pembayaran" />
 
-    <div class="mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8">
-        <h1
-            class="font-heading text-2xl font-semibold text-zinc-900 dark:text-white"
-        >
-            Complete your payment
-        </h1>
-        <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-            Order <span class="font-mono">{{ order.number }}</span>
-        </p>
+    <AppPageHeader
+        class="lg:hidden"
+        title="Pembayaran"
+        :back-href="cartRoute.url()"
+        max-width-class="max-w-7xl"
+    />
 
-        <form class="mt-8 space-y-4" @submit.prevent="pay">
-            <div ref="paymentElementRef" />
+    <Container class="py-8 lg:py-12">
+        <div class="mx-auto max-w-xl">
+            <h1 class="om-page-title hidden !text-lg lg:block">
+                Selesaikan pembayaran
+            </h1>
+            <p class="om-meta mt-2">
+                Pesanan
+                <span class="font-mono text-zinc-800">{{ order.number }}</span>
+            </p>
 
-            <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+            <form class="mt-8 space-y-4" @submit.prevent="pay">
+                <div ref="paymentElementRef" />
 
-            <Button
-                type="submit"
-                :disabled="!ready || submitting"
-                class="w-full"
-            >
-                <span v-if="submitting">Processing...</span>
-                <span v-else>Pay now</span>
-            </Button>
-        </form>
-    </div>
+                <p v-if="error" class="text-[13px] text-red-600">{{ error }}</p>
+
+                <button
+                    type="submit"
+                    class="om-btn-primary flex w-full items-center justify-center"
+                    :disabled="!ready || submitting"
+                >
+                    <span v-if="submitting">Memproses…</span>
+                    <span v-else>Bayar sekarang</span>
+                </button>
+            </form>
+        </div>
+    </Container>
 </template>

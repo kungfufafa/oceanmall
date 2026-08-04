@@ -2,17 +2,18 @@
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Check, ChevronRight, Lock, ShoppingBag } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
+import AuthTextField from '@/components/auth/auth-text-field.vue';
+import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Card from '@/components/shop/card.vue';
 import Container from '@/components/shop/container.vue';
+import CouponField from '@/components/shop/coupon-field.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
 import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
 import ShipmentRatePicker from '@/components/shop/shipment-rate-picker.vue';
 import StripePaymentForm from '@/components/shop/stripe-payment-form.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useShop } from '@/composables/useShop';
 import { formatMoney } from '@/lib/format';
+import { cart as cartRoute } from '@/routes/shop';
 import * as checkout from '@/routes/shop/checkout';
 import type { Address, Cart, CartContext, DeliveryOption } from '@/types/shop';
 
@@ -76,7 +77,8 @@ const props = defineProps<{
     } | null;
     komercePayment: KomercePaymentInstructions | null;
     komerceEnabled: boolean;
-}>(); 
+    couponCode?: string | null;
+}>();
 
 const { currency, taxLabel, zone } = useShop();
 
@@ -172,7 +174,7 @@ async function searchDestinations(query: string): Promise<void> {
     } catch {
         destinationResults.value = [];
         destinationSearchError.value =
-            'Unable to search destinations right now.';
+            'Tidak dapat mencari tujuan saat ini.';
     } finally {
         destinationSearching.value = false;
     }
@@ -341,7 +343,16 @@ function selectAddress(address: Address): void {
     addressForm.city = address.city;
     addressForm.state = address.state ?? '';
     addressForm.phone_number = address.phone_number ?? '';
+    // Destinasi RajaOngkir harus dipilih ulang agar ongkir akurat.
     addressForm.rajaongkir_destination_id = '';
+    addressForm.rajaongkir_destination_label = '';
+    destinationQuery.value = [address.city, address.postal_code]
+        .filter(Boolean)
+        .join(' ');
+    destinationResults.value = [];
+    if (destinationQuery.value.trim().length >= 2) {
+        searchDestinations(destinationQuery.value.trim());
+    }
 }
 
 function clearAddress(): void {
@@ -388,21 +399,24 @@ function lineName(line: Cart['lines'][number]): string {
 }
 
 const steps = [
-    { n: 1, label: 'Shipping' },
-    { n: 2, label: 'Delivery' },
-    { n: 3, label: 'Payment' },
+    { n: 1, label: 'Alamat' },
+    { n: 2, label: 'Ongkir' },
+    { n: 3, label: 'Pembayaran' },
 ] as const;
 </script>
 
 <template>
     <Head title="Checkout" />
 
+    <AppPageHeader
+        class="lg:hidden"
+        title="Checkout"
+        :back-href="cartRoute.url()"
+        max-width-class="max-w-7xl"
+    />
+
     <Container class="py-8 sm:py-12">
-        <h1
-            class="font-heading text-2xl font-bold text-zinc-900 dark:text-white"
-        >
-            Checkout
-        </h1>
+        <h1 class="om-page-title hidden !text-lg lg:block">Checkout</h1>
 
         <nav class="mt-8 mb-10">
             <ol class="flex items-center gap-2">
@@ -417,10 +431,10 @@ const steps = [
                         :class="[
                             'flex items-center gap-2 text-sm font-medium transition',
                             step === s.n
-                                ? 'text-zinc-900 dark:text-white'
+                                ? 'text-[var(--om-navy)]'
                                 : maxStep > s.n
                                   ? 'text-green-600'
-                                  : 'text-zinc-400 dark:text-zinc-500',
+                                  : 'text-zinc-400',
                         ]"
                         @click="goToStep(s.n as 1 | 2 | 3)"
                     >
@@ -428,10 +442,10 @@ const steps = [
                             :class="[
                                 'flex size-7 items-center justify-center rounded-full text-xs font-bold',
                                 step === s.n
-                                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                                    ? 'bg-[var(--om-navy)] text-white'
                                     : step > s.n
                                       ? 'bg-green-100 text-green-600'
-                                      : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500',
+                                      : 'bg-zinc-100 text-zinc-400',
                             ]"
                         >
                             <Check
@@ -445,7 +459,7 @@ const steps = [
                     </button>
                     <ChevronRight
                         v-if="i < steps.length - 1"
-                        class="size-4 text-zinc-300 dark:text-zinc-600"
+                        class="size-4 text-zinc-300"
                         aria-hidden="true"
                     />
                 </li>
@@ -456,10 +470,8 @@ const steps = [
             <div class="lg:col-span-7">
                 <template v-if="step === 1">
                     <div v-if="savedAddresses.length" class="mb-8">
-                        <h2
-                            class="text-lg font-semibold text-zinc-900 dark:text-white"
-                        >
-                            Saved Addresses
+                        <h2 class="text-[13px] font-semibold text-zinc-900">
+                            Alamat tersimpan
                         </h2>
                         <div class="mt-4 grid gap-3 sm:grid-cols-2">
                             <button
@@ -467,16 +479,16 @@ const steps = [
                                 :key="address.id"
                                 type="button"
                                 :class="[
-                                    'rounded-xl text-left transition',
+                                    'rounded-md border text-left transition',
                                     selectedAddressId === address.id
-                                        ? 'ring-2 ring-zinc-900 dark:ring-white'
-                                        : 'ring-1 ring-zinc-200 hover:ring-zinc-400 dark:ring-zinc-700 dark:hover:ring-zinc-500',
+                                        ? 'border-[var(--om-navy)] ring-2 ring-[var(--om-navy)]'
+                                        : 'border-zinc-200 hover:border-zinc-400',
                                 ]"
                                 @click="selectAddress(address)"
                             >
                                 <Card>
                                     <p
-                                        class="text-sm font-medium text-zinc-900 dark:text-white"
+                                        class="text-sm font-medium text-zinc-900"
                                     >
                                         {{ address.first_name }}
                                         {{ address.last_name }}
@@ -491,9 +503,9 @@ const steps = [
                                     </p>
                                     <span
                                         v-if="address.shipping_default"
-                                        class="mt-2 inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                                        class="mt-2 inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700"
                                     >
-                                        Default
+                                        Utama
                                     </span>
                                 </Card>
                             </button>
@@ -502,147 +514,112 @@ const steps = [
                         <button
                             v-if="selectedAddressId"
                             type="button"
-                            class="mt-3 text-sm text-zinc-500 underline transition hover:text-zinc-900 dark:hover:text-white"
+                            class="mt-3 text-sm text-zinc-500 underline transition hover:text-zinc-900"
                             @click="clearAddress"
                         >
-                            Use a new address instead
+                            Pakai alamat lain
                         </button>
 
-                        <hr
-                            class="my-6 border-zinc-200/60 dark:border-zinc-700/60"
-                        />
+                        <hr class="my-6 border-zinc-200" />
                     </div>
 
                     <form class="space-y-5" @submit.prevent="submitAddress">
-                        <h2
-                            class="text-lg font-semibold text-zinc-900 dark:text-white"
-                        >
-                            Shipping Address
+                        <h2 class="text-[13px] font-semibold text-zinc-900">
+                            Alamat pengiriman
                         </h2>
 
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-2">
-                                <Label for="first_name">First name</Label>
-                                <Input
-                                    id="first_name"
-                                    v-model="addressForm.first_name"
-                                />
-                                <p
-                                    v-if="addressForm.errors.first_name"
-                                    class="text-xs text-red-600"
-                                >
-                                    {{ addressForm.errors.first_name }}
-                                </p>
-                            </div>
-                            <div class="space-y-2">
-                                <Label for="last_name">Last name</Label>
-                                <Input
-                                    id="last_name"
-                                    v-model="addressForm.last_name"
-                                />
-                                <p
-                                    v-if="addressForm.errors.last_name"
-                                    class="text-xs text-red-600"
-                                >
-                                    {{ addressForm.errors.last_name }}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="space-y-2">
-                            <Label for="street_address">Address</Label>
-                            <Input
-                                id="street_address"
-                                v-model="addressForm.street_address"
+                            <AuthTextField
+                                id="first_name"
+                                v-model="addressForm.first_name"
+                                label="Nama depan"
+                                placeholder="Nama depan"
+                                :error="addressForm.errors.first_name"
                             />
-                            <p
-                                v-if="addressForm.errors.street_address"
-                                class="text-xs text-red-600"
-                            >
-                                {{ addressForm.errors.street_address }}
-                            </p>
-                        </div>
-
-                        <div class="space-y-2">
-                            <Label for="street_address_plus"
-                                >Apartment, suite, etc. (optional)</Label
-                            >
-                            <Input
-                                id="street_address_plus"
-                                v-model="addressForm.street_address_plus"
+                            <AuthTextField
+                                id="last_name"
+                                v-model="addressForm.last_name"
+                                label="Nama belakang"
+                                placeholder="Nama belakang"
+                                :error="addressForm.errors.last_name"
                             />
                         </div>
+
+                        <AuthTextField
+                            id="street_address"
+                            v-model="addressForm.street_address"
+                            label="Alamat"
+                            placeholder="Jl. contoh no. 1"
+                            :error="addressForm.errors.street_address"
+                        />
+
+                        <AuthTextField
+                            id="street_address_plus"
+                            v-model="addressForm.street_address_plus"
+                            label="Apartemen, blok, dll. (opsional)"
+                            placeholder="Blok / unit (opsional)"
+                        />
 
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-2">
-                                <Label for="city">City</Label>
-                                <Input id="city" v-model="addressForm.city" />
-                                <p
-                                    v-if="addressForm.errors.city"
-                                    class="text-xs text-red-600"
-                                >
-                                    {{ addressForm.errors.city }}
-                                </p>
-                            </div>
-                            <div class="space-y-2">
-                                <Label for="postal_code">Postal code</Label>
-                                <Input
-                                    id="postal_code"
-                                    v-model="addressForm.postal_code"
-                                />
-                                <p
-                                    v-if="addressForm.errors.postal_code"
-                                    class="text-xs text-red-600"
-                                >
-                                    {{ addressForm.errors.postal_code }}
-                                </p>
-                            </div>
-                            <div class="space-y-2">
-                                <Label for="state">State / Province</Label>
-                                <Input id="state" v-model="addressForm.state" />
-                                <p
-                                    v-if="addressForm.errors.state"
-                                    class="text-xs text-red-600"
-                                >
-                                    {{ addressForm.errors.state }}
-                                </p>
-                            </div>
-                            <div class="space-y-2">
-                                <Label for="country">Country</Label>
-                                <Input
-                                    id="country"
-                                    :value="zone?.country_name ?? ''"
-                                    readonly
-                                />
-                            </div>
-                        </div>
-
-                        <div class="space-y-2">
-                            <Label for="phone_number">Phone (optional)</Label>
-                            <Input
-                                id="phone_number"
-                                v-model="addressForm.phone_number"
-                                type="tel"
+                            <AuthTextField
+                                id="city"
+                                v-model="addressForm.city"
+                                label="Kota"
+                                placeholder="Kota"
+                                :error="addressForm.errors.city"
+                            />
+                            <AuthTextField
+                                id="postal_code"
+                                v-model="addressForm.postal_code"
+                                label="Kode pos"
+                                placeholder="Kode pos"
+                                :error="addressForm.errors.postal_code"
+                            />
+                            <AuthTextField
+                                id="state"
+                                v-model="addressForm.state"
+                                label="Provinsi"
+                                placeholder="Provinsi"
+                                :error="addressForm.errors.state"
+                            />
+                            <AuthTextField
+                                id="country"
+                                :model-value="zone?.country_name ?? ''"
+                                label="Negara"
+                                readonly
                             />
                         </div>
 
-                        <div class="space-y-2">
-                            <Label for="destination_search">
-                                District / destination
+                        <AuthTextField
+                            id="phone_number"
+                            v-model="addressForm.phone_number"
+                            label="Telepon (opsional)"
+                            type="tel"
+                            placeholder="08…"
+                        />
+
+                        <div class="space-y-1.5">
+                            <label for="destination_search" class="om-label">
+                                Kecamatan pengiriman
                                 <span v-if="komerceEnabled" class="text-red-600"
                                     >*</span
                                 >
-                            </Label>
+                            </label>
+                            <p class="text-[11px] leading-snug text-zinc-500">
+                                Ketik nama kecamatan / kota, lalu pilih dari
+                                daftar supaya ongkir akurat.
+                            </p>
                             <div class="relative">
-                                <Input
+                                <input
                                     id="destination_search"
                                     v-model="destinationQuery"
                                     type="search"
                                     autocomplete="off"
+                                    class="om-control w-full border border-zinc-200 bg-white px-3 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[var(--om-navy)]"
                                     :placeholder="
                                         komerceEnabled
-                                            ? 'Search city, district, or zip code'
-                                            : 'Optional when Komerce is disabled'
+                                            ? 'Contoh: Kedawung Cirebon'
+                                            : 'Opsional saat Komerce dinonaktifkan'
                                     "
                                     @focus="
                                         destinationQuery.trim().length >= 2 &&
@@ -657,17 +634,17 @@ const steps = [
                                     class="absolute inset-y-0 right-2 text-xs text-zinc-500 hover:text-zinc-800"
                                     @click="clearDestination"
                                 >
-                                    Clear
+                                    Ganti
                                 </button>
                                 <div
                                     v-if="destinationResults.length"
-                                    class="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+                                    class="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-zinc-200 bg-white shadow-sm"
                                 >
                                     <button
                                         v-for="result in destinationResults"
                                         :key="result.id"
                                         type="button"
-                                        class="block w-full px-3 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                                        class="block w-full px-3 py-2.5 text-left text-[13px] hover:bg-zinc-50"
                                         @click="selectDestination(result)"
                                     >
                                         {{ result.label }}
@@ -678,7 +655,7 @@ const steps = [
                                 v-if="destinationSearching"
                                 class="text-xs text-zinc-500"
                             >
-                                Searching…
+                                Mencari…
                             </p>
                             <p
                                 v-else-if="destinationSearchError"
@@ -690,10 +667,20 @@ const steps = [
                                 v-else-if="
                                     addressForm.rajaongkir_destination_id
                                 "
-                                class="text-xs text-zinc-500"
+                                class="rounded-md bg-emerald-50 px-2.5 py-1.5 text-[12px] text-emerald-800"
                             >
-                                Selected ID:
-                                {{ addressForm.rajaongkir_destination_id }}
+                                ✓
+                                {{
+                                    addressForm.rajaongkir_destination_label ||
+                                    destinationQuery
+                                }}
+                            </p>
+                            <p
+                                v-else-if="komerceEnabled"
+                                class="text-xs text-amber-700"
+                            >
+                                Wajib pilih dari daftar pencarian (jangan ketik
+                                manual saja).
                             </p>
                             <p
                                 v-if="
@@ -710,12 +697,13 @@ const steps = [
                         </div>
 
                         <div class="flex">
-                            <Button
+                            <button
                                 type="submit"
+                                class="om-btn-primary inline-flex items-center justify-center px-5 disabled:opacity-50"
                                 :disabled="addressForm.processing"
                             >
-                                Continue to Delivery
-                            </Button>
+                                Lanjut ke pengiriman
+                            </button>
                         </div>
                     </form>
                 </template>
@@ -723,10 +711,8 @@ const steps = [
                 <template v-else-if="step === 2">
                     <template v-if="isMultiPackage">
                         <div class="space-y-5">
-                            <h2
-                                class="text-lg font-semibold text-zinc-900 dark:text-white"
-                            >
-                                Delivery Method
+                            <h2 class="text-[13px] font-semibold text-zinc-900">
+                                Metode pengiriman
                             </h2>
 
                             <ShipmentRatePicker
@@ -738,13 +724,14 @@ const steps = [
                             />
 
                             <div class="flex">
-                                <Button
+                                <button
                                     type="button"
+                                    class="om-btn-primary inline-flex items-center justify-center px-5 disabled:opacity-50"
                                     :disabled="!allPackagesSelected"
                                     @click="submitMultiShipping"
                                 >
-                                    Continue to Payment
-                                </Button>
+                                    Lanjut ke pembayaran
+                                </button>
                             </div>
                         </div>
                     </template>
@@ -752,25 +739,22 @@ const steps = [
                     <template v-else>
                         <div v-if="!deliveryOptions.length">
                             <div
-                                class="flex items-center gap-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700"
+                                class="flex items-center gap-4 rounded-md border border-zinc-200 p-4"
                             >
                                 <ShoppingBag
                                     class="size-5 text-zinc-400"
                                     aria-hidden="true"
                                 />
-                                <p
-                                    class="text-sm text-zinc-600 dark:text-zinc-400"
-                                >
-                                    No delivery option available for your
-                                    address.
+                                <p class="text-sm text-zinc-600">
+                                    Tidak ada opsi pengiriman untuk alamatmu.
                                 </p>
                             </div>
                             <button
                                 type="button"
-                                class="mt-4 text-sm text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white"
+                                class="mt-4 text-sm text-zinc-500 transition hover:text-zinc-900"
                                 @click="goToStep(1)"
                             >
-                                ← Return to shipping
+                                ← Kembali ke alamat
                             </button>
                         </div>
 
@@ -779,10 +763,8 @@ const steps = [
                             class="space-y-5"
                             @submit.prevent="submitShipping"
                         >
-                            <h2
-                                class="text-lg font-semibold text-zinc-900 dark:text-white"
-                            >
-                                Delivery Method
+                            <h2 class="text-[13px] font-semibold text-zinc-900">
+                                Metode pengiriman
                             </h2>
                             <p
                                 v-if="shippingForm.errors.service_code"
@@ -796,11 +778,11 @@ const steps = [
                                     v-for="option in deliveryOptions"
                                     :key="option.service_code"
                                     :class="[
-                                        'flex cursor-pointer items-center justify-between gap-4 rounded-xl p-4 transition',
+                                        'flex cursor-pointer items-center justify-between gap-4 rounded-md border p-4 transition',
                                         shippingForm.service_code ===
                                         option.service_code
-                                            ? 'ring-2 ring-zinc-900 dark:ring-white'
-                                            : 'ring-1 ring-zinc-200 hover:ring-zinc-300 dark:ring-zinc-700',
+                                            ? 'border-[var(--om-navy)] ring-2 ring-[var(--om-navy)]'
+                                            : 'border-zinc-200 hover:border-zinc-300',
                                     ]"
                                 >
                                     <input
@@ -819,7 +801,7 @@ const steps = [
                                         />
                                         <div class="flex flex-col">
                                             <span
-                                                class="font-heading text-sm font-medium text-zinc-900 dark:text-white"
+                                                class="font-heading text-sm font-medium text-zinc-900"
                                                 >{{
                                                     option.service_name
                                                 }}</span
@@ -830,7 +812,7 @@ const steps = [
                                                 >{{
                                                     option.estimated_days
                                                 }}
-                                                days delivery</span
+                                                hari pengiriman</span
                                             >
                                             <span
                                                 v-else-if="option.description"
@@ -842,7 +824,7 @@ const steps = [
                                         </div>
                                     </div>
                                     <span
-                                        class="text-sm font-medium text-zinc-900 dark:text-white"
+                                        class="text-sm font-medium text-zinc-900"
                                         >{{
                                             formatMoney(
                                                 option.amount,
@@ -854,15 +836,16 @@ const steps = [
                             </div>
 
                             <div class="flex">
-                                <Button
+                                <button
                                     type="submit"
+                                    class="om-btn-primary inline-flex items-center justify-center px-5 disabled:opacity-50"
                                     :disabled="
                                         !shippingForm.service_code ||
                                         shippingForm.processing
                                     "
                                 >
-                                    Continue to Payment
-                                </Button>
+                                    Lanjut ke pembayaran
+                                </button>
                             </div>
                         </form>
                     </template>
@@ -871,13 +854,11 @@ const steps = [
                 <template v-else>
                     <div class="space-y-5">
                         <div>
-                            <h2
-                                class="text-lg font-semibold text-zinc-900 dark:text-white"
-                            >
-                                Payment Method
+                            <h2 class="text-[13px] font-semibold text-zinc-900">
+                                Metode pembayaran
                             </h2>
                             <p class="text-sm text-zinc-500">
-                                All transactions are secure and encrypted.
+                                Semua transaksi aman dan terenkripsi.
                             </p>
                         </div>
 
@@ -890,22 +871,24 @@ const steps = [
 
                         <p
                             v-if="!paymentOptions.length"
-                            class="text-sm text-zinc-600 dark:text-zinc-400"
+                            class="text-sm text-zinc-600"
                         >
-                            No payment methods available for your region.
+                            Tidak ada metode pembayaran untuk wilayahmu.
                         </p>
 
                         <template v-else>
-                            <div class="flex flex-col gap-1">
+                            <div
+                                class="flex flex-col gap-1 rounded-md border border-zinc-200 p-1"
+                            >
                                 <label
                                     v-for="method in paymentOptions"
                                     :key="method.id"
                                     :class="[
-                                        'group flex cursor-pointer items-center justify-between gap-6 rounded-lg px-3 py-3 transition',
+                                        'group flex cursor-pointer items-center justify-between gap-6 rounded-md px-3 py-3 transition',
                                         paymentForm.payment_method_id ===
                                         method.id
-                                            ? 'bg-zinc-100 dark:bg-zinc-800'
-                                            : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/40',
+                                            ? 'bg-zinc-100'
+                                            : 'hover:bg-zinc-50',
                                     ]"
                                 >
                                     <div class="flex items-center gap-3">
@@ -914,8 +897,8 @@ const steps = [
                                                 'inline-flex size-4 items-center justify-center rounded-full border-2 transition',
                                                 paymentForm.payment_method_id ===
                                                 method.id
-                                                    ? 'border-zinc-900 dark:border-white'
-                                                    : 'border-zinc-300 dark:border-zinc-600',
+                                                    ? 'border-[var(--om-navy)]'
+                                                    : 'border-zinc-300',
                                             ]"
                                         >
                                             <span
@@ -923,7 +906,7 @@ const steps = [
                                                     paymentForm.payment_method_id ===
                                                     method.id
                                                 "
-                                                class="size-2 rounded-full bg-zinc-900 dark:bg-white"
+                                                class="size-2 rounded-full bg-[var(--om-navy)]"
                                             />
                                         </span>
                                         <input
@@ -936,7 +919,7 @@ const steps = [
                                             class="sr-only"
                                         />
                                         <span
-                                            class="text-sm font-medium text-zinc-900 dark:text-white"
+                                            class="text-sm font-medium text-zinc-900"
                                             >{{ method.title }}</span
                                         >
                                     </div>
@@ -957,11 +940,9 @@ const steps = [
                                     <h3
                                         class="text-xs font-medium tracking-wider text-zinc-500 uppercase"
                                     >
-                                        Card details
+                                        Detail kartu
                                     </h3>
-                                    <span
-                                        class="h-px flex-1 bg-zinc-200 dark:bg-zinc-700"
-                                    />
+                                    <span class="h-px flex-1 bg-zinc-200" />
                                 </div>
 
                                 <StripePaymentForm
@@ -987,7 +968,7 @@ const steps = [
 
                             <template v-if="canPlaceOrder">
                                 <div
-                                    class="flex flex-col gap-3 border-t border-zinc-200 pt-5 dark:border-zinc-700"
+                                    class="flex flex-col gap-3 border-t border-zinc-200 pt-5"
                                 >
                                     <div
                                         class="flex items-center justify-between gap-4"
@@ -997,23 +978,26 @@ const steps = [
                                                 >Total {{ taxLabel }}</span
                                             >
                                             <span
-                                                class="text-lg font-semibold text-zinc-900 dark:text-white"
+                                                class="text-lg font-semibold text-zinc-900"
                                                 >{{
                                                     formatMoney(total, currency)
                                                 }}</span
                                             >
                                         </div>
-                                        <Button
+                                        <button
                                             type="button"
+                                            class="om-btn-primary inline-flex items-center justify-center px-5 disabled:opacity-50"
                                             :disabled="paymentForm.processing"
                                             @click="placeOrder"
                                         >
                                             {{
                                                 paymentForm.processing
-                                                    ? 'Processing...'
-                                                    : 'Place my order'
+                                                    ? 'Memproses…'
+                                                    : isKomerceSelected
+                                                      ? 'Bayar sekarang'
+                                                      : 'Buat pesanan'
                                             }}
-                                        </Button>
+                                        </button>
                                     </div>
                                     <p
                                         class="inline-flex items-center gap-1.5 text-xs text-zinc-500"
@@ -1022,7 +1006,7 @@ const steps = [
                                             class="size-3"
                                             aria-hidden="true"
                                         />
-                                        Secure &amp; encrypted
+                                        Aman &amp; terenkripsi
                                     </p>
                                 </div>
                             </template>
@@ -1036,9 +1020,9 @@ const steps = [
                                 class="flex items-center gap-2 pt-3 text-sm text-zinc-500"
                             >
                                 <span
-                                    class="inline-block size-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-white"
+                                    class="inline-block size-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900"
                                 />
-                                Preparing secure payment form...
+                                Menyiapkan formulir pembayaran…
                             </div>
                         </template>
                     </div>
@@ -1046,17 +1030,15 @@ const steps = [
             </div>
 
             <div class="mt-8 lg:col-span-5 lg:mt-0">
-                <Card class="p-6">
-                    <h2
-                        class="font-heading text-lg font-semibold text-zinc-900 dark:text-white"
-                    >
-                        Order Summary
+                <Card class="rounded-md border border-zinc-200 p-6">
+                    <h2 class="text-[13px] font-semibold text-zinc-900">
+                        Ringkasan pesanan
                     </h2>
 
                     <ul
                         v-if="cart"
                         role="list"
-                        class="mt-4 divide-y divide-zinc-200 dark:divide-zinc-700"
+                        class="mt-4 divide-y divide-zinc-200"
                     >
                         <li
                             v-for="line in cart.lines"
@@ -1064,7 +1046,7 @@ const steps = [
                             class="flex gap-3 py-3"
                         >
                             <div
-                                class="size-14 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800"
+                                class="size-14 shrink-0 overflow-hidden rounded-md bg-zinc-100"
                             >
                                 <img
                                     v-if="lineImage(line)"
@@ -1076,16 +1058,16 @@ const steps = [
                             <div class="flex flex-1 justify-between">
                                 <div>
                                     <p
-                                        class="text-sm font-medium text-zinc-900 dark:text-white"
+                                        class="text-sm font-medium text-zinc-900"
                                     >
                                         {{ lineName(line) }}
                                     </p>
                                     <p class="text-xs text-zinc-500">
-                                        Qty: {{ line.quantity }}
+                                        Jml: {{ line.quantity }}
                                     </p>
                                 </div>
                                 <p
-                                    class="text-sm font-medium text-zinc-900 dark:text-white"
+                                    class="text-sm font-medium text-zinc-900"
                                 >
                                     {{
                                         formatMoney(
@@ -1100,13 +1082,17 @@ const steps = [
                     </ul>
 
                     <dl
-                        class="mt-4 space-y-3 border-t border-zinc-200 pt-4 text-sm text-zinc-500 dark:border-zinc-700"
+                        class="mt-4 space-y-3 border-t border-zinc-200 pt-4 text-sm text-zinc-500"
                     >
+                        <div class="border-b border-zinc-200 pb-3">
+                            <CouponField :coupon-code="couponCode" />
+                        </div>
+
                         <div
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700"
+                            class="flex items-center justify-between border-b border-zinc-200 pb-3"
                         >
-                            <dt>Tax</dt>
-                            <dd class="text-base text-zinc-900 dark:text-white">
+                            <dt>Pajak</dt>
+                            <dd class="text-base text-zinc-900">
                                 {{
                                     formatMoney(
                                         cartContext?.taxTotal ?? 0,
@@ -1117,10 +1103,10 @@ const steps = [
                         </div>
 
                         <div
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700"
+                            class="flex items-center justify-between border-b border-zinc-200 pb-3"
                         >
-                            <dt>Delivery</dt>
-                            <dd class="text-base text-zinc-900 dark:text-white">
+                            <dt>Ongkir</dt>
+                            <dd class="text-base text-zinc-900">
                                 <template
                                     v-if="
                                         isMultiPackage &&
@@ -1132,7 +1118,7 @@ const steps = [
                                                   multiShippingTotal,
                                                   multiShippingCurrency,
                                               )
-                                            : 'Free'
+                                            : 'Gratis'
                                     }}</template
                                 >
                                 <template v-else-if="selectedDelivery">{{
@@ -1141,19 +1127,19 @@ const steps = [
                                               selectedDelivery.amount,
                                               selectedDelivery.currency,
                                           )
-                                        : 'Free'
+                                        : 'Gratis'
                                 }}</template>
                                 <template v-else
-                                    >Calculated at next step</template
+                                    >Dihitung di langkah berikutnya</template
                                 >
                             </dd>
                         </div>
 
                         <div
                             v-if="cartContext && cartContext.discountTotal > 0"
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700"
+                            class="flex items-center justify-between border-b border-zinc-200 pb-3"
                         >
-                            <dt>Discount</dt>
+                            <dt>Diskon</dt>
                             <dd class="text-emerald-600">
                                 −{{
                                     formatMoney(
@@ -1166,12 +1152,12 @@ const steps = [
 
                         <div class="flex items-center justify-between pt-1">
                             <dt
-                                class="text-base font-semibold text-zinc-900 dark:text-white"
+                                class="text-base font-semibold text-zinc-900"
                             >
                                 Total {{ taxLabel }}
                             </dt>
                             <dd
-                                class="text-base font-semibold text-zinc-900 dark:text-white"
+                                class="text-base font-semibold text-zinc-900"
                             >
                                 {{ formatMoney(total, currency) }}
                             </dd>

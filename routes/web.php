@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Account\AddressController;
 use App\Http\Controllers\Account\ConfirmOrderReceivedController;
+use App\Http\Controllers\Account\NotificationController;
 use App\Http\Controllers\Account\OrderController as AccountOrderController;
+use App\Http\Controllers\Account\RetryKomercePaymentController;
+use App\Http\Controllers\Account\SyncKomercePaymentStatusController;
 use App\Http\Controllers\Account\TrackShipmentController;
 use App\Http\Controllers\Admin\OrderShowController;
 use App\Http\Controllers\Admin\OverrideAllocationController;
 use App\Http\Controllers\Admin\PrintShipmentLabelController;
 use App\Http\Controllers\Shop\CartController;
+use App\Http\Controllers\Shop\CartCouponController;
 use App\Http\Controllers\Shop\CategoryController;
 use App\Http\Controllers\Shop\CheckoutController;
 use App\Http\Controllers\Shop\CheckoutSuccessController;
@@ -17,6 +21,7 @@ use App\Http\Controllers\Shop\CollectionController;
 use App\Http\Controllers\Shop\DestinationSearchController;
 use App\Http\Controllers\Shop\HomeController;
 use App\Http\Controllers\Shop\ProductController;
+use App\Http\Controllers\Shop\ProductReviewController;
 use App\Http\Controllers\Shop\SearchController;
 use App\Http\Controllers\Shop\StripePaymentController;
 use App\Http\Controllers\Shop\ZoneController;
@@ -30,6 +35,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', HomeController::class)->name('home');
 Route::get('shop', [ProductController::class, 'index'])->name('shop.index');
 Route::get('shop/{product:slug}', [ProductController::class, 'show'])->name('shop.product');
+Route::post('shop/{product:slug}/reviews', [ProductReviewController::class, 'store'])
+    ->middleware(['auth', 'verified', 'throttle:10,1'])
+    ->name('shop.product.reviews.store');
 Route::get('categories', [CategoryController::class, 'index'])->name('shop.categories');
 Route::get('categories/{category:slug}', [CategoryController::class, 'show'])->name('shop.category');
 Route::get('collections/{collection:slug}', [CollectionController::class, 'show'])->name('shop.collection');
@@ -39,6 +47,8 @@ Route::get('search', SearchController::class)->middleware('throttle:30,1')->name
 Route::get('cart', [CartController::class, 'index'])->name('shop.cart');
 Route::middleware('throttle:60,1')->group(function (): void {
     Route::post('cart', [CartController::class, 'add'])->name('shop.cart.add');
+    Route::post('cart/coupon', [CartCouponController::class, 'store'])->name('shop.cart.coupon.store');
+    Route::delete('cart/coupon', [CartCouponController::class, 'destroy'])->name('shop.cart.coupon.destroy');
     Route::patch('cart/{line}', [CartController::class, 'update'])->name('shop.cart.update');
     Route::delete('cart/{line}', [CartController::class, 'destroy'])->name('shop.cart.destroy');
     Route::delete('cart', [CartController::class, 'clear'])->name('shop.cart.clear');
@@ -83,10 +93,21 @@ Route::post('webhooks/komerce/qrisly', KomerceQrislyWebhookController::class)
 Route::middleware(['auth', 'verified'])->prefix('account')->name('account.')->group(function (): void {
     Route::get('orders', [AccountOrderController::class, 'index'])->name('orders');
     Route::get('orders/{order}', [AccountOrderController::class, 'show'])->name('orders.show');
+    Route::post('orders/{order}/retry-payment', RetryKomercePaymentController::class)
+        ->name('orders.retry-payment');
+    Route::post('orders/{order}/sync-payment', SyncKomercePaymentStatusController::class)
+        ->middleware('throttle:12,1')
+        ->name('orders.sync-payment');
     Route::post('orders/{order}/shipments/{shipment}/track', TrackShipmentController::class)
         ->name('orders.shipments.track');
     Route::post('orders/{order}/confirm-received', ConfirmOrderReceivedController::class)
         ->name('orders.confirm-received');
+
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications');
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])
+        ->name('notifications.read');
+    Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])
+        ->name('notifications.read-all');
 
     Route::get('addresses', [AddressController::class, 'index'])->name('addresses');
     Route::post('addresses', [AddressController::class, 'store'])->name('addresses.store');

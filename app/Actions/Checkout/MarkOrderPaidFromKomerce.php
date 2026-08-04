@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\Checkout;
 
+use App\Actions\Notify\NotifyOrderCustomer;
+use App\Enums\OrderNotificationType;
 use App\Jobs\CreateRajaOngkirDeliveryForShipment;
 use App\Models\OrderShipment;
 use App\Services\Komerce\PaymentClient;
@@ -21,6 +23,7 @@ final class MarkOrderPaidFromKomerce
     public function __construct(
         private readonly PaymentClient $payments,
         private readonly QrislyClient $qrisly,
+        private readonly NotifyOrderCustomer $notifyOrderCustomer,
     ) {}
 
     /**
@@ -73,6 +76,8 @@ final class MarkOrderPaidFromKomerce
             }
         }
 
+        $wasUnpaid = $order->payment_status !== PaymentStatus::Paid;
+
         DB::transaction(function () use ($order, $transaction, $paymentId, $remotePayment, $remoteStatus, $provider): void {
             $order->refresh();
 
@@ -112,6 +117,10 @@ final class MarkOrderPaidFromKomerce
                 ],
             ]);
         });
+
+        if ($wasUnpaid) {
+            $this->notifyOrderCustomer->handle($order->refresh(), OrderNotificationType::Paid);
+        }
 
         $this->dispatchPendingDeliveries($order);
 

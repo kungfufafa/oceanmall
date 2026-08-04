@@ -1,0 +1,127 @@
+[
+  {
+    "product_slug": "realme-13-pro-5g",
+    "variants": [
+      {
+        "name": "Hitam / 256 GB",
+        "sku": "R13P-BLK-256",
+        "attributes": { "color": "#1c1c1c", "storage": "256_gb" },
+        "prices": [
+          { "currency_code": "IDR", "amount": 4999000, "compare_amount": 5499000, "cost_amount": 3800000 }
+        ],
+        "stock": 15,
+        "thumbnail": "realme-13-pro-variant-black.jpg"
+      },
+      {
+        "name": "Emas / 256 GB",
+        "sku": "R13P-GLD-256",
+        "attributes": { "color": "#f59e0b", "storage": "256_gb" },
+        "prices": [
+          { "currency_code": "IDR", "amount": 4999000, "compare_amount": 5499000, "cost_amount": 3800000 }
+        ],
+        "stock": 12,
+        "thumbnail": "realme-13-pro-variant-gold.jpg"
+      },
+      {
+        "name": "Hitam / 512 GB",
+        "sku": "R13P-BLK-512",
+        "attributes": { "color": "#1c1c1c", "storage": "512_gb" },
+        "prices": [
+          { "currency_code": "IDR", "amount": 5499000, "compare_amount": 5999000, "cost_amount": 4200000 }
+        ],
+        "stock": 8,
+        "thumbnail": "realme-13-pro-variant-black.jpg"
+      },
+      {
+        "name": "Emas / 512 GB",
+        "sku": "R13P-GLD-512",
+        "attributes": { "color": "#f59e0b", "storage": "512_gb" },
+        "prices": [
+          { "currency_code": "IDR", "amount": 5499000, "compare_amount": 5999000, "cost_amount": 4200000 }
+        ],
+        "stock": 6,
+        "thumbnail": "realme-13-pro-variant-gold.jpg"
+      }
+    ]
+  },
+  {
+    "product_slug": "realme-c67",
+    "variants": [
+      {
+        "name": "Hitam / 128 GB",
+        "sku": "C67-BLK-128",
+        "attributes": { "color": "#1c1c1c", "storage": "128_gb" },
+        "prices": [
+          { "currency_code": "IDR", "amount": 1999000, "compare_amount": 2299000, "cost_amount": 1500000 }
+        ],
+        "stock": 25,
+        "thumbnail": "realme-c67-variant-black.jpg"
+      },
+      {
+        "name": "Hijau / 128 GB",
+        "sku": "C67-GRN-128",
+        "attributes": { "color": "#1b910c", "storage": "128_gb" },
+        "prices": [
+          { "currency_code": "IDR", "amount": 1999000, "compare_amount": 2299000, "cost_amount": 1500000 }
+        ],
+        "stock": 20,
+        "thumbnail": "realme-c67-variant-green.jpg"
+      },
+      {
+        "name": "Hitam / 256 GB",
+        "sku": "C67-BLK-256",
+        "attributes": { "color": "#1c1c1c", "storage": "256_gb" },
+        "prices": [
+          { "currency_code": "IDR", "amount": 2299000, "compare_amount": 2599000, "cost_amount": 1750000 }
+        ],
+        "stock": 18,
+        "thumbnail": "realme-c67-variant-black.jpg"
+      },
+      {
+        "name": "Hijau / 256 GB",
+        "sku": "C67-GRN-256",
+        "attributes": { "color": "#1b910c", "storage": "256_gb" },
+        "prices": [
+          { "currency_code": "IDR", "amount": 2299000, "compare_amount": 2599000, "cost_amount": 1750000 }
+        ],
+        "stock": 15,
+        "thumbnail": "realme-c67-variant-green.jpg"
+      }
+    ]
+  },
+  {
+    "product_slug": "tecno-spark-20-pro",
+    "variants": [
+      {
+        "name": "Hitam / 128 GB",
+        "sku": "SP20P-BLK-128",
+        "attributes": { "color": "#1c1c1c", "storage": "128_gb" },
+        "prices": [
+          { "currency_code": "IDR", "amount": 2299000, "compare_amount": 2599000, "cost_amount": 1700000 }
+        ],
+        "stock": 15,
+        "thumbnail": "tecno-spark-20-pro-variant-black.jpg"
+      },
+      {
+        "name": "Biru / 128 GB",
+        "sku": "SP20P-BLU-128",
+        "attributes": { "color": "#1e3a8a", "storage": "128_gb" },
+        "prices": [
+          { "currency_code": "IDR", "amount": 2299000, "compare_amount": 2599000, "cost_amount": 1700000 }
+        ],
+        "stock": 12,
+        "thumbnail": "tecno-spark-20-pro-variant-blue.jpg"
+      },
+      {
+        "name": "Putih / 256 GB",
+        "sku": "SP20P-WHT-256",
+        "attributes": { "color": "#ffffff", "storage": "256_gb" },
+        "prices": [
+          { "currency_code": "IDR", "amount": 2599000, "compare_amount": 2899000, "cost_amount": 1950000 }
+        ],
+        "stock": 10,
+        "thumbnail": "tecno-spark-20-pro-variant-white.jpg"
+      }
+    ]
+  }
+]

@@ -1,18 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
-import { Button } from '@/components/ui/button';
+import { computed, ref } from 'vue';
+import AuthPasswordField from '@/components/auth/auth-password-field.vue';
+import AuthSelectField from '@/components/auth/auth-select-field.vue';
+import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
+import AuthTextField from '@/components/auth/auth-text-field.vue';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import PasswordInput from '@/components/password-input.vue';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import * as profileRoutes from '@/routes/profile';
 import * as verification from '@/routes/verification';
 
@@ -42,12 +35,24 @@ const form = useForm({
 
 const hasUnverifiedEmail = props.mustVerifyEmail && !user?.email_verified_at;
 
+const canSubmit = computed(
+    () =>
+        form.first_name.trim().length > 0 &&
+        form.last_name.trim().length > 0 &&
+        form.email.trim().length > 0 &&
+        !form.processing,
+);
+
 function submit(): void {
     form.patch(profileRoutes.update.url(), { preserveScroll: true });
 }
 
 const deleteOpen = ref<boolean>(false);
 const deleteForm = useForm({ password: '' });
+
+const canDelete = computed(
+    () => deleteForm.password.length > 0 && !deleteForm.processing,
+);
 
 function openDelete(): void {
     deleteForm.reset();
@@ -65,166 +70,133 @@ function confirmDelete(): void {
 </script>
 
 <template>
-    <Head title="Profile settings" />
+    <Head title="Profil" />
 
-    <div class="space-y-1">
-        <h2 class="text-lg font-medium text-zinc-900 dark:text-white">
-            Profile
-        </h2>
-        <p class="text-sm text-zinc-500">Update your name and email address</p>
-    </div>
+    <p class="om-meta mb-4">Perbarui nama dan email akunmu.</p>
 
-    <form class="my-6 w-full max-w-lg space-y-6" @submit.prevent="submit">
-        <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-                <Label for="last_name">Last name</Label>
-                <Input
-                    id="last_name"
-                    v-model="form.last_name"
-                    type="text"
-                    required
-                    autocomplete="family-name"
-                />
-                <p
-                    v-if="form.errors.last_name"
-                    class="mt-1 text-xs text-red-600"
-                >
-                    {{ form.errors.last_name }}
-                </p>
-            </div>
-            <div class="space-y-2">
-                <Label for="first_name">First name</Label>
-                <Input
-                    id="first_name"
-                    v-model="form.first_name"
-                    type="text"
-                    required
-                    autocomplete="given-name"
-                />
-                <p
-                    v-if="form.errors.first_name"
-                    class="mt-1 text-xs text-red-600"
-                >
-                    {{ form.errors.first_name }}
-                </p>
-            </div>
-        </div>
-
-        <div class="space-y-2">
-            <Label for="gender">Gender</Label>
-            <Select v-model="form.gender">
-                <SelectTrigger id="gender" aria-label="Gender" class="w-full">
-                    <SelectValue placeholder="Select gender" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem
-                        v-for="option in genders"
-                        :key="option.value"
-                        :value="option.value"
-                    >
-                        {{ option.label }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
-            <p v-if="form.errors.gender" class="mt-1 text-xs text-red-600">
-                {{ form.errors.gender }}
-            </p>
-        </div>
-
-        <div class="space-y-2">
-            <Label for="email">Email</Label>
-            <Input
-                id="email"
-                v-model="form.email"
-                type="email"
+    <form class="flex flex-col gap-3.5" @submit.prevent="submit">
+        <div class="grid grid-cols-2 gap-2.5">
+            <AuthTextField
+                id="first_name"
+                v-model="form.first_name"
+                label="Nama depan"
+                type="text"
                 required
-                autocomplete="email"
+                autocomplete="given-name"
+                placeholder="Nama depan *"
+                :error="form.errors.first_name"
             />
-            <p v-if="form.errors.email" class="mt-1 text-xs text-red-600">
-                {{ form.errors.email }}
-            </p>
-
-            <div v-if="hasUnverifiedEmail" class="mt-4">
-                <p class="text-sm text-zinc-600 dark:text-zinc-400">
-                    Your email address is unverified.
-                    <Link
-                        :href="verification.send.url()"
-                        method="post"
-                        as="button"
-                        class="text-zinc-900 underline dark:text-white"
-                    >
-                        Click here to re-send the verification email.
-                    </Link>
-                </p>
-                <p
-                    v-if="status === 'verification-link-sent'"
-                    class="mt-2 text-sm font-medium text-green-600 dark:text-green-400"
-                >
-                    A new verification link has been sent to your email address.
-                </p>
-            </div>
+            <AuthTextField
+                id="last_name"
+                v-model="form.last_name"
+                label="Nama belakang"
+                type="text"
+                required
+                autocomplete="family-name"
+                placeholder="Nama belakang *"
+                :error="form.errors.last_name"
+            />
         </div>
 
-        <div class="flex items-center gap-4">
-            <Button type="submit" :disabled="form.processing">Save</Button>
-            <p v-if="form.recentlySuccessful" class="text-sm text-zinc-500">
-                Saved.
+        <AuthSelectField
+            id="gender"
+            v-model="form.gender"
+            label="Jenis kelamin"
+            placeholder="Pilih jenis kelamin"
+            :options="genders"
+            :error="form.errors.gender"
+        />
+
+        <AuthTextField
+            id="email"
+            v-model="form.email"
+            label="Email"
+            type="email"
+            required
+            autocomplete="email"
+            placeholder="Masukkan emailmu *"
+            :error="form.errors.email"
+        />
+
+        <div
+            v-if="hasUnverifiedEmail"
+            class="rounded-md bg-amber-50 px-3 py-2.5"
+        >
+            <p class="text-[13px] text-amber-900">
+                Email belum diverifikasi.
+                <Link
+                    :href="verification.send.url()"
+                    method="post"
+                    as="button"
+                    class="font-semibold underline"
+                >
+                    Kirim ulang email verifikasi
+                </Link>
             </p>
+            <p
+                v-if="status === 'verification-link-sent'"
+                class="mt-1 text-[13px] font-medium text-emerald-700"
+            >
+                Link verifikasi baru sudah dikirim.
+            </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <AuthSubmitButton
+                class="!w-auto px-6"
+                label="Simpan"
+                :enabled="canSubmit"
+                :processing="form.processing"
+            />
+            <p v-if="form.recentlySuccessful" class="om-meta">Tersimpan.</p>
         </div>
     </form>
 
-    <div class="mt-10 max-w-lg space-y-3">
-        <h3 class="text-sm font-semibold text-zinc-900 dark:text-white">
-            Delete account
-        </h3>
-        <p class="text-sm text-zinc-500">
-            Delete your account and all of its resources
+    <div class="mt-10 border-t border-zinc-200 pt-6">
+        <h3 class="text-[13px] font-semibold text-zinc-900">Hapus akun</h3>
+        <p class="om-meta mt-1">
+            Hapus akun dan seluruh datanya secara permanen.
         </p>
-        <Button type="button" variant="destructive" @click="openDelete"
-            >Delete account</Button
+        <button
+            type="button"
+            class="mt-3 inline-flex h-10 items-center rounded-md px-4 text-[13px] font-semibold text-red-600 ring-1 ring-red-200"
+            @click="openDelete"
         >
+            Hapus akun
+        </button>
     </div>
 
     <Dialog v-model:open="deleteOpen">
         <DialogContent class="sm:max-w-lg">
-            <DialogTitle
-                class="text-lg font-semibold text-zinc-900 dark:text-white"
-            >
-                Are you sure you want to delete your account?
-            </DialogTitle>
-            <p class="mt-2 text-sm text-zinc-500">
-                Once your account is deleted, all of its resources and data will
-                be permanently deleted. Please enter your password to confirm
-                you would like to permanently delete your account.
+            <DialogTitle class="om-page-title">Hapus akun?</DialogTitle>
+            <p class="om-meta mt-2 leading-5">
+                Setelah dihapus, semua data tidak bisa dikembalikan. Masukkan
+                password untuk konfirmasi.
             </p>
-            <form class="mt-6 space-y-4" @submit.prevent="confirmDelete">
-                <div class="space-y-2">
-                    <Label for="delete_password">Password</Label>
-                    <PasswordInput
-                        id="delete_password"
-                        v-model="deleteForm.password"
-                        autocomplete="current-password"
-                    />
-                    <p
-                        v-if="deleteForm.errors.password"
-                        class="text-xs text-red-600"
-                    >
-                        {{ deleteForm.errors.password }}
-                    </p>
-                </div>
+            <form class="mt-5 flex flex-col gap-3.5" @submit.prevent="confirmDelete">
+                <AuthPasswordField
+                    id="delete_password"
+                    v-model="deleteForm.password"
+                    label="Password"
+                    autocomplete="current-password"
+                    placeholder="Masukkan passwordmu *"
+                    :error="deleteForm.errors.password"
+                />
                 <div class="flex justify-end gap-2">
-                    <Button
+                    <button
                         type="button"
-                        variant="outline"
+                        class="om-action-muted px-3"
                         @click="deleteOpen = false"
-                        >Cancel</Button
                     >
-                    <Button
+                        Batal
+                    </button>
+                    <button
                         type="submit"
-                        variant="destructive"
-                        :disabled="deleteForm.processing"
-                        >Delete account</Button
+                        class="inline-flex h-10 items-center rounded-md bg-red-600 px-4 text-[13px] font-semibold text-white disabled:opacity-50"
+                        :disabled="!canDelete"
                     >
+                        Hapus akun
+                    </button>
                 </div>
             </form>
         </DialogContent>

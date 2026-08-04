@@ -2,6 +2,7 @@
 
 import type {
   Address,
+  Brand as BaseBrand,
   Cart as BaseCart,
   CartLine as BaseCartLine,
   Category as BaseCategory,
@@ -20,7 +21,6 @@ export { AddressType } from '@shopperlabs/shopper-types';
 
 export type {
   Address,
-  Brand,
   Channel,
   Country,
   Media,
@@ -37,6 +37,11 @@ type WithStorefrontMedia = {
   thumbnail?: string | null;
   images?: Media[];
 };
+
+export type Brand = BaseBrand &
+  WithStorefrontMedia & {
+    products_count?: number;
+  };
 
 export type Category = BaseCategory &
   WithStorefrontMedia & {
@@ -57,6 +62,10 @@ export type Product = BaseProduct &
     variants?: ProductVariant[];
     related_products?: Product[];
   };
+
+export type CollectionRail = Collection & {
+  products: Product[];
+};
 
 export type ProductPrice = Price;
 
@@ -126,6 +135,19 @@ export type ZoneSession = {
   zone_id: number;
 };
 
+export type FooterPaymentMethod = {
+  key: string;
+  title: string;
+  logo: string | null;
+  driver: string;
+};
+
+export type FooterShippingCourier = {
+  code: string;
+  label: string;
+  logo: string | null;
+};
+
 export type ShopSharedProps = {
   cart_count: number;
   zone: ZoneSession | null;
@@ -135,6 +157,8 @@ export type ShopSharedProps = {
   tax_label: string;
   nav_categories: NavCategory[];
   footer_categories: NavCategory[];
+  payment_methods: FooterPaymentMethod[];
+  shipping_couriers: FooterShippingCourier[];
 };
 
 export type StripePayment = {

@@ -175,3 +175,134 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* OceanMall storefront — locked design tokens (cart/login as source of truth) */
+.storefront {
+  /* Brand */
+  --om-navy: #0a2a6b;
+  --om-navy-hover: #0b3a8f;
+  --om-disabled: #d8dce6;
+
+  /* Chrome — header & bottom nav same weight */
+  --om-chrome-height: 3.75rem; /* 60px */
+  --om-header-height: var(--om-chrome-height);
+  --om-bottom-nav-height: var(--om-chrome-height);
+
+  /* Controls */
+  --om-control-height: 2.75rem; /* 44px */
+  --om-radius: 0.375rem; /* ~6px */
+
+  /* Type scale */
+  --om-text-title: 0.9375rem; /* 15px */
+  --om-text-body: 0.8125rem; /* 13px */
+  --om-text-meta: 0.75rem; /* 12px */
+  --om-text-nav: 0.6875rem; /* 11px */
+  --om-text-micro: 0.625rem; /* 10px */
+
+  --font-sans:
+    'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-heading:
+    'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --primary: var(--om-navy);
+  --primary-foreground: #ffffff;
+  --ring: var(--om-navy);
+  --accent: #eef1f7;
+  --accent-foreground: var(--om-navy);
+  --radius: var(--om-radius);
+  color: #18181b;
+  background-color: #ffffff;
+}
+
+.storefront .dark,
+.dark .storefront {
+  --primary: var(--om-navy);
+  --primary-foreground: #ffffff;
+  --ring: var(--om-navy);
+  --accent: #eef1f7;
+  --accent-foreground: var(--om-navy);
+}
+
+.storefront-heading {
+  color: var(--om-navy);
+}
+
+.dark .storefront-heading {
+  color: var(--om-navy);
+}
+
+.storefront-price {
+  color: var(--om-navy);
+  font-weight: 700;
+}
+
+.dark .storefront-price {
+  color: var(--om-navy);
+}
+
+/* Shared primitives */
+.om-page-title {
+  font-size: var(--om-text-title);
+  font-weight: 700;
+  color: var(--om-navy);
+  line-height: 1.2;
+}
+
+.om-action-primary {
+  font-size: var(--om-text-body);
+  font-weight: 700;
+  color: var(--om-navy);
+  line-height: 1;
+}
+
+.om-action-muted {
+  font-size: var(--om-text-body);
+  font-weight: 600;
+  color: #71717a;
+  line-height: 1;
+}
+
+.om-control {
+  height: var(--om-control-height);
+  border-radius: var(--om-radius);
+  font-size: var(--om-text-body);
+}
+
+.om-btn-primary {
+  height: var(--om-control-height);
+  border-radius: var(--om-radius);
+  background: var(--om-navy);
+  color: #fff;
+  font-size: var(--om-text-body);
+  font-weight: 700;
+}
+
+.om-btn-primary:disabled,
+.om-btn-primary[disabled] {
+  background: var(--om-disabled);
+  color: #fff;
+  cursor: not-allowed;
+}
+
+.om-btn-outline {
+  height: var(--om-control-height);
+  border-radius: var(--om-radius);
+  border: 1px solid var(--om-navy);
+  color: var(--om-navy);
+  font-size: var(--om-text-body);
+  font-weight: 600;
+  background: #fff;
+}
+
+.om-label {
+  display: block;
+  font-size: var(--om-text-meta);
+  font-weight: 600;
+  color: #27272a;
+}
+
+.om-meta {
+  font-size: var(--om-text-meta);
+  color: #71717a;
+}

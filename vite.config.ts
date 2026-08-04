@@ -15,6 +15,9 @@ export default defineConfig({
         bunny('Instrument Sans', {
           weights: [400, 500, 600],
         }),
+        bunny('Plus Jakarta Sans', {
+          weights: [400, 500, 600, 700, 800],
+        }),
       ],
     }),
     inertia(),
@@ -31,4 +34,9 @@ export default defineConfig({
       formVariants: true,
     }),
   ],
+  // @shopperlabs/shopper-types ships ESM with extensionless relative imports
+  // (./address), which Node cannot resolve natively during Inertia SSR.
+  ssr: {
+    noExternal: ['@shopperlabs/shopper-types'],
+  },
 });

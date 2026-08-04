@@ -2,9 +2,10 @@
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Search as SearchIcon } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
+import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
 import ProductCard from '@/components/shop/product-card.vue';
-import { Input } from '@/components/ui/input';
+import { home } from '@/routes';
 import { search as searchRoute } from '@/routes/shop';
 import type { Product } from '@/types/shop';
 
@@ -37,37 +38,35 @@ watch(search, (value) => {
 </script>
 
 <template>
-    <Head title="Search" />
+    <Head title="Cari" />
 
-    <Container class="py-8 sm:py-12">
-        <div class="mx-auto max-w-xl text-center">
-            <h1
-                class="font-heading text-2xl font-bold text-zinc-900 dark:text-white"
-            >
-                Search
-            </h1>
-            <div class="relative mt-6">
-                <SearchIcon
-                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400"
-                    aria-hidden="true"
-                />
-                <Input
-                    v-model="search"
-                    type="search"
-                    placeholder="Search for products..."
-                    autofocus
-                    aria-label="Search"
-                    class="pl-9"
-                />
-            </div>
+    <AppPageHeader
+        class="lg:hidden"
+        title="Cari"
+        :back-href="home.url()"
+        max-width-class="max-w-7xl"
+    />
+
+    <Container class="py-6 sm:py-10">
+        <h1 class="om-page-title hidden !text-lg lg:block">Cari</h1>
+        <div class="relative mt-0 max-w-xl lg:mt-6">
+            <SearchIcon
+                class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400"
+                aria-hidden="true"
+            />
+            <input
+                v-model="search"
+                type="search"
+                placeholder="Cari produk..."
+                autofocus
+                aria-label="Cari"
+                class="om-control w-full border border-zinc-200 bg-white pr-3 pl-9 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[var(--om-navy)]"
+            />
         </div>
 
-        <div class="mt-10">
-            <p
-                v-if="products === null"
-                class="text-center text-sm text-zinc-500"
-            >
-                Type at least 2 characters to search.
+        <div class="mt-8">
+            <p v-if="products === null" class="om-meta text-center">
+                Ketik minimal 2 karakter untuk mencari.
             </p>
 
             <div
@@ -75,24 +74,19 @@ watch(search, (value) => {
                 class="flex flex-col items-center justify-center py-16 text-center"
             >
                 <SearchIcon
-                    class="size-12 text-zinc-300 dark:text-zinc-600"
+                    class="size-12 text-zinc-300"
                     aria-hidden="true"
                 />
-                <h3
-                    class="mt-4 text-sm font-semibold text-zinc-900 dark:text-white"
-                >
-                    No results found
+                <h3 class="mt-4 text-[13px] font-semibold text-zinc-900">
+                    Tidak ada hasil
                 </h3>
-                <p class="mt-1 text-sm text-zinc-500">
-                    Try a different search term.
-                </p>
+                <p class="om-meta mt-1">Coba kata kunci lain.</p>
             </div>
 
             <template v-else>
-                <p class="mb-6 text-sm text-zinc-500">
-                    {{ products.total }}
-                    {{ products.total === 1 ? 'result' : 'results' }} for "<span
-                        class="font-medium text-zinc-900 dark:text-white"
+                <p class="om-meta mb-6">
+                    {{ products.total }} hasil untuk "<span
+                        class="font-medium text-zinc-900"
                         >{{ query }}</span
                     >"
                 </p>
@@ -110,17 +104,17 @@ watch(search, (value) => {
                 <nav
                     v-if="products.last_page > 1"
                     class="mt-8 flex justify-center gap-1"
-                    aria-label="Pagination"
+                    aria-label="Halaman"
                 >
                     <Link
                         v-for="link in products.links"
                         :key="link.label"
                         :href="link.url ?? '#'"
                         :class="[
-                            'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-3 text-sm transition',
+                            'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-3 text-[13px] transition',
                             link.active
-                                ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                                : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
+                                ? 'bg-[var(--om-navy)] text-white'
+                                : 'text-zinc-600 hover:bg-zinc-100',
                             link.url === null &&
                                 'pointer-events-none opacity-40',
                         ]"

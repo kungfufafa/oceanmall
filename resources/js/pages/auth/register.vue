@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { Form, Head } from '@inertiajs/vue3';
-import InputError from '@/components/input-error.vue';
-import PasswordInput from '@/components/password-input.vue';
-import TextLink from '@/components/text-link.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Spinner } from '@/components/ui/spinner';
+import { computed, ref } from 'vue';
+import AuthPasswordField from '@/components/auth/auth-password-field.vue';
+import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
+import AuthTextField from '@/components/auth/auth-text-field.vue';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
 
@@ -16,99 +13,108 @@ defineProps<{
 
 defineOptions({
     layout: {
-        title: 'Create an account',
-        description: 'Enter your details below to create your account',
+        title: 'Daftar',
+        description:
+            'Daftar akun OceanMall buat belanja lebih gampang dan dapet promo member.',
+        actionLabel: 'Masuk',
+        actionHref: login.url(),
     },
 });
+
+const firstName = ref('');
+const lastName = ref('');
+const email = ref('');
+const password = ref('');
+const passwordConfirmation = ref('');
+
+const canSubmit = computed(
+    () =>
+        firstName.value.trim().length > 0 &&
+        lastName.value.trim().length > 0 &&
+        email.value.trim().length > 0 &&
+        password.value.length > 0 &&
+        passwordConfirmation.value.length > 0,
+);
 </script>
 
 <template>
-    <Head title="Register" />
+    <Head title="Daftar" />
 
     <Form
         v-bind="store.form()"
         :reset-on-success="['password', 'password_confirmation']"
         v-slot="{ errors, processing }"
-        class="flex flex-col gap-6"
+        class="flex flex-col gap-3.5"
     >
-        <div class="grid gap-6">
-            <div class="grid gap-2">
-                <Label for="name">Name</Label>
-                <Input
-                    id="name"
-                    type="text"
-                    required
-                    autofocus
-                    :tabindex="1"
-                    autocomplete="name"
-                    name="name"
-                    placeholder="Full name"
-                />
-                <InputError :message="errors.name" />
-            </div>
+        <div class="grid grid-cols-2 gap-2.5">
+            <AuthTextField
+                id="first_name"
+                v-model="firstName"
+                label="Nama depan"
+                type="text"
+                name="first_name"
+                required
+                autofocus
+                autocomplete="given-name"
+                placeholder="Nama depan *"
+                :error="errors.first_name"
+            />
 
-            <div class="grid gap-2">
-                <Label for="email">Email address</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    required
-                    :tabindex="2"
-                    autocomplete="email"
-                    name="email"
-                    placeholder="email@example.com"
-                />
-                <InputError :message="errors.email" />
-            </div>
-
-            <div class="grid gap-2">
-                <Label for="password">Password</Label>
-                <PasswordInput
-                    id="password"
-                    required
-                    :tabindex="3"
-                    autocomplete="new-password"
-                    name="password"
-                    placeholder="Password"
-                    :passwordrules="passwordRules"
-                />
-                <InputError :message="errors.password" />
-            </div>
-
-            <div class="grid gap-2">
-                <Label for="password_confirmation">Confirm password</Label>
-                <PasswordInput
-                    id="password_confirmation"
-                    required
-                    :tabindex="4"
-                    autocomplete="new-password"
-                    name="password_confirmation"
-                    placeholder="Confirm password"
-                    :passwordrules="passwordRules"
-                />
-                <InputError :message="errors.password_confirmation" />
-            </div>
-
-            <Button
-                type="submit"
-                class="mt-2 w-full"
-                tabindex="5"
-                :disabled="processing"
-                data-test="register-user-button"
-            >
-                <Spinner v-if="processing" />
-                Create account
-            </Button>
+            <AuthTextField
+                id="last_name"
+                v-model="lastName"
+                label="Nama belakang"
+                type="text"
+                name="last_name"
+                required
+                autocomplete="family-name"
+                placeholder="Nama belakang *"
+                :error="errors.last_name"
+            />
         </div>
 
-        <div class="text-center text-sm text-muted-foreground">
-            Already have an account?
-            <TextLink
-                :href="login()"
-                class="underline underline-offset-4"
-                :tabindex="6"
-                >Log in</TextLink
-            >
-        </div>
+        <AuthTextField
+            id="email"
+            v-model="email"
+            label="Email"
+            type="email"
+            name="email"
+            required
+            autocomplete="email"
+            placeholder="Masukkan emailmu *"
+            :error="errors.email"
+        />
+
+        <AuthPasswordField
+            id="password"
+            v-model="password"
+            label="Password"
+            name="password"
+            required
+            autocomplete="new-password"
+            placeholder="Buat passwordmu *"
+            :passwordrules="passwordRules"
+            :error="errors.password"
+        />
+
+        <AuthPasswordField
+            id="password_confirmation"
+            v-model="passwordConfirmation"
+            label="Konfirmasi password"
+            name="password_confirmation"
+            required
+            autocomplete="new-password"
+            placeholder="Ulangi passwordmu *"
+            :passwordrules="passwordRules"
+            :error="errors.password_confirmation"
+        />
+
+        <AuthSubmitButton
+            class="mt-1"
+            label="Daftar"
+            :enabled="canSubmit"
+            :processing="processing"
+            data-test="register-user-button"
+        />
     </Form>
 </template>

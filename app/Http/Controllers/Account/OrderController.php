@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Account;
 
+use App\Actions\Checkout\ResolveKomercePaymentInstructions;
 use App\Http\Controllers\Controller;
 use App\Models\OrderShipment;
 use Illuminate\Http\Request;
@@ -71,9 +72,13 @@ final class OrderController extends Controller
                 ];
             });
 
+        $resolvePayment = resolve(ResolveKomercePaymentInstructions::class);
+
         return Inertia::render('account/order-show', [
             'order' => $order,
             'shipments' => $shipments,
+            'komercePayment' => $resolvePayment->handle($order),
+            'canRetryPayment' => $resolvePayment->canRetry($order),
         ]);
     }
 }

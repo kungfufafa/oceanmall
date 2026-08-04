@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Shop\HomeController::__invoke
-* @see app/Http/Controllers/Shop/HomeController.php:16
+* @see app/Http/Controllers/Shop/HomeController.php:17
 * @route '/'
 */
 const HomeController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ HomeController.definition = {
 
 /**
 * @see \App\Http\Controllers\Shop\HomeController::__invoke
-* @see app/Http/Controllers/Shop/HomeController.php:16
+* @see app/Http/Controllers/Shop/HomeController.php:17
 * @route '/'
 */
 HomeController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ HomeController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Shop\HomeController::__invoke
-* @see app/Http/Controllers/Shop/HomeController.php:16
+* @see app/Http/Controllers/Shop/HomeController.php:17
 * @route '/'
 */
 HomeController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ HomeController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Shop\HomeController::__invoke
-* @see app/Http/Controllers/Shop/HomeController.php:16
+* @see app/Http/Controllers/Shop/HomeController.php:17
 * @route '/'
 */
 HomeController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ HomeController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => 
 
 /**
 * @see \App\Http\Controllers\Shop\HomeController::__invoke
-* @see app/Http/Controllers/Shop/HomeController.php:16
+* @see app/Http/Controllers/Shop/HomeController.php:17
 * @route '/'
 */
 const HomeControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const HomeControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'g
 
 /**
 * @see \App\Http\Controllers\Shop\HomeController::__invoke
-* @see app/Http/Controllers/Shop/HomeController.php:16
+* @see app/Http/Controllers/Shop/HomeController.php:17
 * @route '/'
 */
 HomeControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ HomeControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get
 
 /**
 * @see \App\Http\Controllers\Shop\HomeController::__invoke
-* @see app/Http/Controllers/Shop/HomeController.php:16
+* @see app/Http/Controllers/Shop/HomeController.php:17
 * @route '/'
 */
 HomeControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

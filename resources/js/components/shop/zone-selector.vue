@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import Card from '@/components/shop/card.vue';
 import {
     Dialog,
     DialogContent,
@@ -9,6 +8,13 @@ import {
 } from '@/components/ui/dialog';
 import { useShop } from '@/composables/useShop';
 import type { CountryByZoneData } from '@/types/shop';
+
+const props = withDefaults(
+    defineProps<{
+        appearance?: 'default' | 'on-navy';
+    }>(),
+    { appearance: 'default' },
+);
 
 const { zone, availableZones, changeZone } = useShop();
 
@@ -41,6 +47,8 @@ const currentCountry = computed<CountryByZoneData | undefined>(() =>
     ),
 );
 
+const onNavy = computed(() => props.appearance === 'on-navy');
+
 function select(country: CountryByZoneData): void {
     open.value = false;
     changeZone(country.countryCode);
@@ -49,13 +57,36 @@ function select(country: CountryByZoneData): void {
 
 <template>
     <div>
-        <div v-if="zone" class="flex items-center">
-            <p class="text-sm/5 text-zinc-700 dark:text-zinc-300">
-                Shipping to :
-            </p>
+        <button
+            v-if="onNavy"
+            type="button"
+            class="inline-flex max-w-xs items-center gap-2 text-left text-sm text-white/90 transition hover:text-white"
+            @click="open = true"
+        >
+            <img
+                v-if="currentCountry"
+                :src="currentCountry.countryFlag"
+                alt=""
+                class="block h-auto w-4 shrink-0 rounded-sm"
+            />
+            <span class="truncate">
+                <template v-if="zone">
+                    Dikirim ke
+                    <span class="font-semibold underline underline-offset-2">{{
+                        zone.country_name
+                    }}</span>
+                </template>
+                <template v-else>
+                    Pilih lokasi pengiriman
+                </template>
+            </span>
+        </button>
+
+        <div v-else-if="zone" class="flex items-center">
+            <p class="text-sm/5 text-zinc-700">Dikirim ke:</p>
             <button
                 type="button"
-                class="group ml-4 flex items-center font-medium hover:text-zinc-950 dark:hover:text-white"
+                class="group ml-4 flex items-center font-medium hover:text-[var(--om-navy)]"
                 @click="open = true"
             >
                 <img
@@ -74,31 +105,29 @@ function select(country: CountryByZoneData): void {
             <DialogContent
                 class="border-0 bg-transparent p-0 shadow-none sm:max-w-lg"
             >
-                <Card class="space-y-4">
-                    <DialogTitle
-                        class="font-heading text-lg font-semibold text-zinc-900 dark:text-white"
-                        >Select your country</DialogTitle
+                <div
+                    class="space-y-4 rounded-md border border-zinc-200 bg-white p-4"
+                >
+                    <DialogTitle class="om-page-title !text-lg"
+                        >Pilih negara</DialogTitle
                     >
 
                     <DialogDescription
                         v-if="zone"
-                        class="text-sm text-zinc-600 dark:text-zinc-400"
+                        class="text-sm text-zinc-600"
                     >
-                        Currently shipping to:
-                        <span
-                            class="font-semibold text-zinc-900 dark:text-white"
-                            >{{ zone.country_name }}</span
-                        >
+                        Saat ini dikirim ke:
+                        <span class="font-semibold text-[var(--om-navy)]">{{
+                            zone.country_name
+                        }}</span>
                     </DialogDescription>
 
-                    <DialogDescription
-                        class="text-sm text-zinc-600 dark:text-zinc-400"
-                    >
-                        Changing your country may update prices and currency.
+                    <DialogDescription class="text-sm text-zinc-600">
+                        Mengganti negara dapat mengubah harga dan mata uang.
                     </DialogDescription>
 
                     <div
-                        class="mt-4 max-h-96 divide-y divide-zinc-200 overflow-y-auto dark:divide-zinc-700"
+                        class="mt-4 max-h-96 divide-y divide-zinc-200 overflow-y-auto"
                     >
                         <div
                             v-for="(countries, zoneName) in grouped"
@@ -106,7 +135,7 @@ function select(country: CountryByZoneData): void {
                             class="py-4"
                         >
                             <h4
-                                class="text-sm font-medium text-zinc-900 dark:text-white"
+                                class="text-sm font-medium text-[var(--om-navy)]"
                             >
                                 {{ zoneName }}
                             </h4>
@@ -118,11 +147,11 @@ function select(country: CountryByZoneData): void {
                                     <button
                                         type="button"
                                         :class="[
-                                            'flex w-full items-center rounded-lg px-3 py-2 text-sm transition',
+                                            'flex w-full items-center rounded-md px-3 py-2 text-sm transition',
                                             zone?.country_code ===
                                             country.countryCode
-                                                ? 'bg-zinc-100 font-medium text-zinc-900 dark:bg-zinc-800 dark:text-white'
-                                                : 'text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800/50',
+                                                ? 'bg-zinc-100 font-medium text-[var(--om-navy)]'
+                                                : 'text-zinc-600 hover:bg-zinc-50',
                                         ]"
                                         @click="select(country)"
                                     >
@@ -139,7 +168,7 @@ function select(country: CountryByZoneData): void {
                             </ul>
                         </div>
                     </div>
-                </Card>
+                </div>
             </DialogContent>
         </Dialog>
     </div>

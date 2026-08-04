@@ -8,6 +8,7 @@ use App\Actions\Shipping\RefreshShipmentTracking;
 use App\Http\Controllers\Controller;
 use App\Models\OrderShipment;
 use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
 use RuntimeException;
 use Shopper\Core\Models\Order;
 use Throwable;
@@ -22,13 +23,30 @@ final class TrackShipmentController extends Controller
         try {
             $refreshTracking->handle($shipment);
         } catch (RuntimeException $e) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => $e->getMessage(),
+            ]);
+
             return back()->withErrors(['tracking' => $e->getMessage()]);
         } catch (Throwable $e) {
             report($e);
 
-            return back()->withErrors(['tracking' => __('Unable to fetch tracking updates right now. Please try again later.')]);
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Gagal memperbarui pelacakan. Coba lagi nanti.',
+            ]);
+
+            return back()->withErrors([
+                'tracking' => 'Gagal memperbarui pelacakan. Coba lagi nanti.',
+            ]);
         }
 
-        return back()->with('status', __('Tracking updated.'));
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Status pengiriman diperbarui.',
+        ]);
+
+        return back();
     }
 }

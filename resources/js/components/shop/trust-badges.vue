@@ -2,46 +2,50 @@
 import { MessageCircle, RotateCcw, ShieldCheck, Truck } from 'lucide-vue-next';
 
 const badges = [
-    { icon: Truck, title: 'Free Shipping', description: 'On orders over $50' },
+    {
+        icon: Truck,
+        title: 'Pengiriman cepat',
+        description: 'Ke seluruh Indonesia',
+    },
     {
         icon: ShieldCheck,
-        title: 'Secure Payment',
-        description: '100% secure checkout',
+        title: '100% original',
+        description: 'Bergaransi resmi',
     },
     {
         icon: RotateCcw,
-        title: 'Easy Returns',
-        description: '30-day return policy',
+        title: 'Mudah retur',
+        description: 'Kebijakan 30 hari',
     },
     {
         icon: MessageCircle,
-        title: '24/7 Support',
-        description: 'Dedicated support',
+        title: 'Bantuan siap',
+        description: 'Dukungan pelanggan',
     },
 ];
 </script>
 
 <template>
-    <div class="grid grid-cols-2 gap-6 sm:grid-cols-4">
+    <div class="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
         <div
             v-for="badge in badges"
             :key="badge.title"
-            class="flex flex-col items-center text-center"
+            class="flex flex-col items-center rounded-md border border-zinc-200 bg-zinc-50 px-3 py-4 text-center"
         >
             <div
-                class="flex size-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800"
+                class="flex size-11 items-center justify-center rounded-full bg-[var(--om-navy)]/10"
             >
                 <component
                     :is="badge.icon"
-                    class="size-6 text-zinc-600 dark:text-zinc-400"
+                    class="size-5 text-[var(--om-navy)]"
                 />
             </div>
             <h3
-                class="mt-3 font-heading text-sm font-medium text-zinc-900 dark:text-white"
+                class="mt-3 font-heading text-sm font-semibold text-[var(--om-navy)]"
             >
                 {{ badge.title }}
             </h3>
-            <p class="mt-1 text-xs text-zinc-500">{{ badge.description }}</p>
+            <p class="om-meta mt-0.5 !text-xs">{{ badge.description }}</p>
         </div>
     </div>
 </template>

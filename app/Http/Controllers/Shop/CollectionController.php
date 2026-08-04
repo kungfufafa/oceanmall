@@ -14,7 +14,11 @@ final class CollectionController extends Controller
 {
     public function show(Request $request, Collection $collection): Response
     {
-        abort_unless($collection->is_enabled, 404);
+        abort_unless(
+            $collection->published_at !== null
+                && $collection->published_at->lte(now()),
+            404,
+        );
 
         $sort = (string) $request->string('sort', 'latest');
 

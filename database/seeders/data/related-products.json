@@ -1,0 +1,58 @@
+[
+  {
+    "product_slug": "realme-13-pro-5g",
+    "related_slugs": ["realme-c67", "realme-buds-t310", "soft-case-realme-13-pro", "realme-33w-charger"]
+  },
+  {
+    "product_slug": "realme-c67",
+    "related_slugs": ["realme-13-pro-5g", "tempered-glass-realme-c67", "realme-33w-charger", "oraimo-powerbank-10000mah"]
+  },
+  {
+    "product_slug": "realme-buds-t310",
+    "related_slugs": ["realme-13-pro-5g", "realme-c67", "oraimo-powerbank-10000mah"]
+  },
+  {
+    "product_slug": "tecno-camon-30-premier",
+    "related_slugs": ["tecno-spark-20-pro", "oraimo-powerbank-10000mah", "baseus-usbc-cable-100w"]
+  },
+  {
+    "product_slug": "tecno-spark-20-pro",
+    "related_slugs": ["tecno-camon-30-premier", "itel-s24", "oraimo-powerbank-10000mah"]
+  },
+  {
+    "product_slug": "itel-s24",
+    "related_slugs": ["itel-a70", "tecno-spark-20-pro", "oraimo-powerbank-10000mah"]
+  },
+  {
+    "product_slug": "itel-a70",
+    "related_slugs": ["itel-s24", "itel-it2173", "baseus-usbc-cable-100w"]
+  },
+  {
+    "product_slug": "zte-blade-v50-design",
+    "related_slugs": ["realme-c67", "oraimo-powerbank-10000mah", "baseus-usbc-cable-100w"]
+  },
+  {
+    "product_slug": "realme-33w-charger",
+    "related_slugs": ["realme-c67", "baseus-usbc-cable-100w", "tempered-glass-realme-c67"]
+  },
+  {
+    "product_slug": "tempered-glass-realme-c67",
+    "related_slugs": ["realme-c67", "soft-case-realme-13-pro", "realme-33w-charger"]
+  },
+  {
+    "product_slug": "soft-case-realme-13-pro",
+    "related_slugs": ["realme-13-pro-5g", "realme-33w-charger", "realme-buds-t310"]
+  },
+  {
+    "product_slug": "oraimo-powerbank-10000mah",
+    "related_slugs": ["baseus-usbc-cable-100w", "realme-33w-charger", "realme-buds-t310"]
+  },
+  {
+    "product_slug": "itel-it2173",
+    "related_slugs": ["itel-a70", "itel-s24"]
+  },
+  {
+    "product_slug": "baseus-usbc-cable-100w",
+    "related_slugs": ["realme-33w-charger", "oraimo-powerbank-10000mah", "realme-13-pro-5g"]
+  }
+]

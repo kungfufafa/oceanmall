@@ -5,17 +5,18 @@ export { isNoDivisionCurrency };
 export function formatMoney(
   amount: number,
   currency: string,
-  locale = 'en-US',
+  locale = 'id-ID',
 ): string {
   const value = isNoDivisionCurrency(currency) ? amount : amount / 100;
 
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
+    maximumFractionDigits: isNoDivisionCurrency(currency) ? 0 : undefined,
   }).format(value);
 }
 
-export function formatPercentage(value: number, locale = 'en-US'): string {
+export function formatPercentage(value: number, locale = 'id-ID'): string {
   return new Intl.NumberFormat(locale, {
     style: 'percent',
     maximumFractionDigits: 0,

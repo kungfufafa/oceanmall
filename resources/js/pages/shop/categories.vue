@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { Smartphone } from 'lucide-vue-next';
+import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
+import { home } from '@/routes';
 import * as shop from '@/routes/shop';
 import type { Category } from '@/types/shop';
 
@@ -9,63 +12,66 @@ defineProps<{
 }>();
 
 function productLabel(count: number): string {
-    return count === 1 ? `${count} product` : `${count} products`;
+    return `${count} produk`;
 }
 </script>
 
 <template>
-    <Head title="Categories" />
+    <Head title="Kategori" />
 
-    <Container class="py-8 sm:py-12">
-        <div class="text-center">
-            <h1
-                class="font-heading text-3xl font-bold text-zinc-900 dark:text-white"
-            >
-                Categories
-            </h1>
-            <p class="mt-2 text-sm text-zinc-500">
-                Browse products by category
-            </p>
-        </div>
+    <AppPageHeader
+        class="lg:hidden"
+        title="Kategori"
+        :back-href="home.url()"
+        max-width-class="max-w-7xl"
+    />
+
+    <Container class="pt-4 pb-8 lg:pt-6">
+        <h1 class="om-page-title mb-1 hidden !text-lg lg:block">Kategori</h1>
+        <p class="om-meta mb-4">Jelajahi produk berdasarkan kategori</p>
 
         <div
             v-if="!categories.length"
-            class="mt-16 flex flex-col items-center justify-center text-center"
+            class="flex flex-col items-center py-16 text-center"
         >
-            <h3 class="text-sm font-medium text-zinc-900 dark:text-white">
-                No categories found
-            </h3>
+            <h3 class="om-page-title">Tidak ada kategori</h3>
         </div>
 
         <div
             v-else
-            class="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4"
+            class="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
         >
             <Link
                 v-for="category in categories"
                 :key="category.id"
                 :href="shop.category.url({ category: category.slug })"
-                class="group relative overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-800"
+                class="flex flex-col overflow-hidden rounded-md border border-zinc-200 bg-white"
             >
-                <div class="aspect-4/3">
+                <div
+                    class="flex aspect-[4/3] items-center justify-center overflow-hidden bg-zinc-100"
+                >
                     <img
                         v-if="category.thumbnail"
                         :src="category.thumbnail"
                         :alt="category.name"
                         loading="lazy"
-                        class="size-full object-cover object-center transition duration-500 group-hover:scale-105"
+                        class="size-full object-cover object-center"
                     />
-                    <div
-                        class="absolute inset-0 bg-linear-to-t from-zinc-900/70 to-transparent"
+                    <Smartphone
+                        v-else
+                        class="size-8 text-[var(--om-navy)]"
+                        aria-hidden="true"
                     />
                 </div>
-                <div class="absolute inset-x-0 bottom-0 p-4">
-                    <h3 class="text-base font-semibold text-white">
+                <div class="px-2.5 py-2">
+                    <h3
+                        class="line-clamp-1 text-[13px] font-semibold text-zinc-900"
+                    >
                         {{ category.name }}
                     </h3>
                     <p
                         v-if="category.products_count !== undefined"
-                        class="mt-0.5 text-xs text-zinc-300"
+                        class="om-meta mt-0.5 !text-[11px]"
                     >
                         {{ productLabel(category.products_count) }}
                     </p>

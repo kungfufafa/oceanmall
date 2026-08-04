@@ -101,7 +101,9 @@ if (! function_exists('current_tax_label')) {
                 ->whereNull('province_code')
                 ->first();
 
-            return $taxZone?->is_tax_inclusive ? __('TTC') : __('HT');
+            return $taxZone?->is_tax_inclusive
+                ? 'termasuk pajak'
+                : 'belum pajak';
         });
     }
 }
