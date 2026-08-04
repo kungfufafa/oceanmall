@@ -80,6 +80,7 @@ final readonly class ApplyDeliveryWebhookStatus
         if ($orderNo !== '') {
             $byOrderNo = OrderShipment::query()
                 ->where('metadata->komerce->order_no', $orderNo)
+                ->orderByDesc('id')
                 ->first();
 
             if ($byOrderNo !== null) {
@@ -93,6 +94,7 @@ final readonly class ApplyDeliveryWebhookStatus
                     $query->where('awb', $cnote)
                         ->orWhere('tracking_number', $cnote);
                 })
+                ->orderByDesc('id')
                 ->first();
         }
 

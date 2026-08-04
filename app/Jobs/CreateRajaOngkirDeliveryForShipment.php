@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Actions\Shipping\SyncOrderShippingFromShipments;
 use App\Models\OrderShipment;
 use App\Models\OrderShipmentLine;
 use App\Services\Komerce\ShippingDeliveryClient;
@@ -129,6 +130,13 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
                 $pickupResponse,
             ),
         ])->save();
+
+        // Keep order-level shipping badges/notifications in sync as soon as
+        // the warehouse delivery order is labeled (don't wait for webhook).
+        $order = $shipment->order()->first();
+        if ($order instanceof Order) {
+            resolve(SyncOrderShippingFromShipments::class)->handle($order);
+        }
     }
 
     /**

@@ -126,6 +126,9 @@ final class ShippingDeliveryTest extends TestCase
         $this->assertSame('labeled', $shipment->status);
         $this->assertSame('RO-ORDER-001', data_get($shipment->metadata, 'komerce.order_no'));
 
+        $order->refresh();
+        $this->assertSame(\Shopper\Core\Enum\ShippingStatus::Shipped, $order->shipping_status);
+
         Http::assertSent(function (Request $request): bool {
             $payload = $request->data();
 
