@@ -6,6 +6,7 @@ namespace App\Providers;
 
 use App\Livewire\Shopper\KomerceOrderShipping;
 use App\Models\User;
+use App\Payment\KomerceDriver;
 use App\Stock\AllocationPlanStockAllocator;
 use App\Support\CheckoutAllocationContext;
 use Carbon\CarbonImmutable;
@@ -17,6 +18,7 @@ use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
 use Shopper\Core\Contracts\StockAllocator;
 use Shopper\Core\Models\Order;
+use Shopper\Payment\Facades\Payment;
 use Shopper\View\OrderRenderHook;
 
 class AppServiceProvider extends ServiceProvider
@@ -37,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureAuthorization();
+        $this->configureShopperPayment();
         $this->configureShopperFulfillment();
     }
 
@@ -74,6 +77,13 @@ class AppServiceProvider extends ServiceProvider
             'print-shipment-label',
             static fn (User $user, ?Order $order = null): bool => $user->isAdmin(),
         );
+    }
+
+    protected function configureShopperPayment(): void
+    {
+        Payment::extend('komerce', static fn (): KomerceDriver => new KomerceDriver);
+
+        config()->set('shopper.payment.drivers.komerce.enabled', true);
     }
 
     protected function configureShopperFulfillment(): void

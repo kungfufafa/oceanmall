@@ -10,6 +10,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
+use Shopper\Core\Models\PaymentMethod;
+use Shopper\Payment\Facades\Payment;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -44,7 +46,16 @@ final class CpanelOrderDetailTest extends TestCase
     public function test_cpanel_order_detail_includes_komerce_shipping_panel_for_admin(): void
     {
         $admin = $this->admin();
-        $order = Order::factory()->create(['currency_code' => 'IDR']);
+        $paymentMethod = PaymentMethod::factory()->create([
+            'title' => 'QRIS Komerce',
+            'slug' => 'komerce-qris',
+            'driver' => 'komerce',
+            'is_enabled' => true,
+        ]);
+        $order = Order::factory()->create([
+            'currency_code' => 'IDR',
+            'payment_method_id' => $paymentMethod->id,
+        ]);
         $inventory = Inventory::factory()->create(['name' => 'Gudang Jakarta']);
         OrderShipment::query()->create([
             'order_id' => $order->id,
@@ -56,10 +67,13 @@ final class CpanelOrderDetailTest extends TestCase
             'status' => 'pending',
         ]);
 
+        $this->assertSame('komerce', Payment::driver('komerce')->code());
+
         $this->actingAs($admin)
             ->get(route('shopper.orders.detail', $order))
             ->assertOk()
-            ->assertSee('RajaOngkir / Komerce shipping', false);
+            ->assertSee('RajaOngkir / Komerce shipping', false)
+            ->assertSee('QRIS Komerce', false);
 
         Livewire::actingAs($admin)
             ->test(\App\Livewire\Shopper\KomerceOrderShipping::class, ['order' => $order])

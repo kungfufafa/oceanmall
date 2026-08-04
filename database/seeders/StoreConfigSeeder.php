@@ -35,6 +35,27 @@ class StoreConfigSeeder extends Seeder
 
         $this->command->info('Admin user created (admin@oceanmall.test / password123).');
 
+        $this->command->warn(PHP_EOL.'Creating customer user...');
+
+        /** @var User $customer */
+        $customer = User::query()->updateOrCreate(
+            ['email' => 'customer@oceanmall.test'],
+            [
+                'first_name' => 'Budi',
+                'last_name' => 'Santoso',
+                'password' => Hash::make('password123'),
+                'email_verified_at' => now(),
+            ],
+        );
+
+        /** @var string $userRole */
+        $userRole = config('shopper.admin.roles.user');
+        if (! $customer->hasRole($userRole)) {
+            $customer->assignRole($userRole);
+        }
+
+        $this->command->info('Customer user created (customer@oceanmall.test / password123).');
+
         $this->command->warn(PHP_EOL.'Configuring store settings...');
 
         $indonesiaId = Country::query()->where('cca2', 'ID')->value('id');
