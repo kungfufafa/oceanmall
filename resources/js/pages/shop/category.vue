@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { Search } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
+import EmptyState from '@/components/shop/empty-state.vue';
+import FilterSelect from '@/components/shop/filter-select.vue';
+import PagePagination from '@/components/shop/page-pagination.vue';
 import ProductCard from '@/components/shop/product-card.vue';
 import { stripHtml } from '@/lib/format';
 import * as shop from '@/routes/shop';
@@ -50,14 +53,14 @@ watch(sort, (value) => {
     >
         <template #end>
             <label class="sr-only" for="category-sort">Urutkan</label>
-            <select
+            <FilterSelect
                 id="category-sort"
                 v-model="sort"
-                class="om-action-muted mr-1 max-w-[7.5rem] truncate bg-transparent pr-1 outline-none"
+                class="mr-1 max-w-[7.5rem] truncate"
             >
                 <option value="latest">Terbaru</option>
                 <option value="name">Nama</option>
-            </select>
+            </FilterSelect>
         </template>
     </AppPageHeader>
 
@@ -70,27 +73,25 @@ watch(sort, (value) => {
                 </p>
             </div>
             <label class="sr-only" for="category-sort-desktop">Urutkan</label>
-            <select
+            <FilterSelect
                 id="category-sort-desktop"
                 v-model="sort"
-                class="om-action-muted shrink-0 bg-transparent outline-none"
+                class="shrink-0"
             >
                 <option value="latest">Terbaru</option>
                 <option value="name">Nama</option>
-            </select>
+            </FilterSelect>
         </div>
 
         <p v-if="description" class="om-meta mb-4 line-clamp-2 lg:hidden">
             {{ description }}
         </p>
 
-        <div
+        <EmptyState
             v-if="!products.data.length"
-            class="flex flex-col items-center py-16 text-center"
-        >
-            <Search class="size-10 text-zinc-300" aria-hidden="true" />
-            <h3 class="om-page-title mt-3">Tidak ada produk</h3>
-        </div>
+            title="Tidak ada produk"
+            :icon="Search"
+        />
 
         <template v-else>
             <div
@@ -103,25 +104,10 @@ watch(sort, (value) => {
                 />
             </div>
 
-            <nav
+            <PagePagination
                 v-if="products.last_page > 1"
-                class="mt-6 flex justify-center gap-1"
-                aria-label="Halaman"
-            >
-                <Link
-                    v-for="link in products.links"
-                    :key="link.label"
-                    :href="link.url ?? '#'"
-                    :class="[
-                        'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2.5 text-[13px]',
-                        link.active
-                            ? 'bg-[var(--om-navy)] text-white'
-                            : 'text-zinc-600',
-                        link.url === null && 'pointer-events-none opacity-40',
-                    ]"
-                    v-html="link.label"
-                />
-            </nav>
+                :links="products.links"
+            />
         </template>
     </Container>
 </template>

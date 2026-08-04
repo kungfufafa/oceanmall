@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { Search as SearchIcon } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
+import EmptyState from '@/components/shop/empty-state.vue';
+import PagePagination from '@/components/shop/page-pagination.vue';
 import ProductCard from '@/components/shop/product-card.vue';
+import SearchField from '@/components/shop/search-field.vue';
 import { home } from '@/routes';
 import { search as searchRoute } from '@/routes/shop';
 import type { Product } from '@/types/shop';
@@ -49,39 +52,29 @@ watch(search, (value) => {
 
     <Container class="py-6 sm:py-10">
         <h1 class="om-page-title hidden !text-lg lg:block">Cari</h1>
-        <div class="relative mt-0 max-w-xl lg:mt-6">
-            <SearchIcon
-                class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400"
-                aria-hidden="true"
-            />
-            <input
-                v-model="search"
-                type="search"
-                placeholder="Cari produk..."
-                autofocus
-                aria-label="Cari"
-                class="om-control w-full border border-zinc-200 bg-white pr-3 pl-9 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[var(--om-navy)]"
-            />
-        </div>
+        <label class="sr-only" for="shop-search">Cari</label>
+        <SearchField
+            id="shop-search"
+            v-model="search"
+            placeholder="Cari produk..."
+            class="mt-0 max-w-xl lg:mt-6"
+        />
 
         <div class="mt-8">
-            <p v-if="products === null" class="om-meta text-center">
-                Ketik minimal 2 karakter untuk mencari.
-            </p>
+            <EmptyState
+                v-if="products === null"
+                title="Mulai pencarian"
+                description="Ketik minimal 2 karakter untuk mencari."
+                :icon="SearchIcon"
+                class="py-10"
+            />
 
-            <div
+            <EmptyState
                 v-else-if="!products.data.length"
-                class="flex flex-col items-center justify-center py-16 text-center"
-            >
-                <SearchIcon
-                    class="size-12 text-zinc-300"
-                    aria-hidden="true"
-                />
-                <h3 class="mt-4 text-[13px] font-semibold text-zinc-900">
-                    Tidak ada hasil
-                </h3>
-                <p class="om-meta mt-1">Coba kata kunci lain.</p>
-            </div>
+                title="Tidak ada hasil"
+                description="Coba kata kunci lain."
+                :icon="SearchIcon"
+            />
 
             <template v-else>
                 <p class="om-meta mb-6">
@@ -101,26 +94,11 @@ watch(search, (value) => {
                     />
                 </div>
 
-                <nav
+                <PagePagination
                     v-if="products.last_page > 1"
-                    class="mt-8 flex justify-center gap-1"
-                    aria-label="Halaman"
-                >
-                    <Link
-                        v-for="link in products.links"
-                        :key="link.label"
-                        :href="link.url ?? '#'"
-                        :class="[
-                            'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-3 text-[13px] transition',
-                            link.active
-                                ? 'bg-[var(--om-navy)] text-white'
-                                : 'text-zinc-600 hover:bg-zinc-100',
-                            link.url === null &&
-                                'pointer-events-none opacity-40',
-                        ]"
-                        v-html="link.label"
-                    />
-                </nav>
+                    :links="products.links"
+                    class="mt-8"
+                />
             </template>
         </div>
     </Container>

@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
-import { Search, X } from 'lucide-vue-next';
+import { Head, router } from '@inertiajs/vue3';
+import { Search } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
+import EmptyState from '@/components/shop/empty-state.vue';
+import FilterSelect from '@/components/shop/filter-select.vue';
+import PagePagination from '@/components/shop/page-pagination.vue';
 import ProductCard from '@/components/shop/product-card.vue';
+import SearchField from '@/components/shop/search-field.vue';
 import { home } from '@/routes';
 import * as shop from '@/routes/shop';
 import type { Brand, Category, Product } from '@/types/shop';
@@ -123,9 +127,6 @@ function clearFilters(): void {
         { preserveState: true, preserveScroll: true, replace: true },
     );
 }
-
-const selectClass =
-    'h-9 min-w-0 rounded-md border border-zinc-200 bg-white px-2.5 text-[12px] font-medium text-zinc-700 outline-none focus:border-[var(--om-navy)]';
 </script>
 
 <template>
@@ -143,27 +144,7 @@ const selectClass =
             <h1 class="om-page-title !text-lg">Belanja</h1>
         </div>
 
-        <div class="relative">
-            <Search
-                class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400"
-                aria-hidden="true"
-            />
-            <input
-                v-model="search"
-                type="search"
-                placeholder="Cari di katalog…"
-                class="om-control w-full border border-zinc-200 bg-white pr-9 pl-9 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[var(--om-navy)] [&::-webkit-search-cancel-button]:hidden"
-            />
-            <button
-                v-if="search"
-                type="button"
-                class="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-                aria-label="Hapus pencarian"
-                @click="search = ''"
-            >
-                <X class="size-3.5" />
-            </button>
-        </div>
+        <SearchField v-model="search" placeholder="Cari di katalog…" />
 
         <!-- Categories: underline tabs, not chip soup -->
         <nav
@@ -202,7 +183,7 @@ const selectClass =
         <!-- One compact toolbar: merek + sort + count -->
         <div class="mt-3 flex flex-wrap items-center gap-2">
             <label class="sr-only" for="shop-brand">Merek</label>
-            <select id="shop-brand" v-model="brand" :class="selectClass">
+            <FilterSelect id="shop-brand" v-model="brand">
                 <option value="">Semua merek</option>
                 <option
                     v-for="item in brands"
@@ -211,15 +192,15 @@ const selectClass =
                 >
                     {{ item.name }}
                 </option>
-            </select>
+            </FilterSelect>
 
             <label class="sr-only" for="shop-sort">Urutkan</label>
-            <select id="shop-sort" v-model="sort" :class="selectClass">
+            <FilterSelect id="shop-sort" v-model="sort">
                 <option value="latest">Terbaru</option>
                 <option value="name">Nama A–Z</option>
                 <option value="price_asc">Harga terendah</option>
                 <option value="price_desc">Harga tertinggi</option>
-            </select>
+            </FilterSelect>
 
             <p class="ml-auto text-[12px] text-zinc-500">
                 <span class="font-semibold text-zinc-800">{{
@@ -237,22 +218,14 @@ const selectClass =
             </p>
         </div>
 
-        <div
+        <EmptyState
             v-if="!products.data.length"
-            class="flex flex-col items-center py-16 text-center"
-        >
-            <Search class="size-10 text-zinc-300" aria-hidden="true" />
-            <h3 class="om-page-title mt-3">Produk tidak ditemukan</h3>
-            <p class="om-meta mt-1">Coba ubah pencarian atau filter.</p>
-            <button
-                v-if="hasActiveFilters"
-                type="button"
-                class="om-btn-outline mt-4 inline-flex items-center justify-center px-4"
-                @click="clearFilters"
-            >
-                Reset filter
-            </button>
-        </div>
+            title="Produk tidak ditemukan"
+            description="Coba ubah pencarian atau filter."
+            :icon="Search"
+            :action-label="hasActiveFilters ? 'Reset filter' : undefined"
+            @action="clearFilters"
+        />
 
         <template v-else>
             <div
@@ -265,25 +238,10 @@ const selectClass =
                 />
             </div>
 
-            <nav
+            <PagePagination
                 v-if="products.last_page > 1"
-                class="mt-6 flex justify-center gap-1"
-                aria-label="Halaman"
-            >
-                <Link
-                    v-for="link in products.links"
-                    :key="link.label"
-                    :href="link.url ?? '#'"
-                    :class="[
-                        'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2.5 text-[13px]',
-                        link.active
-                            ? 'bg-[var(--om-navy)] text-white'
-                            : 'text-zinc-600 hover:bg-zinc-50',
-                        link.url === null && 'pointer-events-none opacity-40',
-                    ]"
-                    v-html="link.label"
-                />
-            </nav>
+                :links="products.links"
+            />
         </template>
     </Container>
 </template>

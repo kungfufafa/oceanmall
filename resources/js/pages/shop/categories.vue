@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import { Smartphone } from 'lucide-vue-next';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
+import EmptyState from '@/components/shop/empty-state.vue';
 import { home } from '@/routes';
 import * as shop from '@/routes/shop';
 import type { Category } from '@/types/shop';
@@ -30,12 +31,11 @@ function productLabel(count: number): string {
         <h1 class="om-page-title mb-1 hidden !text-lg lg:block">Kategori</h1>
         <p class="om-meta mb-4">Jelajahi produk berdasarkan kategori</p>
 
-        <div
+        <EmptyState
             v-if="!categories.length"
-            class="flex flex-col items-center py-16 text-center"
-        >
-            <h3 class="om-page-title">Tidak ada kategori</h3>
-        </div>
+            title="Tidak ada kategori"
+            :icon="Smartphone"
+        />
 
         <div
             v-else
