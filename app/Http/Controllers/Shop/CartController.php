@@ -58,6 +58,13 @@ final class CartController extends Controller
             ]);
 
             return back()->withErrors(['cart' => 'Stok tidak mencukupi.']);
+        } catch (\InvalidArgumentException $e) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors(['cart' => $e->getMessage()]);
         }
 
         $this->invalidateCheckoutSession();

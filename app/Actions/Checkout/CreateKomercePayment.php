@@ -259,13 +259,18 @@ final class CreateKomercePayment
             ->all();
 
         if ($items !== []) {
+            $invalid = collect($items)->contains(static fn (array $item): bool => $item['price'] <= 0);
+            if ($invalid) {
+                throw new RuntimeException('Order contains items without a valid unit price.');
+            }
+
             return $items;
         }
 
         return [[
             'name' => 'Order '.$order->number,
             'quantity' => 1,
-            'price' => max(0, (int) $order->price_amount),
+            'price' => max(1, (int) $order->price_amount),
         ]];
     }
 
