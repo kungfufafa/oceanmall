@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
+import { Button } from '@/components/ui/button';
 import { useStripeElements } from '@/composables/useStripeElements';
 import { cart as cartRoute } from '@/routes/shop';
 import type { Order } from '@/types/shop';
@@ -54,14 +55,15 @@ async function pay(): Promise<void> {
 
                 <p v-if="error" class="text-[13px] text-red-600">{{ error }}</p>
 
-                <button
+                <Button
                     type="submit"
-                    class="om-btn-primary flex w-full items-center justify-center"
+                    size="xl"
+                    class="w-full"
                     :disabled="!ready || submitting"
                 >
                     <span v-if="submitting">Memproses…</span>
                     <span v-else>Bayar sekarang</span>
-                </button>
+                </Button>
             </form>
         </div>
     </Container>

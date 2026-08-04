@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { ShoppingBag } from 'lucide-vue-next';
 import { computed } from 'vue';
 import OrderStatusBadge from '@/components/account/order-status-badge.vue';
+import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/format';
 import { orders as accountOrders } from '@/routes/account';
 import { show as ordersShow } from '@/routes/account/orders';
@@ -141,12 +142,9 @@ function shippingLabel(order: Order): string {
         </div>
         <h2 class="om-page-title mt-4">Belum ada pesanan</h2>
         <p class="om-meta mt-1">Pesananmu akan muncul di sini setelah checkout.</p>
-        <Link
-            :href="shop.index.url()"
-            class="om-btn-primary mt-5 inline-flex items-center justify-center px-5"
-        >
-            Belanja sekarang
-        </Link>
+        <Button as-child size="xl" class="mt-5">
+            <Link :href="shop.index.url()"> Belanja sekarang </Link>
+        </Button>
     </div>
 
     <ul v-else class="mt-4 space-y-3">

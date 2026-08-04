@@ -10,6 +10,7 @@ import { computed, ref } from 'vue';
 import AuthSelectField from '@/components/auth/auth-select-field.vue';
 import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
 import AuthTextField from '@/components/auth/auth-text-field.vue';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
     DropdownMenu,
@@ -210,14 +211,14 @@ function setDefaultBilling(address: Address): void {
                 </div>
 
                 <div class="mt-3 flex items-center gap-2">
-                    <button
+                    <Button
                         type="button"
-                        class="om-btn-outline inline-flex items-center justify-center px-3 text-[12px]"
-                        style="height: 2.25rem"
+                        variant="outline"
+                        class="px-3 text-[12px]"
                         @click="startEdit(address)"
                     >
                         Ubah
-                    </button>
+                    </Button>
                     <button
                         type="button"
                         class="inline-flex h-9 items-center justify-center rounded-md px-3 text-[12px] font-semibold text-red-600"

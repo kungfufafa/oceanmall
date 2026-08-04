@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Lock } from 'lucide-vue-next';
 import { ref } from 'vue';
+import { Button } from '@/components/ui/button';
 import { useStripeElements } from '@/composables/useStripeElements';
 import { useShop } from '@/composables/useShop';
 import { formatMoney } from '@/lib/format';
@@ -42,14 +43,14 @@ async function pay(): Promise<void> {
                         formatMoney(total, currency)
                     }}</span>
                 </div>
-                <button
+                <Button
                     type="button"
-                    class="om-btn-primary inline-flex items-center justify-center px-5 disabled:opacity-60"
+                    size="xl"
                     :disabled="submitting"
                     @click="pay"
                 >
                     {{ submitting ? 'Memproses…' : 'Bayar sekarang' }}
-                </button>
+                </Button>
             </div>
             <p class="inline-flex items-center gap-1.5 text-xs text-zinc-500">
                 <Lock class="size-3" aria-hidden="true" />

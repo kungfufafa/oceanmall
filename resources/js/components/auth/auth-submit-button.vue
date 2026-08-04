@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 
 defineOptions({ inheritAttrs: false });
@@ -11,13 +12,14 @@ defineProps<{
 </script>
 
 <template>
-    <button
+    <Button
         type="submit"
+        size="xl"
         v-bind="$attrs"
-        class="om-btn-primary flex w-full items-center justify-center"
+        class="w-full"
         :disabled="processing || !enabled"
     >
         <Spinner v-if="processing" class="text-current" />
         <span v-else>{{ label }}</span>
-    </button>
+    </Button>
 </template>

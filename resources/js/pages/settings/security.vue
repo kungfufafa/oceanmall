@@ -6,6 +6,7 @@ import AuthPasswordField from '@/components/auth/auth-password-field.vue';
 import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes.vue';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal.vue';
+import { Button } from '@/components/ui/button';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
 import { edit } from '@/routes/security';
 import { disable, enable } from '@/routes/two-factor';
@@ -147,14 +148,15 @@ onUnmounted(() => clearTwoFactorAuthData());
             </p>
 
             <div class="w-full max-w-sm">
-                <button
+                <Button
                     v-if="hasSetupData"
                     type="button"
-                    class="om-btn-primary flex w-full items-center justify-center"
+                    size="xl"
+                    class="w-full"
                     @click="showSetupModal = true"
                 >
                     Lanjutkan setup
-                </button>
+                </Button>
                 <Form
                     v-else
                     v-bind="enable.form()"

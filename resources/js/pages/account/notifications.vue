@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Bell } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
 import accountNotifications from '@/routes/account/notifications';
 import * as shop from '@/routes/shop';
 
@@ -95,12 +96,9 @@ function markAllRead(): void {
         </div>
         <h2 class="om-page-title mt-4">Belum ada notifikasi</h2>
         <p class="om-meta mt-1">Update pesanan akan muncul di sini.</p>
-        <Link
-            :href="shop.index.url()"
-            class="om-btn-primary mt-5 inline-flex items-center justify-center px-5"
-        >
-            Belanja sekarang
-        </Link>
+        <Button as-child size="xl" class="mt-5">
+            <Link :href="shop.index.url()"> Belanja sekarang </Link>
+        </Button>
     </div>
 
     <ul v-else role="list" class="mt-2 divide-y divide-zinc-100 lg:mt-0">

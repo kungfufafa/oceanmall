@@ -6,6 +6,7 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue';
 import AlertError from '@/components/alert-error.vue';
 import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
 import InputError from '@/components/input-error.vue';
+import { Button } from '@/components/ui/button';
 import {
     Dialog,
     DialogContent,
@@ -140,14 +141,15 @@ watch(
                             />
                         </div>
 
-                        <button
+                        <Button
                             type="button"
-                            class="om-btn-primary flex w-full items-center justify-center disabled:cursor-not-allowed"
+                            size="xl"
+                            class="w-full disabled:cursor-not-allowed"
                             :disabled="!qrCodeSvg"
                             @click="handleModalNextStep"
                         >
                             Lanjut
-                        </button>
+                        </Button>
 
                         <div class="relative flex items-center justify-center">
                             <div
@@ -227,14 +229,16 @@ watch(
                         </div>
 
                         <div class="flex gap-2">
-                            <button
+                            <Button
                                 type="button"
-                                class="om-btn-outline flex flex-1 items-center justify-center"
+                                variant="outline"
+                                size="xl"
+                                class="flex-1"
                                 :disabled="processing"
                                 @click="showVerificationStep = false"
                             >
                                 Kembali
-                            </button>
+                            </Button>
                             <AuthSubmitButton
                                 class="!w-auto flex-1"
                                 label="Konfirmasi"

@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import Container from '@/components/shop/container.vue';
 import HeroCarousel from '@/components/shop/hero-carousel.vue';
 import ProductRail from '@/components/shop/product-rail.vue';
+import { Button } from '@/components/ui/button';
 import { dashboard, login, register } from '@/routes';
 import * as shop from '@/routes/shop';
 import type { Brand, Category, Collection, Product } from '@/types/shop';
@@ -47,18 +48,12 @@ function brandShopUrl(brandId: number): string {
                     dan promo eksklusif bagi member
                 </p>
                 <div class="mt-2.5 grid grid-cols-2 gap-2">
-                    <Link
-                        :href="login.url()"
-                        class="om-btn-outline inline-flex items-center justify-center"
-                    >
-                        Masuk
-                    </Link>
-                    <Link
-                        :href="register.url()"
-                        class="om-btn-primary inline-flex items-center justify-center"
-                    >
-                        Daftar
-                    </Link>
+                    <Button as-child variant="outline" size="xl">
+                        <Link :href="login.url()"> Masuk </Link>
+                    </Button>
+                    <Button as-child size="xl">
+                        <Link :href="register.url()"> Daftar </Link>
+                    </Button>
                 </div>
             </div>
 

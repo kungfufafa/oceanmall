@@ -3,6 +3,7 @@ import { Form } from '@inertiajs/vue3';
 import { Eye, EyeOff, RefreshCw } from 'lucide-vue-next';
 import { nextTick, onMounted, ref, useTemplateRef } from 'vue';
 import AlertError from '@/components/alert-error.vue';
+import { Button } from '@/components/ui/button';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
 import { regenerateRecoveryCodes } from '@/routes/two-factor';
 
@@ -42,9 +43,10 @@ onMounted(async () => {
         </div>
 
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <button
+            <Button
                 type="button"
-                class="om-btn-outline inline-flex items-center justify-center gap-2 px-4"
+                variant="outline"
+                size="xl"
                 @click="toggleRecoveryCodesVisibility"
             >
                 <component
@@ -56,7 +58,7 @@ onMounted(async () => {
                         ? 'Sembunyikan kode'
                         : 'Lihat kode pemulihan'
                 }}
-            </button>
+            </Button>
 
             <Form
                 v-if="isRecoveryCodesVisible && recoveryCodesList.length"

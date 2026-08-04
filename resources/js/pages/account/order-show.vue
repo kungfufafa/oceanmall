@@ -4,6 +4,7 @@ import { computed, ref } from 'vue';
 import OrderStatusBadge from '@/components/account/order-status-badge.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
 import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
+import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/format';
 import { dashboard } from '@/routes';
 import { orders as accountOrders } from '@/routes/account';
@@ -287,10 +288,11 @@ function syncPayment(): void {
                 membuatnya.
             </p>
             <div class="flex flex-col gap-2 sm:flex-row">
-                <button
+                <Button
                     v-if="komercePayment"
                     type="button"
-                    class="om-btn-primary inline-flex flex-1 items-center justify-center px-4 disabled:opacity-50"
+                    size="xl"
+                    class="flex-1"
                     :disabled="checkingPayment"
                     @click="syncPayment"
                 >
@@ -299,11 +301,13 @@ function syncPayment(): void {
                             ? 'Mengecek…'
                             : 'Sudah bayar? Cek status'
                     }}
-                </button>
-                <button
+                </Button>
+                <Button
                     v-if="canRetryPayment"
                     type="button"
-                    class="om-btn-outline inline-flex flex-1 items-center justify-center px-4 disabled:opacity-50"
+                    variant="outline"
+                    size="xl"
+                    class="flex-1"
                     :disabled="retryingPayment"
                     @click="retryPayment"
                 >
@@ -314,20 +318,20 @@ function syncPayment(): void {
                               ? 'Buat ulang pembayaran'
                               : 'Bayar sekarang'
                     }}
-                </button>
+                </Button>
             </div>
         </div>
     </div>
 
     <div v-if="canConfirmReceived" class="mt-4">
-        <button
+        <Button
             type="button"
-            class="om-btn-primary inline-flex items-center justify-center px-4 disabled:opacity-60"
+            size="xl"
             :disabled="confirmingReceived"
             @click="confirmReceived"
         >
             {{ confirmingReceived ? 'Memproses…' : 'Tandai sudah diterima' }}
-        </button>
+        </Button>
         <p v-if="receivedError" class="mt-2 text-sm text-red-600">
             {{ receivedError }}
         </p>
@@ -508,10 +512,12 @@ function syncPayment(): void {
                 </dl>
 
                 <div v-if="shipment.awb" class="mt-4">
-                    <button
+                    <Button
                         type="button"
                         :disabled="trackingShipmentId === shipment.id"
-                        class="om-btn-outline inline-flex items-center justify-center px-3 !h-9 !text-sm disabled:opacity-60"
+                        variant="outline"
+                        size="default"
+                        class="px-3 text-sm"
                         @click="trackShipment(shipment)"
                     >
                         {{
@@ -519,7 +525,7 @@ function syncPayment(): void {
                                 ? 'Melacak…'
                                 : 'Lacak paket'
                         }}
-                    </button>
+                    </Button>
 
                     <p
                         v-if="trackingError?.id === shipment.id"
