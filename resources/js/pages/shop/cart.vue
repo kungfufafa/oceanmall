@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-vue-next';
+import { ShoppingBag, Trash2 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
 import CouponField from '@/components/shop/coupon-field.vue';
+import EmptyState from '@/components/shop/empty-state.vue';
+import QtyStepper from '@/components/shop/qty-stepper.vue';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/composables/useCart';
 import { useShop } from '@/composables/useShop';
 import { formatMoney } from '@/lib/format';
@@ -86,40 +90,31 @@ function confirmClear(): void {
                     ({{ itemCount }})
                 </span>
             </h1>
-            <button
+            <Button
                 v-if="!isEmpty"
                 type="button"
-                class="om-action-muted"
+                variant="ghost"
+                size="sm"
+                class="h-auto px-0 text-zinc-500"
                 @click="confirmClear"
             >
                 Kosongkan
-            </button>
+            </Button>
         </div>
 
-        <div
+        <EmptyState
             v-if="isEmpty"
-            class="flex flex-col items-center py-20 text-center"
+            title="Keranjang masih kosong"
+            description="Yuk belanja dulu, produkmu muncul di sini."
+            :icon="ShoppingBag"
+            class="py-20"
         >
-            <div
-                class="flex size-14 items-center justify-center rounded-full bg-zinc-100"
-            >
-                <ShoppingBag
-                    class="size-6 text-zinc-400"
-                    stroke-width="1.75"
-                    aria-hidden="true"
-                />
-            </div>
-            <h2 class="om-page-title mt-4">Keranjang masih kosong</h2>
-            <p class="om-meta mt-1">
-                Yuk belanja dulu, produkmu muncul di sini.
-            </p>
-            <Link
-                :href="shop.index.url()"
-                class="om-btn-primary mt-5 inline-flex items-center justify-center px-5"
-            >
-                Belanja sekarang
-            </Link>
-        </div>
+            <template #action>
+                <Button as-child size="xl">
+                    <Link :href="shop.index.url()"> Belanja sekarang </Link>
+                </Button>
+            </template>
+        </EmptyState>
 
         <div
             v-else
@@ -174,53 +169,27 @@ function confirmClear(): void {
                                 </p>
                             </div>
 
-                            <button
+                            <Button
                                 type="button"
-                                class="shrink-0 p-1 text-zinc-400"
+                                variant="ghost"
+                                size="icon-sm"
+                                class="shrink-0 text-zinc-400"
                                 aria-label="Hapus"
                                 @click="cartActions.remove(line.id)"
                             >
                                 <Trash2 class="size-4" stroke-width="1.75" />
-                            </button>
+                            </Button>
                         </div>
 
-                        <div class="mt-2.5 flex items-center justify-between">
-                            <div
-                                class="inline-flex h-8 items-center rounded-md border border-zinc-200"
-                            >
-                                <button
-                                    type="button"
-                                    class="flex size-8 items-center justify-center text-zinc-500 disabled:opacity-30"
-                                    :disabled="line.quantity <= 1"
-                                    aria-label="Kurangi"
-                                    @click="
-                                        cartActions.update(
-                                            line.id,
-                                            line.quantity - 1,
-                                        )
-                                    "
-                                >
-                                    <Minus class="size-3" />
-                                </button>
-                                <span
-                                    class="min-w-7 text-center text-[12px] font-semibold text-zinc-900"
-                                >
-                                    {{ line.quantity }}
-                                </span>
-                                <button
-                                    type="button"
-                                    class="flex size-8 items-center justify-center text-zinc-500"
-                                    aria-label="Tambah"
-                                    @click="
-                                        cartActions.update(
-                                            line.id,
-                                            line.quantity + 1,
-                                        )
-                                    "
-                                >
-                                    <Plus class="size-3" />
-                                </button>
-                            </div>
+                        <div class="mt-2.5 flex items-center justify-between gap-3">
+                            <QtyStepper
+                                :model-value="line.quantity"
+                                :min="1"
+                                size="sm"
+                                @update:model-value="
+                                    cartActions.update(line.id, $event)
+                                "
+                            />
 
                             <p
                                 class="text-[13px] font-bold text-[var(--om-navy)]"
@@ -245,7 +214,7 @@ function confirmClear(): void {
                     <div class="mt-3">
                         <CouponField :coupon-code="couponCode" />
                     </div>
-                    <dl class="mt-3 space-y-2 text-[13px]">
+                    <dl class="mt-3 flex flex-col gap-2 text-[13px]">
                         <div class="flex justify-between text-zinc-500">
                             <dt>Subtotal {{ taxLabel }}</dt>
                             <dd class="font-medium text-zinc-900">
@@ -276,9 +245,8 @@ function confirmClear(): void {
                             <dd>Di checkout</dd>
                         </div>
                     </dl>
-                    <div
-                        class="mt-3 flex items-center justify-between border-t border-zinc-100 pt-3"
-                    >
+                    <Separator class="mt-3" />
+                    <div class="mt-3 flex items-center justify-between gap-3">
                         <span class="text-[13px] font-bold text-zinc-900"
                             >Total</span
                         >
@@ -286,22 +254,27 @@ function confirmClear(): void {
                             {{ formatMoney(totalAmount, currency) }}
                         </span>
                     </div>
-                    <Link
-                        :href="checkout.index.url()"
-                        class="om-btn-primary mt-4 hidden w-full items-center justify-center lg:flex"
+                    <Button
+                        as-child
+                        size="xl"
+                        class="mt-4 hidden w-full lg:flex"
                     >
-                        {{
-                            page.props.auth.user
-                                ? 'Bayar'
-                                : 'Masuk untuk bayar'
-                        }}
-                    </Link>
-                    <Link
-                        :href="shop.index.url()"
-                        class="om-action-primary mt-2.5 hidden text-center !text-[12px] lg:block"
+                        <Link :href="checkout.index.url()">
+                            {{
+                                page.props.auth.user
+                                    ? 'Bayar'
+                                    : 'Masuk untuk bayar'
+                            }}
+                        </Link>
+                    </Button>
+                    <Button
+                        as-child
+                        variant="link"
+                        size="sm"
+                        class="mt-2.5 hidden h-auto px-0 text-[12px] font-bold lg:inline-flex"
                     >
-                        Lanjut belanja
-                    </Link>
+                        <Link :href="shop.index.url()"> Lanjut belanja </Link>
+                    </Button>
                 </div>
             </aside>
         </div>
@@ -329,12 +302,15 @@ function confirmClear(): void {
                     {{ formatMoney(totalAmount, currency) }}
                 </p>
             </div>
-            <Link
-                :href="checkout.index.url()"
-                class="om-btn-primary inline-flex shrink-0 items-center justify-center px-5"
+            <Button
+                as-child
+                size="xl"
+                class="inline-flex shrink-0 px-5"
             >
-                {{ page.props.auth.user ? 'Bayar' : 'Masuk & bayar' }}
-            </Link>
+                <Link :href="checkout.index.url()">
+                    {{ page.props.auth.user ? 'Bayar' : 'Masuk & bayar' }}
+                </Link>
+            </Button>
         </Container>
     </div>
 

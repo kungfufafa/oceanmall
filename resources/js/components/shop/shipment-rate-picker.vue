@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { formatMoney } from '@/lib/format';
 import type { DeliveryOption } from '@/types/shop';
 
@@ -69,25 +71,30 @@ defineExpose({ totalShipping, allSelected });
 </script>
 
 <template>
-    <div class="space-y-6">
+    <div class="flex flex-col gap-6">
         <div
             v-for="(pkg, pkgIndex) in packages"
             :key="pkg.inventory_id"
             class="rounded-md border border-zinc-200 p-4"
         >
-            <h3 class="om-page-title mb-3 !text-sm">
-                Paket {{ pkgIndex + 1 }} &middot; {{ pkg.inventory_name }}
+            <h3 class="mb-3 flex items-center gap-2">
+                <Badge variant="secondary">Paket {{ pkgIndex + 1 }}</Badge>
+                <span class="om-page-title !text-sm">
+                    {{ pkg.inventory_name }}
+                </span>
             </h3>
 
-            <div
+            <Alert
                 v-if="!optionsFor(pkg.inventory_id).length"
-                class="text-sm text-amber-800"
+                variant="warning"
             >
-                {{
-                    emptyHint ||
-                    'Belum ada opsi pengiriman untuk paket ini. Pastikan gudang punya origin RajaOngkir dan destinasi sudah dipilih.'
-                }}
-            </div>
+                <AlertDescription class="text-sm text-current">
+                    {{
+                        emptyHint ||
+                        'Belum ada opsi pengiriman untuk paket ini. Pastikan gudang punya origin RajaOngkir dan destinasi sudah dipilih.'
+                    }}
+                </AlertDescription>
+            </Alert>
 
             <div v-else class="flex flex-col gap-2">
                 <label

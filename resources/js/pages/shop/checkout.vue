@@ -10,6 +10,11 @@ import CouponField from '@/components/shop/coupon-field.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
 import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
 import ShipmentRatePicker from '@/components/shop/shipment-rate-picker.vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 import { useShop } from '@/composables/useShop';
 import { formatMoney } from '@/lib/format';
 import { cart as cartRoute } from '@/routes/shop';
@@ -572,12 +577,13 @@ const steps = [
                                     <p class="text-xs text-zinc-500">
                                         {{ address.country?.name }}
                                     </p>
-                                    <span
+                                    <Badge
                                         v-if="address.shipping_default"
-                                        class="mt-2 inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700"
+                                        variant="secondary"
+                                        class="mt-2"
                                     >
                                         Utama
-                                    </span>
+                                    </Badge>
                                 </Card>
                             </button>
                         </div>
@@ -591,10 +597,13 @@ const steps = [
                             Pakai alamat lain
                         </button>
 
-                        <hr class="my-6 border-zinc-200" />
+                        <Separator class="my-6" />
                     </div>
 
-                    <form class="space-y-5" @submit.prevent="submitAddress">
+                    <form
+                        class="flex flex-col gap-5"
+                        @submit.prevent="submitAddress"
+                    >
                         <h2 class="text-[13px] font-semibold text-zinc-900">
                             Alamat pengiriman
                         </h2>
@@ -669,7 +678,7 @@ const steps = [
                             placeholder="08…"
                         />
 
-                        <div class="space-y-1.5">
+                        <div class="flex flex-col gap-1.5">
                             <label for="destination_search" class="om-label">
                                 Kecamatan pengiriman
                                 <span v-if="komerceEnabled" class="text-red-600"
@@ -681,12 +690,12 @@ const steps = [
                                 daftar supaya ongkir akurat.
                             </p>
                             <div class="relative">
-                                <input
+                                <Input
                                     id="destination_search"
                                     v-model="destinationQuery"
                                     type="search"
                                     autocomplete="off"
-                                    class="om-control w-full border border-zinc-200 bg-white px-3 text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-[var(--om-navy)]"
+                                    class="om-control h-[var(--om-control-height)] w-full border-border bg-background pr-14 text-[13px] text-foreground placeholder:text-muted-foreground focus-visible:border-primary [&::-webkit-search-cancel-button]:hidden"
                                     :placeholder="
                                         komerceEnabled
                                             ? 'Contoh: Kedawung Cirebon'
@@ -734,18 +743,23 @@ const steps = [
                             >
                                 {{ destinationSearchError }}
                             </p>
-                            <p
+                            <Alert
                                 v-else-if="
                                     addressForm.rajaongkir_destination_id
                                 "
-                                class="rounded-md bg-emerald-50 px-2.5 py-1.5 text-[12px] text-emerald-800"
+                                variant="success"
+                                class="py-2"
                             >
-                                ✓
-                                {{
-                                    addressForm.rajaongkir_destination_label ||
-                                    destinationQuery
-                                }}
-                            </p>
+                                <AlertDescription
+                                    class="text-[12px] text-current"
+                                >
+                                    ✓
+                                    {{
+                                        addressForm.rajaongkir_destination_label ||
+                                        destinationQuery
+                                    }}
+                                </AlertDescription>
+                            </Alert>
                             <p
                                 v-else-if="komerceEnabled"
                                 class="text-xs text-amber-700"
@@ -768,9 +782,9 @@ const steps = [
                         </div>
 
                         <div class="flex">
-                            <button
+                            <Button
                                 type="submit"
-                                class="om-btn-primary inline-flex items-center justify-center px-5 disabled:opacity-50"
+                                size="xl"
                                 :disabled="
                                     addressForm.processing ||
                                     (komerceEnabled &&
@@ -778,24 +792,26 @@ const steps = [
                                 "
                             >
                                 Lanjut ke pengiriman
-                            </button>
+                            </Button>
                         </div>
                     </form>
                 </template>
 
                 <template v-else-if="step === 2">
                     <template v-if="isMultiPackage">
-                        <div class="space-y-5">
+                        <div class="flex flex-col gap-5">
                             <h2 class="text-[13px] font-semibold text-zinc-900">
                                 Metode pengiriman
                             </h2>
 
-                            <div
+                            <Alert
                                 v-if="shippingRatesHint"
-                                class="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+                                variant="warning"
                             >
-                                {{ shippingRatesHint }}
-                            </div>
+                                <AlertDescription class="text-sm text-current">
+                                    {{ shippingRatesHint }}
+                                </AlertDescription>
+                            </Alert>
 
                             <ShipmentRatePicker
                                 v-model="ratesByShipment"
@@ -807,34 +823,32 @@ const steps = [
                             />
 
                             <div class="flex">
-                                <button
+                                <Button
                                     type="button"
-                                    class="om-btn-primary inline-flex items-center justify-center px-5 disabled:opacity-50"
+                                    size="xl"
                                     :disabled="!allPackagesSelected"
                                     @click="submitMultiShipping"
                                 >
                                     Lanjut ke pembayaran
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </template>
 
                     <template v-else>
                         <div v-if="!deliveryOptions.length">
-                            <div
-                                class="flex items-center gap-4 rounded-md border border-amber-200 bg-amber-50 p-4"
-                            >
+                            <Alert variant="warning">
                                 <ShoppingBag
-                                    class="size-5 text-amber-600"
+                                    class="size-5"
                                     aria-hidden="true"
                                 />
-                                <p class="text-sm text-amber-900">
+                                <AlertDescription class="text-sm text-current">
                                     {{
                                         shippingRatesHint ||
                                         'Tidak ada opsi pengiriman untuk alamatmu.'
                                     }}
-                                </p>
-                            </div>
+                                </AlertDescription>
+                            </Alert>
                             <button
                                 type="button"
                                 class="mt-4 text-sm text-zinc-500 transition hover:text-zinc-900"
@@ -846,7 +860,7 @@ const steps = [
 
                         <form
                             v-else
-                            class="space-y-5"
+                            class="flex flex-col gap-5"
                             @submit.prevent="submitShipping"
                         >
                             <h2 class="text-[13px] font-semibold text-zinc-900">
@@ -922,23 +936,23 @@ const steps = [
                             </div>
 
                             <div class="flex">
-                                <button
+                                <Button
                                     type="submit"
-                                    class="om-btn-primary inline-flex items-center justify-center px-5 disabled:opacity-50"
+                                    size="xl"
                                     :disabled="
                                         !shippingForm.service_code ||
                                         shippingForm.processing
                                     "
                                 >
                                     Lanjut ke pembayaran
-                                </button>
+                                </Button>
                             </div>
                         </form>
                     </template>
                 </template>
 
                 <template v-else>
-                    <div class="space-y-5">
+                    <div class="flex flex-col gap-5">
                         <div>
                             <h2 class="text-[13px] font-semibold text-zinc-900">
                                 Metode pembayaran
@@ -1020,7 +1034,7 @@ const steps = [
 
                             <div
                                 v-if="isStripeSelected && stripeData"
-                                class="space-y-4 pt-2"
+                                class="flex flex-col gap-4 pt-2"
                             >
                                 <div class="flex items-center gap-3">
                                     <h3
@@ -1028,7 +1042,7 @@ const steps = [
                                     >
                                         Detail kartu
                                     </h3>
-                                    <span class="h-px flex-1 bg-zinc-200" />
+                                    <Separator class="flex-1" />
                                 </div>
 
                                 <StripePaymentForm
@@ -1054,8 +1068,9 @@ const steps = [
 
                             <template v-if="canPlaceOrder">
                                 <div
-                                    class="flex flex-col gap-3 border-t border-zinc-200 pt-5"
+                                    class="flex flex-col gap-3 pt-2"
                                 >
+                                    <Separator />
                                     <div
                                         class="flex items-center justify-between gap-4"
                                     >
@@ -1070,9 +1085,9 @@ const steps = [
                                                 }}</span
                                             >
                                         </div>
-                                        <button
+                                        <Button
                                             type="button"
-                                            class="om-btn-primary inline-flex items-center justify-center px-5 disabled:opacity-50"
+                                            size="xl"
                                             :disabled="paymentForm.processing"
                                             @click="placeOrder"
                                         >
@@ -1083,7 +1098,7 @@ const steps = [
                                                       ? 'Bayar sekarang'
                                                       : 'Buat pesanan'
                                             }}
-                                        </button>
+                                        </Button>
                                     </div>
                                     <p
                                         class="inline-flex items-center gap-1.5 text-xs text-zinc-500"
@@ -1167,9 +1182,9 @@ const steps = [
                         </li>
                     </ul>
 
-                    <dl
-                        class="mt-4 space-y-3 border-t border-zinc-200 pt-4 text-sm text-zinc-500"
-                    >
+                    <Separator class="mt-4" />
+
+                    <dl class="mt-4 flex flex-col gap-3 text-sm text-zinc-500">
                         <div class="border-b border-zinc-200 pb-3">
                             <CouponField :coupon-code="couponCode" />
                         </div>

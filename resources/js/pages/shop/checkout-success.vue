@@ -6,6 +6,9 @@ import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
 import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/format';
 import { show as ordersShow } from '@/routes/account/orders';
 import * as shop from '@/routes/shop';
@@ -152,29 +155,39 @@ onBeforeUnmount(() => {
                             sudah dibuat. Bayar sekarang supaya langsung
                             diproses.
                         </p>
+                        <Badge variant="warning" class="mt-2">
+                            Belum dibayar
+                        </Badge>
                     </div>
                 </div>
 
-                <p
+                <Alert
                     v-if="flashError || paymentError"
-                    class="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-900"
+                    variant="destructive"
+                    class="mt-4"
                 >
-                    {{ flashError || paymentError }}
-                </p>
-                <p
+                    <AlertDescription class="text-[13px] text-current">
+                        {{ flashError || paymentError }}
+                    </AlertDescription>
+                </Alert>
+                <Alert
                     v-else-if="flashInfo"
-                    class="mt-4 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-[13px] text-zinc-700"
+                    variant="info"
+                    class="mt-4"
                 >
-                    {{ flashInfo }}
-                </p>
+                    <AlertDescription class="text-[13px] text-current">
+                        {{ flashInfo }}
+                    </AlertDescription>
+                </Alert>
 
                 <div class="mt-5">
                     <KomercePaymentPanel :payment="komercePayment!" />
                 </div>
 
-                <button
+                <Button
                     type="button"
-                    class="om-btn-primary mt-4 inline-flex w-full items-center justify-center px-4 disabled:opacity-50"
+                    size="xl"
+                    class="mt-4 w-full"
                     :disabled="checkingPayment"
                     @click="syncPayment(false)"
                 >
@@ -183,7 +196,7 @@ onBeforeUnmount(() => {
                             ? 'Mengecek…'
                             : 'Sudah bayar? Cek status'
                     }}
-                </button>
+                </Button>
                 <p class="om-meta mt-2 text-center !text-[11px]">
                     Status dicek otomatis tiap 15 detik. Atau ketuk tombol di
                     atas setelah transfer/scan.
@@ -201,18 +214,24 @@ onBeforeUnmount(() => {
                 </p>
 
                 <div class="mt-6 flex flex-col gap-2 sm:flex-row">
-                    <Link
-                        :href="ordersShow.url(order.id)"
-                        class="om-btn-outline inline-flex flex-1 items-center justify-center px-4"
+                    <Button
+                        as-child
+                        variant="outline"
+                        size="xl"
+                        class="flex-1"
                     >
-                        Lihat pesanan
-                    </Link>
-                    <Link
-                        :href="shop.index.url()"
-                        class="inline-flex flex-1 items-center justify-center px-4 text-[13px] font-semibold text-zinc-500 hover:text-zinc-800"
+                        <Link :href="ordersShow.url(order.id)">
+                            Lihat pesanan
+                        </Link>
+                    </Button>
+                    <Button
+                        as-child
+                        variant="ghost"
+                        size="xl"
+                        class="flex-1 text-zinc-500 hover:text-zinc-800"
                     >
-                        Belanja lagi
-                    </Link>
+                        <Link :href="shop.index.url()">Belanja lagi</Link>
+                    </Button>
                 </div>
             </template>
 
@@ -263,45 +282,74 @@ onBeforeUnmount(() => {
                             )
                         }}
                     </p>
+                    <Badge
+                        v-if="paymentSetupFailed"
+                        variant="warning"
+                        class="mt-3"
+                    >
+                        Pembayaran belum siap
+                    </Badge>
 
-                    <p
+                    <Alert
                         v-if="flashSuccess"
-                        class="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-900"
+                        variant="success"
+                        class="mt-4"
                     >
-                        {{ flashSuccess }}
-                    </p>
+                        <AlertDescription class="text-[13px] text-current">
+                            {{ flashSuccess }}
+                        </AlertDescription>
+                    </Alert>
 
-                    <p
-                        v-else-if="flashError || paymentSetupFailed"
-                        class="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-left text-[13px] text-amber-900"
+                    <Alert
+                        v-else-if="flashError"
+                        variant="destructive"
+                        class="mt-4 text-left"
                     >
-                        {{
-                            flashError ||
-                            'Instruksi pembayaran belum tersedia. Buka detail pesanan untuk mencoba bayar lagi.'
-                        }}
-                        <Link
-                            :href="ordersShow.url(order.id)"
-                            class="mt-2 block font-semibold text-[var(--om-navy)]"
-                        >
-                            Bayar di detail pesanan →
-                        </Link>
-                    </p>
+                        <AlertDescription class="text-[13px] text-current">
+                            {{ flashError }}
+                            <Link
+                                :href="ordersShow.url(order.id)"
+                                class="mt-2 block font-semibold text-[var(--om-navy)]"
+                            >
+                                Bayar di detail pesanan →
+                            </Link>
+                        </AlertDescription>
+                    </Alert>
+
+                    <Alert
+                        v-else-if="paymentSetupFailed"
+                        variant="warning"
+                        class="mt-4 text-left"
+                    >
+                        <AlertDescription class="text-[13px] text-current">
+                            Instruksi pembayaran belum tersedia. Buka detail
+                            pesanan untuk mencoba bayar lagi.
+                            <Link
+                                :href="ordersShow.url(order.id)"
+                                class="mt-2 block font-semibold text-[var(--om-navy)]"
+                            >
+                                Bayar di detail pesanan →
+                            </Link>
+                        </AlertDescription>
+                    </Alert>
 
                     <div
                         class="mt-8 flex flex-col gap-2 sm:flex-row sm:justify-center"
                     >
-                        <Link
-                            :href="ordersShow.url(order.id)"
-                            class="om-btn-primary inline-flex items-center justify-center px-5"
+                        <Button as-child size="xl">
+                            <Link :href="ordersShow.url(order.id)">
+                                Lihat pesanan
+                            </Link>
+                        </Button>
+                        <Button
+                            as-child
+                            variant="outline"
+                            size="xl"
                         >
-                            Lihat pesanan
-                        </Link>
-                        <Link
-                            :href="shop.index.url()"
-                            class="om-btn-outline inline-flex items-center justify-center px-5"
-                        >
-                            Lanjut belanja
-                        </Link>
+                            <Link :href="shop.index.url()">
+                                Lanjut belanja
+                            </Link>
+                        </Button>
                     </div>
                 </div>
             </template>

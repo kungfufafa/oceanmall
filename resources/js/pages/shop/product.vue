@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { BadgeCheck, Minus, Plus } from 'lucide-vue-next';
+import { BadgeCheck } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import AuthTextField from '@/components/auth/auth-text-field.vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
 import PriceDisplay from '@/components/shop/price-display.vue';
 import ProductCard from '@/components/shop/product-card.vue';
+import QtyStepper from '@/components/shop/qty-stepper.vue';
 import RatingStars from '@/components/shop/rating-stars.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { useCart } from '@/composables/useCart';
 import * as shop from '@/routes/shop';
 import * as productReviews from '@/routes/shop/product/reviews';
@@ -170,6 +177,22 @@ const displayPrice = computed(
     () => selectedVariant.value?.prices?.[0] ?? props.product.prices?.[0],
 );
 
+const salePercentage = computed<number | null>(() => {
+    if (
+        displayPrice.value?.amount == null ||
+        !displayPrice.value.compare_amount ||
+        displayPrice.value.compare_amount <= displayPrice.value.amount
+    ) {
+        return null;
+    }
+
+    return Math.round(
+        ((displayPrice.value.compare_amount - displayPrice.value.amount) /
+            displayPrice.value.compare_amount) *
+            100,
+    );
+});
+
 const outOfStock = computed<boolean>(() => {
     if (hasVariants.value) {
         if (selectedVariant.value) {
@@ -240,7 +263,7 @@ function addToCart(): void {
             <div class="lg:grid lg:grid-cols-2 lg:gap-x-10">
                 <div>
                     <div
-                        class="aspect-square overflow-hidden rounded-md bg-zinc-100"
+                        class="relative aspect-square overflow-hidden rounded-md bg-zinc-100"
                     >
                         <img
                             v-if="activeImage"
@@ -248,6 +271,13 @@ function addToCart(): void {
                             :alt="product.name"
                             class="size-full object-contain object-center p-3"
                         />
+                        <Badge
+                            v-if="salePercentage"
+                            variant="sale"
+                            class="absolute top-2 left-2 px-2 py-0.5 text-[11px] font-bold"
+                        >
+                            -{{ salePercentage }}%
+                        </Badge>
                     </div>
 
                     <div
@@ -285,12 +315,13 @@ function addToCart(): void {
                         {{ product.name }}
                     </h1>
 
-                    <p
+                    <Badge
                         v-if="outOfStock"
-                        class="mt-2 inline-flex rounded bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-600"
+                        variant="warning"
+                        class="mt-2 rounded-md text-[11px] font-semibold"
                     >
                         Stok habis
-                    </p>
+                    </Badge>
 
                     <div class="mt-3">
                         <PriceDisplay :price="displayPrice ?? null" size="md" />
@@ -298,7 +329,7 @@ function addToCart(): void {
 
                     <div
                         v-if="hasVariants && variantOptions"
-                        class="mt-5 space-y-4"
+                        class="mt-5 flex flex-col gap-4"
                     >
                         <div
                             v-for="option in variantOptions.productOptions"
@@ -381,46 +412,24 @@ function addToCart(): void {
                     </div>
 
                     <div class="mt-5 hidden items-center gap-3 lg:flex">
-                        <div
-                            class="inline-flex h-11 items-center rounded-md border border-zinc-200"
-                        >
-                            <button
-                                type="button"
-                                class="flex size-11 items-center justify-center text-zinc-500 disabled:opacity-30"
-                                :disabled="quantity <= 1"
-                                aria-label="Kurangi"
-                                @click="quantity = Math.max(1, quantity - 1)"
-                            >
-                                <Minus class="size-3.5" />
-                            </button>
-                            <span
-                                class="min-w-8 text-center text-[13px] font-semibold"
-                                >{{ quantity }}</span
-                            >
-                            <button
-                                type="button"
-                                class="flex size-11 items-center justify-center text-zinc-500"
-                                aria-label="Tambah"
-                                @click="quantity = Math.min(10, quantity + 1)"
-                            >
-                                <Plus class="size-3.5" />
-                            </button>
-                        </div>
+                        <QtyStepper v-model="quantity" :min="1" :max="10" />
 
-                        <button
+                        <Button
                             type="button"
-                            class="om-btn-primary flex flex-1 items-center justify-center"
+                            size="xl"
+                            class="flex-1"
                             :disabled="!canAdd"
                             @click="addToCart"
                         >
                             {{ ctaLabel }}
-                        </button>
+                        </Button>
                     </div>
 
                     <div
                         v-if="product.description"
-                        class="mt-6 border-t border-zinc-100 pt-4"
+                        class="mt-6"
                     >
+                        <Separator class="mb-4" />
                         <h3 class="om-label mb-2">Deskripsi</h3>
                         <div
                             class="prose prose-sm max-w-none prose-zinc text-[13px] leading-relaxed"
@@ -430,7 +439,8 @@ function addToCart(): void {
                 </div>
             </div>
 
-            <section class="mt-8 border-t border-zinc-100 pt-5">
+            <section class="mt-8">
+                <Separator class="mb-5" />
                 <h2 class="om-page-title">Ulasan pembeli</h2>
 
                 <div
@@ -453,7 +463,7 @@ function addToCart(): void {
                         </p>
                     </div>
 
-                    <div class="space-y-1.5">
+                    <div class="flex flex-col gap-1.5">
                         <div
                             v-for="level in ratingLevels"
                             :key="level"
@@ -487,30 +497,30 @@ function addToCart(): void {
                     Belum ada ulasan yang disetujui
                 </p>
 
-                <div
-                    v-if="reviews.items.length"
-                    class="mt-4 flex items-center justify-between gap-3 border-t border-zinc-100 pt-3"
-                >
-                    <p class="text-[12px] font-semibold text-zinc-800">
-                        Semua ulasan
-                    </p>
-                    <div class="flex gap-1">
-                        <button
-                            v-for="option in reviewSortOptions"
-                            :key="option.value"
-                            type="button"
-                            class="rounded-md px-2 py-1 text-[11px] font-semibold transition"
-                            :class="
-                                reviewSort === option.value
-                                    ? 'bg-[var(--om-navy)] text-white'
-                                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                            "
-                            @click="reviewSort = option.value"
-                        >
-                            {{ option.label }}
-                        </button>
+                <template v-if="reviews.items.length">
+                    <Separator class="mt-4" />
+                    <div class="mt-3 flex items-center justify-between gap-3">
+                        <p class="text-[12px] font-semibold text-zinc-800">
+                            Semua ulasan
+                        </p>
+                        <div class="flex gap-1">
+                            <button
+                                v-for="option in reviewSortOptions"
+                                :key="option.value"
+                                type="button"
+                                class="rounded-md px-2 py-1 text-[11px] font-semibold transition"
+                                :class="
+                                    reviewSort === option.value
+                                        ? 'bg-[var(--om-navy)] text-white'
+                                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                                "
+                                @click="reviewSort = option.value"
+                            >
+                                {{ option.label }}
+                            </button>
+                        </div>
                     </div>
-                </div>
+                </template>
 
                 <ul
                     v-if="sortedReviews.length"
@@ -586,15 +596,24 @@ function addToCart(): void {
 
                 <form
                     v-if="canReview"
-                    class="mt-5 space-y-3 rounded-md border border-zinc-200 p-3.5 sm:p-4"
+                    class="mt-5 flex flex-col gap-3 rounded-md border border-zinc-200 p-3.5 sm:p-4"
                     @submit.prevent="submitReview"
                 >
                     <h3 class="text-[14px] font-semibold text-[var(--om-navy)]">
                         Tulis ulasan
                     </h3>
-                    <p v-if="reviewError" class="text-[12px] text-red-600">
-                        {{ reviewError }}
-                    </p>
+                    <Alert
+                        v-if="reviewError"
+                        variant="destructive"
+                        class="py-2 text-[12px]"
+                    >
+                        <AlertTitle class="text-[13px]">
+                            Ulasan belum terkirim
+                        </AlertTitle>
+                        <AlertDescription class="text-[12px]">
+                            {{ reviewError }}
+                        </AlertDescription>
+                    </Alert>
                     <div>
                         <p class="om-label mb-1.5">Rating</p>
                         <RatingStars
@@ -611,15 +630,18 @@ function addToCart(): void {
                         :error="reviewForm.errors.title"
                     />
                     <div>
-                        <label class="om-label" for="review-content"
-                            >Ulasan</label
-                        >
-                        <textarea
+                        <Label class="om-label" for="review-content">
+                            Ulasan
+                        </Label>
+                        <Textarea
                             id="review-content"
                             v-model="reviewForm.content"
                             rows="3"
-                            class="om-control mt-1 w-full border border-zinc-200 bg-white px-3 py-2 text-[13px] outline-none focus:border-[var(--om-navy)]"
+                            class="om-control mt-1 w-full bg-white text-[13px]"
                             placeholder="Bagaimana pengalamanmu dengan produk ini?"
+                            :aria-invalid="
+                                Boolean(reviewForm.errors.content) || undefined
+                            "
                         />
                         <p
                             v-if="reviewForm.errors.content"
@@ -628,20 +650,22 @@ function addToCart(): void {
                             {{ reviewForm.errors.content }}
                         </p>
                     </div>
-                    <button
+                    <Button
                         type="submit"
-                        class="om-btn-primary inline-flex items-center justify-center px-5 disabled:opacity-50"
+                        size="xl"
+                        class="self-start"
                         :disabled="reviewForm.processing"
                     >
                         Kirim ulasan
-                    </button>
+                    </Button>
                 </form>
             </section>
 
             <section
                 v-if="product.related_products?.length"
-                class="mt-8 border-t border-zinc-100 pt-5"
+                class="mt-8"
             >
+                <Separator class="mb-5" />
                 <h2 class="om-page-title mb-3">Produk terkait</h2>
                 <div
                     class="grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
@@ -664,39 +688,16 @@ function addToCart(): void {
             "
         >
             <div class="mx-auto flex max-w-7xl items-center gap-2.5">
-                <div
-                    class="inline-flex h-11 items-center rounded-md border border-zinc-200"
-                >
-                    <button
-                        type="button"
-                        class="flex size-11 items-center justify-center text-zinc-500 disabled:opacity-30"
-                        :disabled="quantity <= 1"
-                        aria-label="Kurangi"
-                        @click="quantity = Math.max(1, quantity - 1)"
-                    >
-                        <Minus class="size-3.5" />
-                    </button>
-                    <span
-                        class="min-w-7 text-center text-[13px] font-semibold"
-                        >{{ quantity }}</span
-                    >
-                    <button
-                        type="button"
-                        class="flex size-11 items-center justify-center text-zinc-500"
-                        aria-label="Tambah"
-                        @click="quantity = Math.min(10, quantity + 1)"
-                    >
-                        <Plus class="size-3.5" />
-                    </button>
-                </div>
-                <button
+                <QtyStepper v-model="quantity" :min="1" :max="10" />
+                <Button
                     type="button"
-                    class="om-btn-primary flex min-w-0 flex-1 items-center justify-center px-3"
+                    size="xl"
+                    class="min-w-0 flex-1 px-3"
                     :disabled="!canAdd"
                     @click="addToCart"
                 >
                     {{ ctaLabel }}
-                </button>
+                </Button>
             </div>
         </div>
 

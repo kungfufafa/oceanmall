@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
 import ProductCard from '@/components/shop/product-card.vue';
+import SectionHeader from '@/components/shop/section-header.vue';
 import type { Product } from '@/types/shop';
 
 withDefaults(
@@ -27,12 +27,12 @@ withDefaults(
         ]"
     >
         <div class="mx-auto max-w-7xl px-4 sm:px-6">
-            <div class="mb-3 flex items-baseline justify-between gap-3">
-                <h2 class="om-page-title">{{ title }}</h2>
-                <Link :href="href" class="om-action-primary shrink-0">
-                    {{ linkLabel }}
-                </Link>
-            </div>
+            <SectionHeader
+                class="mb-3"
+                :title="title"
+                :action-href="href"
+                :action-label="linkLabel"
+            />
 
             <div
                 class="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] snap-x snap-mandatory sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden"

@@ -2,6 +2,9 @@
 import { Copy } from 'lucide-vue-next';
 import QRCode from 'qrcode';
 import { computed, onMounted, ref, watch } from 'vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/format';
 
 export type KomercePaymentInstructions = {
@@ -101,11 +104,9 @@ watch(
                         {{ formatMoney(payment.amount, payment.currency_code) }}
                     </p>
                 </div>
-                <span
-                    class="shrink-0 rounded-md bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-900"
-                >
+                <Badge variant="warning" class="shrink-0 rounded-md">
                     Belum dibayar
-                </span>
+                </Badge>
             </div>
             <p v-if="formattedExpiry" class="mt-2 text-[12px] text-zinc-600">
                 Bayar sebelum
@@ -115,7 +116,7 @@ watch(
             </p>
         </div>
 
-        <div class="space-y-4 p-4">
+        <div class="flex flex-col gap-4 p-4">
             <p class="text-[13px] font-semibold text-zinc-900">
                 Cara bayar · {{ methodLabel }}
             </p>
@@ -133,18 +134,20 @@ watch(
                         >
                             {{ payment.virtual_account_number }}
                         </span>
-                        <button
+                        <Button
                             type="button"
-                            class="om-btn-outline inline-flex h-9 shrink-0 items-center gap-1.5 px-3 text-[12px]"
+                            variant="outline"
+                            size="sm"
+                            class="h-9 shrink-0 text-[12px]"
                             @click="copy(payment.virtual_account_number!)"
                         >
                             <Copy class="size-3.5" aria-hidden="true" />
                             {{ copied ? 'Tersalin' : 'Salin' }}
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
-                <ol class="space-y-2 text-[13px] text-zinc-600">
+                <ol class="flex flex-col gap-2 text-[13px] text-zinc-600">
                     <li class="flex gap-2">
                         <span
                             class="flex size-5 shrink-0 items-center justify-center rounded-md bg-[var(--om-navy)] text-[10px] font-bold text-white"
@@ -193,13 +196,15 @@ watch(
                     <p class="text-center text-[12px] text-zinc-600">
                         Scan pakai GoPay, OVO, Dana, ShopeePay, atau m-banking
                     </p>
-                    <button
+                    <Button
                         type="button"
-                        class="text-[12px] font-semibold text-[var(--om-navy)]"
+                        variant="ghost"
+                        size="sm"
+                        class="text-[12px] font-semibold text-[var(--om-navy)] hover:text-[var(--om-navy)]"
                         @click="copy(payment.qris_string!)"
                     >
                         {{ copied ? 'Kode tersalin' : 'Salin kode QRIS' }}
-                    </button>
+                    </Button>
                 </div>
             </template>
 
@@ -210,23 +215,31 @@ watch(
                 <p class="text-[13px] text-zinc-700">
                     Instruksi lengkap tersedia di halaman pembayaran Komerce.
                 </p>
-                <a
-                    :href="payment.payment_url"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="om-btn-primary mt-3 inline-flex items-center justify-center px-4"
+                <Button
+                    as-child
+                    size="xl"
+                    class="mt-3"
                 >
-                    Buka halaman bayar
-                </a>
+                    <a
+                        :href="payment.payment_url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Buka halaman bayar
+                    </a>
+                </Button>
             </div>
 
-            <p
+            <Alert
                 v-else
-                class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900"
+                variant="warning"
+                class="py-2"
             >
-                Instruksi pembayaran belum lengkap. Coba buat ulang dari halaman
-                pesanan.
-            </p>
+                <AlertDescription class="text-[12px] text-current">
+                    Instruksi pembayaran belum lengkap. Coba buat ulang dari
+                    halaman pesanan.
+                </AlertDescription>
+            </Alert>
 
             <p class="text-[10px] text-zinc-400">
                 Ref {{ payment.payment_id }}

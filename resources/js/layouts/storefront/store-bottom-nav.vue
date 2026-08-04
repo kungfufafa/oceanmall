@@ -8,6 +8,7 @@ import {
     UserRound,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
+import { Badge } from '@/components/ui/badge';
 import { useShop } from '@/composables/useShop';
 import { dashboard, home, login } from '@/routes';
 import { cart, categories, index as shopIndex } from '@/routes/shop';
@@ -113,12 +114,13 @@ function itemClass(key: string): string {
                         stroke-width="1.75"
                         aria-hidden="true"
                     />
-                    <span
+                    <Badge
                         v-if="cartCount > 0"
-                        class="absolute -top-1.5 -right-2.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF3B5C] px-0.5 text-[10px] font-bold text-white"
+                        variant="count"
+                        class="absolute -top-1.5 -right-2.5"
                     >
                         {{ cartCount > 99 ? '99+' : cartCount }}
-                    </span>
+                    </Badge>
                 </span>
                 <span
                     class="font-semibold leading-none"

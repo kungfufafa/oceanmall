@@ -13,6 +13,12 @@ export const alertVariants = cva(
         default: "bg-card text-card-foreground",
         destructive:
           "text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90",
+        success:
+          "border-[var(--om-success)]/20 bg-[var(--om-success-soft)] text-[var(--om-success)] [&>svg]:text-current",
+        warning:
+          "border-[var(--om-warning)]/20 bg-[var(--om-warning-soft)] text-[var(--om-warning)] [&>svg]:text-current",
+        info:
+          "border-primary/15 bg-accent text-primary [&>svg]:text-current",
       },
     },
     defaultVariants: {

@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import PriceDisplay from '@/components/shop/price-display.vue';
+import { Badge } from '@/components/ui/badge';
 import * as shop from '@/routes/shop';
 import type { Product } from '@/types/shop';
 
@@ -31,7 +32,7 @@ const percentage = computed<number | null>(() => {
 
 <template>
     <div class="relative">
-        <div class="relative aspect-square overflow-hidden rounded-md bg-zinc-100">
+        <div class="relative aspect-square overflow-hidden rounded-md bg-muted">
             <img
                 v-if="thumbnail"
                 :src="thumbnail"
@@ -39,22 +40,25 @@ const percentage = computed<number | null>(() => {
                 loading="lazy"
                 class="size-full object-cover object-center"
             />
-            <span
+            <Badge
                 v-if="percentage"
-                class="absolute top-1.5 left-1.5 rounded bg-[#E11D48] px-1.5 py-0.5 text-[10px] font-bold text-white"
+                variant="sale"
+                class="absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[10px] font-bold"
             >
                 -{{ percentage }}%
-            </span>
+            </Badge>
         </div>
 
-        <h3 class="mt-2 line-clamp-2 text-[12px] leading-snug font-medium text-zinc-800">
+        <h3
+            class="mt-2 line-clamp-2 text-[12px] leading-snug font-medium text-foreground"
+        >
             <Link :href="shop.product.url({ product: product.slug })">
                 <span class="absolute inset-0" />
                 {{ product.name }}
             </Link>
         </h3>
 
-        <p v-if="product.brand" class="mt-0.5 text-[10px] text-zinc-500">
+        <p v-if="product.brand" class="mt-0.5 text-[10px] text-muted-foreground">
             {{ product.brand.name }}
         </p>
 

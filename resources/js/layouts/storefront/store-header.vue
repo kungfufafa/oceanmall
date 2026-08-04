@@ -3,6 +3,7 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import { Search, ShoppingCart, Bell, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import BrandIcon from '@/components/shop/brand-icon.vue';
+import { Badge } from '@/components/ui/badge';
 import { useShop } from '@/composables/useShop';
 import { dashboard, home, login, register } from '@/routes';
 import { notifications as accountNotifications } from '@/routes/account';
@@ -103,12 +104,13 @@ function clearSearch(): void {
                 aria-label="Notifikasi"
             >
                 <Bell class="size-6" stroke-width="1.75" aria-hidden="true" />
-                <span
+                <Badge
                     v-if="unreadCount > 0"
-                    class="absolute top-1 right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF3B5C] px-0.5 text-[10px] font-bold text-white"
+                    variant="count"
+                    class="absolute top-1 right-1"
                 >
                     {{ unreadCount > 99 ? '99+' : unreadCount }}
-                </span>
+                </Badge>
             </Link>
 
             <Link
@@ -121,12 +123,13 @@ function clearSearch(): void {
                     stroke-width="1.75"
                     aria-hidden="true"
                 />
-                <span
+                <Badge
                     v-if="cartCount > 0"
-                    class="absolute top-1 right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF3B5C] px-0.5 text-[10px] font-bold text-white"
+                    variant="count"
+                    class="absolute top-1 right-1"
                 >
                     {{ cartCount > 99 ? '99+' : cartCount }}
-                </span>
+                </Badge>
             </Link>
         </div>
 
@@ -194,12 +197,13 @@ function clearSearch(): void {
                             stroke-width="1.75"
                             aria-hidden="true"
                         />
-                        <span
+                        <Badge
                             v-if="unreadCount > 0"
-                            class="absolute top-0.5 right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF3B5C] px-0.5 text-[10px] font-bold text-white"
+                            variant="count"
+                            class="absolute top-0.5 right-0.5"
                         >
                             {{ unreadCount > 99 ? '99+' : unreadCount }}
-                        </span>
+                        </Badge>
                     </Link>
 
                     <Link
@@ -212,12 +216,13 @@ function clearSearch(): void {
                             stroke-width="1.75"
                             aria-hidden="true"
                         />
-                        <span
+                        <Badge
                             v-if="cartCount > 0"
-                            class="absolute top-0.5 right-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF3B5C] px-0.5 text-[10px] font-bold text-white"
+                            variant="count"
+                            class="absolute top-0.5 right-0.5"
                         >
                             {{ cartCount > 99 ? '99+' : cartCount }}
-                        </span>
+                        </Badge>
                     </Link>
 
                     <div class="h-7 w-px bg-white/25" aria-hidden="true" />

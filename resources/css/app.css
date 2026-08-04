@@ -182,6 +182,12 @@
   --om-navy: #0a2a6b;
   --om-navy-hover: #0b3a8f;
   --om-disabled: #d8dce6;
+  --om-sale: #e11d48;
+  --om-sale-soft: #fff1f3;
+  --om-success: #047857;
+  --om-success-soft: #ecfdf5;
+  --om-warning: #b45309;
+  --om-warning-soft: #fffbeb;
 
   /* Chrome — header & bottom nav same weight */
   --om-chrome-height: 3.75rem; /* 60px */
@@ -210,6 +216,7 @@
   --ring: var(--om-navy);
   --accent: #eef1f7;
   --accent-foreground: var(--om-navy);
+  --destructive: var(--om-sale);
   --radius: var(--om-radius);
   color: #18181b;
   background-color: #ffffff;
