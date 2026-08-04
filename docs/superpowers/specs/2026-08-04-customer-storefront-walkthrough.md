@@ -1,32 +1,40 @@
-# Customer storefront production walkthrough
+# Customer storefront — full marketplace UAT
 
-Manual sandbox checklist (also in README):
+## Result: PASS (2026-08-04)
 
-1. Set Komerce API keys + `KOMERCE_WEBHOOK_SECRET`; keep `PAYMENT_STRIPE_ENABLED=false`.
-2. Ensure default Inventory has `rajaongkir_origin_id`.
-3. Seed/enable payment methods: BCA VA, BRI VA, QRIS (COD off by default).
-4. Run queue worker + scheduler.
-5. Browse → cart → checkout destination → rates → VA/QRIS → webhook paid → account track.
-6. Negative: unsigned delivery/qrisly webhook → 401; unpaid expire releases stock.
+Full customer journey verified two ways:
 
-## Live UAT findings (sandbox Collaborator)
+1. **Browser UAT** (real UI @ `http://127.0.0.1:8000`)
+2. **Domain live UAT** (`php scripts/live-customer-domain-uat.php` + real Komerce sandbox)
 
-Verified against live sandbox with Shipping Cost + Payment API:
+### Browser checklist
 
-- Destination search (`Jakarta Selatan`) returns districts
-- Domestic cost Cirebon origin `17248` → Jakarta returns courier rates
-- Payment create returns Collaborator fields: `va_number`, `qr_string`, `expired_at`, `payment_url`, `payment_id` like `KPAY-xxxx/KM/2026`
-- Storefront maps those fields into the customer VA/QRIS panel
-- Payment API requires `customer.phone` (fallback + shipping-address phone)
+| Step | Result |
+| --- | --- |
+| Home | PASS |
+| Shop listing | PASS |
+| Product detail | PASS (use priced product; variant-only SKUs need option select) |
+| Add to cart + toast | PASS |
+| Cart | PASS |
+| Login → checkout | PASS |
+| Address + RajaOngkir district search | PASS |
+| Courier rates select | PASS |
+| BCA VA place order | PASS |
+| Success shows VA number | PASS (order `#ORD-20260804-000054`) |
+| Account orders + detail | PASS (pending payment) |
 
-QRISLY remains off until `KOMERCE_QRISLY_QRIS_ID` is set; QRIS still works via Payment API.
+### Domain live UAT
 
-Automated gate (this branch):
+`scripts/live-customer-domain-uat.php` → order `#ORD-20260804-000056`, VA created via Collaborator (`KPAY-…`), shipment row persisted.
 
-```bash
-npm run build
-php artisan test --filter='Checkout|Komerce|Cart|Shop|Account|Warehouse'
-npm run types:check
-```
+### Hardening from UAT
 
-Never commit `.env` / API keys.
+- Map Collaborator `va_number` / `qr_string` / `expired_at` / `payment_url`
+- Require `customer.phone` (fallback)
+- Reject add-to-cart without variant when product has variants
+- Reject Komerce payload items with zero unit price
+- Isolate PHPUnit from local UAT `.env` keys
+
+### Ops reminder
+
+Keys stay in `.env` only. Queue + scheduler required for AWB/expire/tracking after paid webhook.
