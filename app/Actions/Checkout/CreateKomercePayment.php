@@ -57,6 +57,7 @@ final class CreateKomercePayment
         $firstName = (string) ($customer?->first_name ?? '');
         $lastName = (string) ($customer?->last_name ?? '');
         $customerName = trim("{$firstName} {$lastName}") ?: 'Customer';
+        $customerPhone = $this->customerPhone($order, $customer);
 
         $payload = [
             'order_id' => $order->number,
@@ -64,7 +65,7 @@ final class CreateKomercePayment
             'customer' => [
                 'name' => $customerName,
                 'email' => (string) ($customer?->email ?? ''),
-                'phone' => (string) ($customer?->phone_number ?? ''),
+                'phone' => $customerPhone,
             ],
             'items' => $this->paymentItems($order),
             'callback_url' => Route::has('webhooks.komerce.payment')
@@ -82,7 +83,10 @@ final class CreateKomercePayment
             : $this->payments->createVirtualAccount($payload);
 
         $paymentId = $this->validatedPaymentApiId($response);
-        $expiryDate = data_get($response, 'data.expiry_date');
+        $expiryDate = $this->paymentApiExpiry($response);
+        $vaNumber = $this->paymentApiVaNumber($response);
+        $qrisString = $this->paymentApiQrisString($response);
+        $paymentUrl = $this->paymentApiPaymentUrl($response);
 
         $this->persistTransaction($order, $paymentId, $response, $expiryDate, 'payment_api', $paymentType);
 
@@ -90,13 +94,24 @@ final class CreateKomercePayment
             'payment_id' => $paymentId,
             'payment_type' => $paymentType,
             'provider' => 'payment_api',
-            'virtual_account_number' => data_get($response, 'data.virtual_account_number'),
-            'bank_code' => data_get($response, 'data.bank_code') ?? ($channelCode ?? null),
-            'qris_string' => data_get($response, 'data.qris_string'),
+            'virtual_account_number' => $vaNumber,
+            'bank_code' => data_get($response, 'data.bank_code')
+                ?? data_get($response, 'data.bank_name')
+                ?? ($channelCode ?? null),
+            'qris_string' => $qrisString,
+            'payment_url' => $paymentUrl,
             'expiry_date' => $expiryDate,
             'amount' => (int) (data_get($response, 'data.amount') ?? $order->price_amount),
             'currency_code' => $order->currency_code,
         ];
+
+        if ($paymentType === 'bank_transfer' && blank($vaNumber) && blank($paymentUrl)) {
+            throw new RuntimeException('Komerce VA payment created without a virtual account number.');
+        }
+
+        if ($paymentType === 'qris' && blank($qrisString) && blank($paymentUrl)) {
+            throw new RuntimeException('Komerce QRIS payment created without a QR payload.');
+        }
 
         $this->persistInstructions($order, $instructions);
 
@@ -149,6 +164,7 @@ final class CreateKomercePayment
             'virtual_account_number' => null,
             'bank_code' => null,
             'qris_string' => $qrisString,
+            'payment_url' => null,
             'expiry_date' => $expiryDate,
             'amount' => (int) $amount,
             'currency_code' => $order->currency_code,
@@ -269,6 +285,75 @@ final class CreateKomercePayment
         $decoded = json_decode($metadata, true);
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * Collaborator Payment API requires customer.phone.
+     */
+    private function customerPhone(Order $order, mixed $customer): string
+    {
+        $fromProfile = trim((string) ($customer?->phone_number ?? ''));
+        if ($fromProfile !== '') {
+            return $fromProfile;
+        }
+
+        $metadata = $this->decodeMetadata($order->getAttribute('metadata'));
+        $fromShipping = trim((string) data_get($metadata, 'shipping_address.phone_number', ''));
+        if ($fromShipping !== '') {
+            return $fromShipping;
+        }
+
+        return '080000000000';
+    }
+
+    /**
+     * Collaborator Payment API currently returns `va_number` / `qr_string` /
+     * `expired_at` / `payment_url`. Keep legacy keys as fallbacks for fakes/docs.
+     *
+     * @param  array<string, mixed>  $response
+     */
+    private function paymentApiVaNumber(array $response): ?string
+    {
+        $value = data_get($response, 'data.va_number')
+            ?? data_get($response, 'data.virtual_account_number');
+
+        $value = is_string($value) || is_numeric($value) ? trim((string) $value) : '';
+
+        return $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $response
+     */
+    private function paymentApiQrisString(array $response): ?string
+    {
+        $value = data_get($response, 'data.qr_string')
+            ?? data_get($response, 'data.qris_string');
+
+        $value = is_string($value) ? trim($value) : '';
+
+        return $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $response
+     */
+    private function paymentApiExpiry(array $response): mixed
+    {
+        return data_get($response, 'data.expired_at')
+            ?? data_get($response, 'data.expiry_date')
+            ?? data_get($response, 'data.expiry_time');
+    }
+
+    /**
+     * @param  array<string, mixed>  $response
+     */
+    private function paymentApiPaymentUrl(array $response): ?string
+    {
+        $value = data_get($response, 'data.payment_url');
+        $value = is_string($value) ? trim($value) : '';
+
+        return $value !== '' ? $value : null;
     }
 
     /**

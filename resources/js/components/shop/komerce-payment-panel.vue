@@ -10,6 +10,7 @@ export type KomercePaymentInstructions = {
     virtual_account_number?: string | null;
     bank_code?: string | null;
     qris_string?: string | null;
+    payment_url?: string | null;
     expiry_date?: string | null;
     amount: number;
     currency_code: string;
@@ -201,6 +202,31 @@ watch(
                     </button>
                 </div>
             </template>
+
+            <div
+                v-else-if="payment.payment_url"
+                class="rounded-md border border-zinc-200 bg-zinc-50 p-4"
+            >
+                <p class="text-[13px] text-zinc-700">
+                    Instruksi lengkap tersedia di halaman pembayaran Komerce.
+                </p>
+                <a
+                    :href="payment.payment_url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="om-btn-primary mt-3 inline-flex items-center justify-center px-4"
+                >
+                    Buka halaman bayar
+                </a>
+            </div>
+
+            <p
+                v-else
+                class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-900"
+            >
+                Instruksi pembayaran belum lengkap. Coba buat ulang dari halaman
+                pesanan.
+            </p>
 
             <p class="text-[10px] text-zinc-400">
                 Ref {{ payment.payment_id }}

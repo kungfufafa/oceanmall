@@ -34,6 +34,7 @@ final class ResolveKomercePaymentInstructions
             'virtual_account_number' => $instructions['virtual_account_number'] ?? null,
             'bank_code' => $instructions['bank_code'] ?? null,
             'qris_string' => $instructions['qris_string'] ?? null,
+            'payment_url' => $instructions['payment_url'] ?? null,
             'expiry_date' => $instructions['expiry_date'] ?? null,
             'amount' => (int) ($instructions['amount'] ?? $order->price_amount),
             'currency_code' => (string) ($instructions['currency_code'] ?? $order->currency_code ?? 'IDR'),

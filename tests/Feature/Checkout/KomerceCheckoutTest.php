@@ -600,6 +600,86 @@ final class KomerceCheckoutTest extends TestCase
         });
     }
 
+    public function test_create_komerce_payment_maps_collaborator_va_and_qris_field_names(): void
+    {
+        $this->komerceFakeConfig();
+
+        $user = User::factory()->create(['first_name' => 'Uat', 'last_name' => 'User', 'email' => 'uat-map@example.test']);
+        $paymentMethod = PaymentMethod::factory()->create(['driver' => 'komerce', 'is_enabled' => true]);
+
+        $vaOrder = Order::factory()->create([
+            'number' => 'ORD-COLLAB-VA',
+            'price_amount' => 15000,
+            'currency_code' => 'IDR',
+            'customer_id' => $user->id,
+            'payment_method_id' => $paymentMethod->id,
+            'payment_status' => PaymentStatus::Pending,
+            'status' => OrderStatus::New,
+        ]);
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/create' => Http::sequence()
+                ->push([
+                    'meta' => ['message' => 'success create payment', 'code' => 200, 'status' => 'success'],
+                    'data' => [
+                        'payment_id' => 'KPAY-5292/KM/2026',
+                        'payment_url' => 'https://pay-sandbox.komerce.my.id/example',
+                        'va_number' => '381659999574893',
+                        'qr_string' => '',
+                        'bank_code' => 'BCA',
+                        'amount' => 15000,
+                        'status' => 'PENDING',
+                        'expired_at' => '2026-08-05T05:04:54.252204638+07:00',
+                    ],
+                ])
+                ->push([
+                    'meta' => ['message' => 'success create payment', 'code' => 200, 'status' => 'success'],
+                    'data' => [
+                        'payment_id' => 'KPAY-b307/KM/2026',
+                        'payment_url' => 'https://pay-sandbox.komerce.my.id/qris-example',
+                        'va_number' => '',
+                        'qr_string' => '00020101021226640013ID.CO.QRIS.WWW',
+                        'bank_code' => '',
+                        'amount' => 12000,
+                        'status' => 'PENDING',
+                        'expired_at' => '2026-08-05T04:09:55.141807+07:00',
+                    ],
+                ]),
+        ]);
+
+        $va = resolve(CreateKomercePayment::class)->handle($vaOrder, [
+            'driver' => 'komerce',
+            'channel_code' => 'BCA',
+            'payment_type' => 'bank_transfer',
+        ]);
+
+        $this->assertSame('KPAY-5292/KM/2026', $va['payment_id']);
+        $this->assertSame('381659999574893', $va['virtual_account_number']);
+        $this->assertSame('BCA', $va['bank_code']);
+        $this->assertSame('2026-08-05T05:04:54.252204638+07:00', $va['expiry_date']);
+        $this->assertSame('https://pay-sandbox.komerce.my.id/example', $va['payment_url']);
+
+        $qrisOrder = Order::factory()->create([
+            'number' => 'ORD-COLLAB-QRIS',
+            'price_amount' => 12000,
+            'currency_code' => 'IDR',
+            'customer_id' => $user->id,
+            'payment_method_id' => $paymentMethod->id,
+            'payment_status' => PaymentStatus::Pending,
+            'status' => OrderStatus::New,
+        ]);
+
+        $qris = resolve(CreateKomercePayment::class)->handle($qrisOrder, [
+            'driver' => 'komerce',
+            'payment_type' => 'qris',
+        ]);
+
+        $this->assertSame('KPAY-b307/KM/2026', $qris['payment_id']);
+        $this->assertSame('00020101021226640013ID.CO.QRIS.WWW', $qris['qris_string']);
+        $this->assertSame('2026-08-05T04:09:55.141807+07:00', $qris['expiry_date']);
+        $this->assertSame('https://pay-sandbox.komerce.my.id/qris-example', $qris['payment_url']);
+    }
+
     public function test_place_order_komerce_payment_failure_redirects_to_account_order_with_pending_order(): void
     {
         $this->komerceFakeConfig();

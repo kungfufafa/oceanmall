@@ -131,10 +131,12 @@ Jangan commit `.env` atau API key asli.
 4. Buat Payment Method dengan `driver=komerce` (metadata `payment_type` = `bank_transfer` + `channel_code` bank, atau `qris`), aktifkan di zone Indonesia.
 5. Jalankan queue worker (`composer run dev` sudah include) + scheduler (`php artisan schedule:work`) untuk AWB create, tracking poll, dan expire unpaid.
 6. Di storefront checkout: isi alamat + **cari district** (RajaOngkir destination) → pilih kurir → pilih VA/QRIS → Place order.
-7. Salin instruksi bayar (nomor VA / QRIS). Simulasikan callback paid ke webhook, atau gunakan status sandbox Komerce.
+7. Salin instruksi bayar (nomor VA / QRIS). Response Payment API memakai field `va_number` / `qr_string` / `expired_at` / `payment_url` — storefront sudah memetakan ke panel VA/QRIS.
 8. Order harus beralih ke `payment_status=paid`; job membuat AWB per shipment.
 9. Admin ops: buka `/admin/orders/{id}` untuk print label / override gudang (sebelum AWB).
 10. Customer di `/account/orders/{id}`: Track package → status dinormalisasi; atau **Mark as received** untuk menutup order.
+
+Catatan QRISLY: tanpa `KOMERCE_QRISLY_QRIS_ID`, QRISLY dimatikan otomatis dan QRIS tetap lewat Payment API.
 
 ### Staging happy path (beli → diterima)
 
