@@ -4,6 +4,13 @@ import { ref } from 'vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { useStripeElements } from '@/composables/useStripeElements';
 import { cart as cartRoute } from '@/routes/shop';
 import type { Order } from '@/types/shop';
@@ -42,29 +49,37 @@ async function pay(): Promise<void> {
 
     <Container class="py-8 lg:py-12">
         <div class="mx-auto max-w-xl">
-            <h1 class="om-page-title hidden !text-lg lg:block">
-                Selesaikan pembayaran
-            </h1>
-            <p class="om-meta mt-2">
-                Pesanan
-                <span class="font-mono text-foreground">{{ order.number }}</span>
-            </p>
+            <Card
+                class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none"
+            >
+                <CardHeader class="gap-1 p-4 pb-0">
+                    <CardTitle class="hidden text-lg lg:block">
+                        Selesaikan pembayaran
+                    </CardTitle>
+                    <CardDescription>
+                        Pesanan
+                        <span class="font-mono text-foreground">{{ order.number }}</span>
+                    </CardDescription>
+                </CardHeader>
 
-            <form class="mt-8 flex flex-col gap-4" @submit.prevent="pay">
-                <div ref="paymentElementRef" />
+                <CardContent class="p-4">
+                    <form class="flex flex-col gap-4" @submit.prevent="pay">
+                        <div ref="paymentElementRef" />
 
-                <p v-if="error" class="text-[13px] text-red-600">{{ error }}</p>
+                        <p v-if="error" class="text-[13px] text-red-600">{{ error }}</p>
 
-                <Button
-                    type="submit"
-                    size="xl"
-                    class="w-full"
-                    :disabled="!ready || submitting"
-                >
-                    <span v-if="submitting">Memproses…</span>
-                    <span v-else>Bayar sekarang</span>
-                </Button>
-            </form>
+                        <Button
+                            type="submit"
+                            size="xl"
+                            class="w-full"
+                            :disabled="!ready || submitting"
+                        >
+                            <span v-if="submitting">Memproses…</span>
+                            <span v-else>Bayar sekarang</span>
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
         </div>
     </Container>
 </template>

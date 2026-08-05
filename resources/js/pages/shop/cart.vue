@@ -3,12 +3,17 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { ShoppingBag, Trash2 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
-import Card from '@/components/shop/card.vue';
 import Container from '@/components/shop/container.vue';
 import CouponField from '@/components/shop/coupon-field.vue';
 import EmptyState from '@/components/shop/empty-state.vue';
 import QtyStepper from '@/components/shop/qty-stepper.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/composables/useCart';
 import { useShop } from '@/composables/useShop';
@@ -85,7 +90,7 @@ function confirmClear(): void {
 
     <Container class="pb-8 lg:py-8">
         <div class="hidden items-center justify-between lg:flex">
-            <h1 class="om-page-title !text-lg">
+            <h1 class="text-lg font-semibold tracking-tight text-foreground">
                 Keranjang
                 <span v-if="!isEmpty" class="font-medium text-muted-foreground">
                     ({{ itemCount }})
@@ -121,159 +126,169 @@ function confirmClear(): void {
             v-else
             class="lg:mt-6 lg:grid lg:grid-cols-12 lg:gap-x-12"
         >
-            <ul role="list" class="divide-y divide-border lg:col-span-7">
-                <li
-                    v-for="line in cart!.lines"
-                    :key="line.id"
-                    class="flex gap-3 py-3.5"
-                >
-                    <div
-                        class="size-16 shrink-0 overflow-hidden rounded-md bg-muted sm:size-[72px]"
-                    >
-                        <img
-                            v-if="line.purchasable.thumbnail"
-                            :src="line.purchasable.thumbnail"
-                            :alt="lineName(line.purchasable)"
-                            class="size-full object-cover object-center"
-                        />
-                    </div>
+            <Card
+                class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none lg:col-span-7"
+            >
+                <CardContent class="p-0">
+                    <ul role="list" class="divide-y divide-border">
+                        <li
+                            v-for="line in cart!.lines"
+                            :key="line.id"
+                            class="flex gap-3 p-4"
+                        >
+                            <div
+                                class="size-16 shrink-0 overflow-hidden rounded-md bg-muted sm:size-[72px]"
+                            >
+                                <img
+                                    v-if="line.purchasable.thumbnail"
+                                    :src="line.purchasable.thumbnail"
+                                    :alt="lineName(line.purchasable)"
+                                    class="size-full object-cover object-center"
+                                />
+                            </div>
 
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="min-w-0">
-                                <h3
-                                    class="line-clamp-2 text-[13px] leading-snug font-medium text-foreground"
-                                >
-                                    <Link
-                                        v-if="productSlug(line.purchasable)"
-                                        :href="
-                                            shop.product.url({
-                                                product: productSlug(
-                                                    line.purchasable,
-                                                ) as string,
-                                            })
-                                        "
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <h3
+                                            class="line-clamp-2 text-[13px] leading-snug font-medium text-foreground"
+                                        >
+                                            <Link
+                                                v-if="productSlug(line.purchasable)"
+                                                :href="
+                                                    shop.product.url({
+                                                        product: productSlug(
+                                                            line.purchasable,
+                                                        ) as string,
+                                                    })
+                                                "
+                                            >
+                                                {{ lineName(line.purchasable) }}
+                                            </Link>
+                                            <template v-else>
+                                                {{ lineName(line.purchasable) }}
+                                            </template>
+                                        </h3>
+                                        <p class="mt-0.5 text-[12px] text-muted-foreground">
+                                            {{
+                                                formatMoney(
+                                                    line.unit_price_amount,
+                                                    currency,
+                                                )
+                                            }}
+                                        </p>
+                                    </div>
+
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        class="shrink-0 text-muted-foreground"
+                                        aria-label="Hapus"
+                                        @click="cartActions.remove(line.id)"
                                     >
-                                        {{ lineName(line.purchasable) }}
-                                    </Link>
-                                    <template v-else>
-                                        {{ lineName(line.purchasable) }}
-                                    </template>
-                                </h3>
-                                <p class="mt-0.5 text-[12px] text-muted-foreground">
+                                        <Trash2 class="size-4" stroke-width="1.75" />
+                                    </Button>
+                                </div>
+
+                                <div class="mt-2.5 flex items-center justify-between gap-3">
+                                    <QtyStepper
+                                        :model-value="line.quantity"
+                                        :min="1"
+                                        size="sm"
+                                        @update:model-value="
+                                            cartActions.update(line.id, $event)
+                                        "
+                                    />
+
+                                    <p
+                                        class="text-[13px] font-bold text-[var(--om-navy)]"
+                                    >
+                                        {{
+                                            formatMoney(
+                                                line.unit_price_amount * line.quantity,
+                                                currency,
+                                            )
+                                        }}
+                                    </p>
+                                </div>
+                            </div>
+                        </li>
+                    </ul>
+                </CardContent>
+            </Card>
+
+            <aside class="mt-6 lg:col-span-5 lg:mt-0">
+                <Card
+                    class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none lg:sticky lg:top-6"
+                >
+                    <CardHeader class="gap-1 p-4 pb-0">
+                        <CardTitle class="text-[14px]">Ringkasan</CardTitle>
+                    </CardHeader>
+                    <CardContent class="flex flex-col gap-3 p-4">
+                        <CouponField :coupon-code="couponCode" />
+                        <dl class="flex flex-col gap-2 text-[13px]">
+                            <div class="flex justify-between text-muted-foreground">
+                                <dt>Subtotal {{ taxLabel }}</dt>
+                                <dd class="font-medium text-foreground">
                                     {{
                                         formatMoney(
-                                            line.unit_price_amount,
+                                            cartContext?.subtotal ?? 0,
                                             currency,
                                         )
                                     }}
-                                </p>
+                                </dd>
                             </div>
-
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                class="shrink-0 text-muted-foreground"
-                                aria-label="Hapus"
-                                @click="cartActions.remove(line.id)"
+                            <div
+                                v-if="cartContext && cartContext.discountTotal > 0"
+                                class="flex justify-between text-muted-foreground"
                             >
-                                <Trash2 class="size-4" stroke-width="1.75" />
-                            </Button>
-                        </div>
-
-                        <div class="mt-2.5 flex items-center justify-between gap-3">
-                            <QtyStepper
-                                :model-value="line.quantity"
-                                :min="1"
-                                size="sm"
-                                @update:model-value="
-                                    cartActions.update(line.id, $event)
-                                "
-                            />
-
-                            <p
-                                class="text-[13px] font-bold text-[var(--om-navy)]"
+                                <dt>Diskon</dt>
+                                <dd class="font-medium text-emerald-600">
+                                    −{{
+                                        formatMoney(
+                                            cartContext.discountTotal,
+                                            currency,
+                                        )
+                                    }}
+                                </dd>
+                            </div>
+                            <div class="flex justify-between text-muted-foreground">
+                                <dt>Ongkir</dt>
+                                <dd>Di checkout</dd>
+                            </div>
+                        </dl>
+                        <Separator />
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-[13px] font-bold text-foreground"
+                                >Total</span
                             >
-                                {{
-                                    formatMoney(
-                                        line.unit_price_amount * line.quantity,
-                                        currency,
-                                    )
-                                }}
-                            </p>
+                            <span class="text-lg font-semibold tracking-tight text-foreground">
+                                {{ formatMoney(totalAmount, currency) }}
+                            </span>
                         </div>
-                    </div>
-                </li>
-            </ul>
-
-            <aside class="mt-6 lg:col-span-5 lg:mt-0">
-                <Card class="lg:sticky lg:top-6" content-class="p-4">
-                    <h2 class="om-page-title !text-[14px]">Ringkasan</h2>
-                    <div class="mt-3">
-                        <CouponField :coupon-code="couponCode" />
-                    </div>
-                    <dl class="mt-3 flex flex-col gap-2 text-[13px]">
-                        <div class="flex justify-between text-muted-foreground">
-                            <dt>Subtotal {{ taxLabel }}</dt>
-                            <dd class="font-medium text-foreground">
-                                {{
-                                    formatMoney(
-                                        cartContext?.subtotal ?? 0,
-                                        currency,
-                                    )
-                                }}
-                            </dd>
-                        </div>
-                        <div
-                            v-if="cartContext && cartContext.discountTotal > 0"
-                            class="flex justify-between text-muted-foreground"
+                        <Button
+                            as-child
+                            size="xl"
+                            class="hidden w-full lg:flex"
                         >
-                            <dt>Diskon</dt>
-                            <dd class="font-medium text-emerald-600">
-                                −{{
-                                    formatMoney(
-                                        cartContext.discountTotal,
-                                        currency,
-                                    )
+                            <Link :href="checkout.index.url()">
+                                {{
+                                    page.props.auth.user
+                                        ? 'Bayar'
+                                        : 'Masuk untuk bayar'
                                 }}
-                            </dd>
-                        </div>
-                        <div class="flex justify-between text-muted-foreground">
-                            <dt>Ongkir</dt>
-                            <dd>Di checkout</dd>
-                        </div>
-                    </dl>
-                    <Separator class="mt-3" />
-                    <div class="mt-3 flex items-center justify-between gap-3">
-                        <span class="text-[13px] font-bold text-foreground"
-                            >Total</span
+                            </Link>
+                        </Button>
+                        <Button
+                            as-child
+                            variant="link"
+                            size="sm"
+                            class="hidden h-auto px-0 text-[12px] font-bold lg:inline-flex"
                         >
-                        <span class="om-page-title">
-                            {{ formatMoney(totalAmount, currency) }}
-                        </span>
-                    </div>
-                    <Button
-                        as-child
-                        size="xl"
-                        class="mt-4 hidden w-full lg:flex"
-                    >
-                        <Link :href="checkout.index.url()">
-                            {{
-                                page.props.auth.user
-                                    ? 'Bayar'
-                                    : 'Masuk untuk bayar'
-                            }}
-                        </Link>
-                    </Button>
-                    <Button
-                        as-child
-                        variant="link"
-                        size="sm"
-                        class="mt-2.5 hidden h-auto px-0 text-[12px] font-bold lg:inline-flex"
-                    >
-                        <Link :href="shop.index.url()"> Lanjut belanja </Link>
-                    </Button>
+                            <Link :href="shop.index.url()"> Lanjut belanja </Link>
+                        </Button>
+                    </CardContent>
                 </Card>
             </aside>
         </div>
@@ -297,7 +312,7 @@ function confirmClear(): void {
                 >
                     Total {{ taxLabel }}
                 </p>
-                <p class="om-page-title">
+                <p class="text-lg font-semibold tracking-tight text-foreground">
                     {{ formatMoney(totalAmount, currency) }}
                 </p>
             </div>

@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import { MessageCircle, RotateCcw, ShieldCheck, Truck } from 'lucide-vue-next';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardTitle,
+} from '@/components/ui/card';
 
 const badges = [
     {
@@ -27,25 +33,33 @@ const badges = [
 
 <template>
     <div class="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
-        <div
+        <Card
             v-for="badge in badges"
             :key="badge.title"
-            class="flex flex-col items-center rounded-md border border-border bg-muted px-3 py-4 text-center"
+            class="gap-0 rounded-md border-border bg-muted py-0 text-card-foreground shadow-none"
         >
-            <div
-                class="flex size-11 items-center justify-center rounded-full bg-[var(--om-navy)]/10"
+            <CardContent
+                class="flex flex-col items-center gap-3 px-3 py-4 text-center"
             >
-                <component
-                    :is="badge.icon"
-                    class="size-5 text-[var(--om-navy)]"
-                />
-            </div>
-            <h3
-                class="mt-3 font-heading text-sm font-semibold text-[var(--om-navy)]"
-            >
-                {{ badge.title }}
-            </h3>
-            <p class="om-meta mt-0.5 !text-xs">{{ badge.description }}</p>
-        </div>
+                <div
+                    class="flex size-11 items-center justify-center rounded-full bg-[var(--om-navy)]/10"
+                >
+                    <component
+                        :is="badge.icon"
+                        class="size-5 text-[var(--om-navy)]"
+                    />
+                </div>
+                <div class="flex flex-col gap-0.5">
+                    <CardTitle
+                        class="font-heading text-sm text-[var(--om-navy)]"
+                    >
+                        {{ badge.title }}
+                    </CardTitle>
+                    <CardDescription class="text-xs">
+                        {{ badge.description }}
+                    </CardDescription>
+                </div>
+            </CardContent>
+        </Card>
     </div>
 </template>

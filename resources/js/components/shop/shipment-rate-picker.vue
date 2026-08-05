@@ -3,6 +3,13 @@ import { computed } from 'vue';
 import SelectableCard from '@/components/shop/selectable-card.vue';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import {
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { formatMoney } from '@/lib/format';
 import type { DeliveryOption } from '@/types/shop';
@@ -79,87 +86,91 @@ defineExpose({ totalShipping, allSelected });
 
 <template>
     <div class="flex flex-col gap-6">
-        <div
+        <Card
             v-for="(pkg, pkgIndex) in packages"
             :key="pkg.inventory_id"
-            class="rounded-md border border-border bg-card p-4"
+            class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none"
         >
-            <h3 class="mb-3 flex items-center gap-2">
+            <CardHeader class="flex flex-row items-center gap-2 p-4 pb-0">
                 <Badge variant="secondary">Paket {{ pkgIndex + 1 }}</Badge>
-                <span class="text-sm font-semibold text-foreground">
+                <CardTitle class="text-sm">
                     {{ pkg.inventory_name }}
-                </span>
-            </h3>
+                </CardTitle>
+            </CardHeader>
 
-            <Alert
-                v-if="!optionsFor(pkg.inventory_id).length"
-                variant="warning"
-            >
-                <AlertDescription class="text-sm text-current">
-                    {{
-                        emptyHint ||
-                        'Belum ada opsi pengiriman untuk paket ini. Pastikan gudang punya origin RajaOngkir dan destinasi sudah dipilih.'
-                    }}
-                </AlertDescription>
-            </Alert>
-
-            <RadioGroup
-                v-else
-                :model-value="selectedRateFor(pkg.inventory_id)"
-                class="flex flex-col gap-2"
-                @update:model-value="
-                    (value) => selectRate(pkg.inventory_id, value)
-                "
-            >
-                <SelectableCard
-                    v-for="option in optionsFor(pkg.inventory_id)"
-                    :key="String(option.service_code)"
-                    :id="`shipment_rate_${pkg.inventory_id}_${option.service_code}`"
-                    :value="String(option.service_code)"
-                    class="items-center p-3"
+            <CardContent class="p-4">
+                <Alert
+                    v-if="!optionsFor(pkg.inventory_id).length"
+                    variant="warning"
                 >
-                    <div class="flex items-center justify-between gap-4">
-                        <div class="flex items-start gap-3">
-                            <img
-                                v-if="option.carrier_logo"
-                                :src="option.carrier_logo"
-                                :alt="option.carrier_name ?? ''"
-                                class="mt-0.5 size-5 rounded-full object-cover"
-                            />
-                            <div class="flex flex-col">
-                                <span class="text-sm font-medium text-foreground">
-                                    {{ option.service_name }}
-                                </span>
-                                <span
-                                    v-if="option.estimated_days"
-                                    class="text-xs text-muted-foreground"
-                                >
-                                    {{ option.estimated_days }} hari
-                                </span>
-                                <span
-                                    v-else-if="option.description"
-                                    class="text-xs text-muted-foreground"
-                                >
-                                    {{ option.description }}
-                                </span>
-                            </div>
-                        </div>
-                        <span class="shrink-0 text-sm font-medium text-foreground">
-                            {{ formatMoney(option.amount, option.currency) }}
-                        </span>
-                    </div>
-                </SelectableCard>
-            </RadioGroup>
-        </div>
+                    <AlertDescription class="text-sm text-current">
+                        {{
+                            emptyHint ||
+                            'Belum ada opsi pengiriman untuk paket ini. Pastikan gudang punya origin RajaOngkir dan destinasi sudah dipilih.'
+                        }}
+                    </AlertDescription>
+                </Alert>
 
-        <div
+                <RadioGroup
+                    v-else
+                    :model-value="selectedRateFor(pkg.inventory_id)"
+                    class="flex flex-col gap-2"
+                    @update:model-value="
+                        (value) => selectRate(pkg.inventory_id, value)
+                    "
+                >
+                    <SelectableCard
+                        v-for="option in optionsFor(pkg.inventory_id)"
+                        :key="String(option.service_code)"
+                        :id="`shipment_rate_${pkg.inventory_id}_${option.service_code}`"
+                        :value="String(option.service_code)"
+                        class="items-center p-3"
+                    >
+                        <div class="flex items-center justify-between gap-4">
+                            <div class="flex items-start gap-3">
+                                <img
+                                    v-if="option.carrier_logo"
+                                    :src="option.carrier_logo"
+                                    :alt="option.carrier_name ?? ''"
+                                    class="mt-0.5 size-5 rounded-full object-cover"
+                                />
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-medium text-foreground">
+                                        {{ option.service_name }}
+                                    </span>
+                                    <span
+                                        v-if="option.estimated_days"
+                                        class="text-xs text-muted-foreground"
+                                    >
+                                        {{ option.estimated_days }} hari
+                                    </span>
+                                    <span
+                                        v-else-if="option.description"
+                                        class="text-xs text-muted-foreground"
+                                    >
+                                        {{ option.description }}
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="shrink-0 text-sm font-medium text-foreground">
+                                {{ formatMoney(option.amount, option.currency) }}
+                            </span>
+                        </div>
+                    </SelectableCard>
+                </RadioGroup>
+            </CardContent>
+        </Card>
+
+        <Card
             v-if="packages.length > 1 && allSelected"
-            class="flex items-center justify-between rounded-md border border-border bg-muted px-4 py-3 text-sm"
+            class="gap-0 rounded-md border-border bg-muted py-0 text-card-foreground shadow-none"
         >
-            <span class="text-muted-foreground">Total ongkir</span>
-            <span class="font-semibold text-foreground">{{
-                formatMoney(totalShipping, totalCurrency)
-            }}</span>
-        </div>
+            <CardFooter class="justify-between px-4 py-3 text-sm">
+                <span class="text-muted-foreground">Total ongkir</span>
+                <span class="font-semibold text-foreground">{{
+                    formatMoney(totalShipping, totalCurrency)
+                }}</span>
+            </CardFooter>
+        </Card>
     </div>
 </template>

@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import {
+    Card,
+    CardContent,
+    CardHeader,
+} from '@/components/ui/card';
+import {
     Dialog,
     DialogContent,
     DialogDescription,
@@ -105,70 +110,74 @@ function select(country: CountryByZoneData): void {
             <DialogContent
                 class="border-0 bg-transparent p-0 shadow-none sm:max-w-lg"
             >
-                <div
-                    class="flex flex-col gap-4 rounded-md border border-border bg-card p-4"
+                <Card
+                    class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none"
                 >
-                    <DialogTitle class="om-page-title !text-lg"
-                        >Pilih negara</DialogTitle
-                    >
+                    <CardHeader class="gap-2 p-4 pb-0">
+                        <DialogTitle class="text-lg font-semibold leading-none">
+                            Pilih negara
+                        </DialogTitle>
 
-                    <DialogDescription
-                        v-if="zone"
-                        class="text-sm text-muted-foreground"
-                    >
-                        Saat ini dikirim ke:
-                        <span class="font-semibold text-[var(--om-navy)]">{{
-                            zone.country_name
-                        }}</span>
-                    </DialogDescription>
-
-                    <DialogDescription class="text-sm text-muted-foreground">
-                        Mengganti negara dapat mengubah harga dan mata uang.
-                    </DialogDescription>
-
-                    <div
-                        class="mt-4 max-h-96 divide-y divide-border overflow-y-auto"
-                    >
-                        <div
-                            v-for="(countries, zoneName) in grouped"
-                            :key="zoneName"
-                            class="py-4"
+                        <DialogDescription
+                            v-if="zone"
+                            class="text-sm text-muted-foreground"
                         >
-                            <h4
-                                class="text-sm font-medium text-[var(--om-navy)]"
+                            Saat ini dikirim ke:
+                            <span class="font-semibold text-[var(--om-navy)]">{{
+                                zone.country_name
+                            }}</span>
+                        </DialogDescription>
+
+                        <DialogDescription class="text-sm text-muted-foreground">
+                            Mengganti negara dapat mengubah harga dan mata uang.
+                        </DialogDescription>
+                    </CardHeader>
+
+                    <CardContent class="p-4">
+                        <div
+                            class="max-h-96 divide-y divide-border overflow-y-auto"
+                        >
+                            <div
+                                v-for="(countries, zoneName) in grouped"
+                                :key="zoneName"
+                                class="py-4 first:pt-0 last:pb-0"
                             >
-                                {{ zoneName }}
-                            </h4>
-                            <ul role="listbox" class="mt-2 flex flex-col gap-1">
-                                <li
-                                    v-for="country in countries"
-                                    :key="country.countryId"
+                                <h4
+                                    class="text-sm font-medium text-[var(--om-navy)]"
                                 >
-                                    <button
-                                        type="button"
-                                        :class="[
-                                            'flex w-full items-center rounded-md px-3 py-2 text-sm transition',
-                                            zone?.country_code ===
-                                            country.countryCode
-                                                ? 'bg-muted font-medium text-[var(--om-navy)]'
-                                                : 'text-muted-foreground hover:bg-accent',
-                                        ]"
-                                        @click="select(country)"
+                                    {{ zoneName }}
+                                </h4>
+                                <ul role="listbox" class="mt-2 flex flex-col gap-1">
+                                    <li
+                                        v-for="country in countries"
+                                        :key="country.countryId"
                                     >
-                                        <img
-                                            :src="country.countryFlag"
-                                            alt=""
-                                            class="block h-auto w-5 shrink-0 rounded-xs"
-                                        />
-                                        <span class="ml-2">{{
-                                            country.countryName
-                                        }}</span>
-                                    </button>
-                                </li>
-                            </ul>
+                                        <button
+                                            type="button"
+                                            :class="[
+                                                'flex w-full items-center rounded-md px-3 py-2 text-sm transition',
+                                                zone?.country_code ===
+                                                country.countryCode
+                                                    ? 'bg-muted font-medium text-[var(--om-navy)]'
+                                                    : 'text-muted-foreground hover:bg-accent',
+                                            ]"
+                                            @click="select(country)"
+                                        >
+                                            <img
+                                                :src="country.countryFlag"
+                                                alt=""
+                                                class="block h-auto w-5 shrink-0 rounded-xs"
+                                            />
+                                            <span class="ml-2">{{
+                                                country.countryName
+                                            }}</span>
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
             </DialogContent>
         </Dialog>
     </div>

@@ -5,6 +5,13 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { formatMoney } from '@/lib/format';
 
 export type KomercePaymentInstructions = {
@@ -93,58 +100,66 @@ watch(
 </script>
 
 <template>
-    <div class="overflow-hidden rounded-md border border-border bg-card">
-        <div class="border-b border-border bg-muted px-4 py-3">
+    <Card
+        class="gap-0 overflow-hidden rounded-md border-border bg-card py-0 text-card-foreground shadow-none"
+    >
+        <CardHeader class="gap-2 border-b border-border bg-muted p-4">
             <div class="flex items-center justify-between gap-3">
-                <div>
-                    <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                <div class="flex flex-col gap-0.5">
+                    <CardDescription
+                        class="text-[11px] font-semibold tracking-wide uppercase"
+                    >
                         Total dibayar
-                    </p>
-                    <p class="mt-0.5 text-2xl font-bold text-[var(--om-navy)]">
+                    </CardDescription>
+                    <CardTitle class="text-2xl font-bold text-[var(--om-navy)]">
                         {{ formatMoney(payment.amount, payment.currency_code) }}
-                    </p>
+                    </CardTitle>
                 </div>
                 <Badge variant="warning" class="shrink-0 rounded-md">
                     Belum dibayar
                 </Badge>
             </div>
-            <p v-if="formattedExpiry" class="mt-2 text-[12px] text-muted-foreground">
+            <p v-if="formattedExpiry" class="text-[12px] text-muted-foreground">
                 Bayar sebelum
                 <span class="font-semibold text-foreground">{{
                     formattedExpiry
                 }}</span>
             </p>
-        </div>
+        </CardHeader>
 
-        <div class="flex flex-col gap-4 p-4">
+        <CardContent class="flex flex-col gap-4 p-4">
             <p class="text-[13px] font-semibold text-foreground">
                 Cara bayar · {{ methodLabel }}
             </p>
 
             <template v-if="isVa && payment.virtual_account_number">
-                <div>
-                    <p class="om-meta mb-1.5 !text-[11px]">
+                <div class="flex flex-col gap-1.5">
+                    <p class="text-[11px] font-medium text-muted-foreground">
                         Nomor Virtual Account
                     </p>
-                    <div
-                        class="flex items-center justify-between gap-2 rounded-md border border-border bg-muted px-3 py-3"
+                    <Card
+                        class="gap-0 rounded-md border-border bg-muted py-0 shadow-none"
                     >
-                        <span
-                            class="font-mono text-lg font-bold tracking-wider text-[var(--om-navy)] sm:text-xl"
+                        <CardContent
+                            class="flex items-center justify-between gap-2 p-3"
                         >
-                            {{ payment.virtual_account_number }}
-                        </span>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            class="h-9 shrink-0 text-[12px]"
-                            @click="copy(payment.virtual_account_number!)"
-                        >
-                            <Copy class="size-3.5" aria-hidden="true" />
-                            {{ copied ? 'Tersalin' : 'Salin' }}
-                        </Button>
-                    </div>
+                            <span
+                                class="font-mono text-lg font-bold tracking-wider text-[var(--om-navy)] sm:text-xl"
+                            >
+                                {{ payment.virtual_account_number }}
+                            </span>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                class="h-9 shrink-0 text-[12px]"
+                                @click="copy(payment.virtual_account_number!)"
+                            >
+                                <Copy class="size-3.5" aria-hidden="true" />
+                                {{ copied ? 'Tersalin' : 'Salin' }}
+                            </Button>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <ol class="flex flex-col gap-2 text-[13px] text-muted-foreground">
@@ -173,62 +188,64 @@ watch(
             </template>
 
             <template v-else-if="isQris && payment.qris_string">
-                <div
-                    class="flex flex-col items-center gap-3 rounded-md border border-border bg-muted p-4"
+                <Card
+                    class="gap-0 rounded-md border-border bg-muted py-0 shadow-none"
                 >
-                    <img
-                        v-if="qrDataUrl"
-                        :src="qrDataUrl"
-                        alt="Kode QRIS"
-                        class="size-[220px] rounded-md bg-white"
-                        width="220"
-                        height="220"
-                    />
-                    <p
-                        v-else-if="qrError"
-                        class="text-center text-[12px] text-red-600"
+                    <CardContent
+                        class="flex flex-col items-center gap-3 p-4"
                     >
-                        QR gagal dimuat. Salin kode di bawah.
-                    </p>
-                    <p v-else class="text-[12px] text-muted-foreground">
-                        Menyiapkan QR…
-                    </p>
-                    <p class="text-center text-[12px] text-muted-foreground">
-                        Scan pakai GoPay, OVO, Dana, ShopeePay, atau m-banking
-                    </p>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        class="text-[12px] font-semibold text-[var(--om-navy)] hover:text-[var(--om-navy)]"
-                        @click="copy(payment.qris_string!)"
-                    >
-                        {{ copied ? 'Kode tersalin' : 'Salin kode QRIS' }}
-                    </Button>
-                </div>
+                        <img
+                            v-if="qrDataUrl"
+                            :src="qrDataUrl"
+                            alt="Kode QRIS"
+                            class="size-[220px] rounded-md bg-white"
+                            width="220"
+                            height="220"
+                        />
+                        <p
+                            v-else-if="qrError"
+                            class="text-center text-[12px] text-red-600"
+                        >
+                            QR gagal dimuat. Salin kode di bawah.
+                        </p>
+                        <p v-else class="text-[12px] text-muted-foreground">
+                            Menyiapkan QR…
+                        </p>
+                        <p class="text-center text-[12px] text-muted-foreground">
+                            Scan pakai GoPay, OVO, Dana, ShopeePay, atau m-banking
+                        </p>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            class="text-[12px] font-semibold text-[var(--om-navy)] hover:text-[var(--om-navy)]"
+                            @click="copy(payment.qris_string!)"
+                        >
+                            {{ copied ? 'Kode tersalin' : 'Salin kode QRIS' }}
+                        </Button>
+                    </CardContent>
+                </Card>
             </template>
 
-            <div
+            <Card
                 v-else-if="payment.payment_url"
-                class="rounded-md border border-border bg-muted p-4"
+                class="gap-0 rounded-md border-border bg-muted py-0 shadow-none"
             >
-                <p class="text-[13px] text-foreground">
-                    Instruksi lengkap tersedia di halaman pembayaran Komerce.
-                </p>
-                <Button
-                    as-child
-                    size="xl"
-                    class="mt-3"
-                >
-                    <a
-                        :href="payment.payment_url"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        Buka halaman bayar
-                    </a>
-                </Button>
-            </div>
+                <CardContent class="flex flex-col gap-3 p-4">
+                    <p class="text-[13px] text-foreground">
+                        Instruksi lengkap tersedia di halaman pembayaran Komerce.
+                    </p>
+                    <Button as-child size="xl">
+                        <a
+                            :href="payment.payment_url"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Buka halaman bayar
+                        </a>
+                    </Button>
+                </CardContent>
+            </Card>
 
             <Alert
                 v-else
@@ -244,6 +261,6 @@ watch(
             <p class="text-[10px] text-muted-foreground">
                 Ref {{ payment.payment_id }}
             </p>
-        </div>
-    </div>
+        </CardContent>
+    </Card>
 </template>

@@ -9,6 +9,13 @@ import type { KomercePaymentInstructions } from '@/components/shop/komerce-payme
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { formatMoney } from '@/lib/format';
 import { show as ordersShow } from '@/routes/account/orders';
 import * as shop from '@/routes/shop';
@@ -137,29 +144,33 @@ onBeforeUnmount(() => {
         <div class="mx-auto max-w-xl">
             <!-- Unpaid: payment-first -->
             <template v-if="needsPayment">
-                <div class="flex items-start gap-3">
-                    <div
-                        class="flex size-11 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-800"
-                    >
-                        <Clock3 class="size-5" aria-hidden="true" />
-                    </div>
-                    <div>
-                        <h1 class="om-page-title !text-base sm:!text-lg">
-                            Selesaikan pembayaran
-                        </h1>
-                        <p class="om-meta mt-1">
-                            Pesanan
-                            <span class="font-semibold text-foreground"
-                                >#{{ order.number }}</span
-                            >
-                            sudah dibuat. Bayar sekarang supaya langsung
-                            diproses.
-                        </p>
-                        <Badge variant="warning" class="mt-2">
-                            Belum dibayar
-                        </Badge>
-                    </div>
-                </div>
+                <Card
+                    class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none"
+                >
+                    <CardHeader class="flex flex-row items-start gap-3 p-4">
+                        <div
+                            class="flex size-11 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-800"
+                        >
+                            <Clock3 class="size-5" aria-hidden="true" />
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <CardTitle class="text-base sm:text-lg">
+                                Selesaikan pembayaran
+                            </CardTitle>
+                            <CardDescription>
+                                Pesanan
+                                <span class="font-semibold text-foreground"
+                                    >#{{ order.number }}</span
+                                >
+                                sudah dibuat. Bayar sekarang supaya langsung
+                                diproses.
+                            </CardDescription>
+                            <Badge variant="warning" class="mt-1 w-fit">
+                                Belum dibayar
+                            </Badge>
+                        </div>
+                    </CardHeader>
+                </Card>
 
                 <Alert
                     v-if="flashError || paymentError"
@@ -197,12 +208,12 @@ onBeforeUnmount(() => {
                             : 'Sudah bayar? Cek status'
                     }}
                 </Button>
-                <p class="om-meta mt-2 text-center !text-[11px]">
+                <p class="mt-2 text-center text-[11px] text-muted-foreground">
                     Status dicek otomatis tiap 15 detik. Atau ketuk tombol di
                     atas setelah transfer/scan.
                 </p>
 
-                <p class="om-meta mt-4 text-center !text-[11px]">
+                <p class="mt-4 text-center text-[11px] text-muted-foreground">
                     Belum sempat bayar? Instruksi tersimpan di
                     <Link
                         :href="ordersShow.url(order.id)"
@@ -237,8 +248,10 @@ onBeforeUnmount(() => {
 
             <!-- Paid / no pending instructions -->
             <template v-else>
-                <div class="text-center">
-                    <div class="flex justify-center">
+                <Card
+                    class="gap-0 rounded-md border-border bg-card py-0 text-center text-card-foreground shadow-none"
+                >
+                    <CardHeader class="items-center gap-4 p-4">
                         <div
                             class="flex size-14 items-center justify-center rounded-md"
                             :class="
@@ -258,100 +271,103 @@ onBeforeUnmount(() => {
                                 aria-hidden="true"
                             />
                         </div>
-                    </div>
 
-                    <h1 class="om-page-title mt-5 !text-lg">
-                        {{
-                            flashSuccess
-                                ? 'Pembayaran berhasil'
-                                : paymentSetupFailed
-                                  ? 'Pesanan dibuat — bayar belum siap'
-                                  : 'Pesanan berhasil dibuat'
-                        }}
-                    </h1>
-                    <p class="om-meta mt-2">
-                        Nomor pesanan
-                        <span class="font-semibold text-foreground"
-                            >#{{ order.number }}</span
-                        >
-                        ·
-                        {{
-                            formatMoney(
-                                order.price_amount,
-                                order.currency_code,
-                            )
-                        }}
-                    </p>
-                    <Badge
-                        v-if="paymentSetupFailed"
-                        variant="warning"
-                        class="mt-3"
-                    >
-                        Pembayaran belum siap
-                    </Badge>
-
-                    <Alert
-                        v-if="flashSuccess"
-                        variant="success"
-                        class="mt-4"
-                    >
-                        <AlertDescription class="text-[13px] text-current">
-                            {{ flashSuccess }}
-                        </AlertDescription>
-                    </Alert>
-
-                    <Alert
-                        v-else-if="flashError"
-                        variant="destructive"
-                        class="mt-4 text-left"
-                    >
-                        <AlertDescription class="text-[13px] text-current">
-                            {{ flashError }}
-                            <Link
-                                :href="ordersShow.url(order.id)"
-                                class="mt-2 block font-semibold text-[var(--om-navy)]"
+                        <div class="flex flex-col gap-2">
+                            <CardTitle class="text-lg">
+                                {{
+                                    flashSuccess
+                                        ? 'Pembayaran berhasil'
+                                        : paymentSetupFailed
+                                          ? 'Pesanan dibuat — bayar belum siap'
+                                          : 'Pesanan berhasil dibuat'
+                                }}
+                            </CardTitle>
+                            <CardDescription>
+                                Nomor pesanan
+                                <span class="font-semibold text-foreground"
+                                    >#{{ order.number }}</span
+                                >
+                                ·
+                                {{
+                                    formatMoney(
+                                        order.price_amount,
+                                        order.currency_code,
+                                    )
+                                }}
+                            </CardDescription>
+                            <Badge
+                                v-if="paymentSetupFailed"
+                                variant="warning"
+                                class="mx-auto w-fit"
                             >
-                                Bayar di detail pesanan →
-                            </Link>
-                        </AlertDescription>
-                    </Alert>
+                                Pembayaran belum siap
+                            </Badge>
+                        </div>
+                    </CardHeader>
 
-                    <Alert
-                        v-else-if="paymentSetupFailed"
-                        variant="warning"
-                        class="mt-4 text-left"
-                    >
-                        <AlertDescription class="text-[13px] text-current">
-                            Instruksi pembayaran belum tersedia. Buka detail
-                            pesanan untuk mencoba bayar lagi.
-                            <Link
-                                :href="ordersShow.url(order.id)"
-                                class="mt-2 block font-semibold text-[var(--om-navy)]"
-                            >
-                                Bayar di detail pesanan →
-                            </Link>
-                        </AlertDescription>
-                    </Alert>
-
-                    <div
-                        class="mt-8 flex flex-col gap-2 sm:flex-row sm:justify-center"
-                    >
-                        <Button as-child size="xl">
-                            <Link :href="ordersShow.url(order.id)">
-                                Lihat pesanan
-                            </Link>
-                        </Button>
-                        <Button
-                            as-child
-                            variant="outline"
-                            size="xl"
+                    <CardContent class="flex flex-col gap-4 p-4 pt-0">
+                        <Alert
+                            v-if="flashSuccess"
+                            variant="success"
                         >
-                            <Link :href="shop.index.url()">
-                                Lanjut belanja
-                            </Link>
-                        </Button>
-                    </div>
-                </div>
+                            <AlertDescription class="text-[13px] text-current">
+                                {{ flashSuccess }}
+                            </AlertDescription>
+                        </Alert>
+
+                        <Alert
+                            v-else-if="flashError"
+                            variant="destructive"
+                            class="text-left"
+                        >
+                            <AlertDescription class="text-[13px] text-current">
+                                {{ flashError }}
+                                <Link
+                                    :href="ordersShow.url(order.id)"
+                                    class="mt-2 block font-semibold text-[var(--om-navy)]"
+                                >
+                                    Bayar di detail pesanan →
+                                </Link>
+                            </AlertDescription>
+                        </Alert>
+
+                        <Alert
+                            v-else-if="paymentSetupFailed"
+                            variant="warning"
+                            class="text-left"
+                        >
+                            <AlertDescription class="text-[13px] text-current">
+                                Instruksi pembayaran belum tersedia. Buka detail
+                                pesanan untuk mencoba bayar lagi.
+                                <Link
+                                    :href="ordersShow.url(order.id)"
+                                    class="mt-2 block font-semibold text-[var(--om-navy)]"
+                                >
+                                    Bayar di detail pesanan →
+                                </Link>
+                            </AlertDescription>
+                        </Alert>
+
+                        <div
+                            class="flex flex-col gap-2 sm:flex-row sm:justify-center"
+                        >
+                            <Button as-child size="xl">
+                                <Link :href="ordersShow.url(order.id)">
+                                    Lihat pesanan
+                                </Link>
+                            </Button>
+                            <Button
+                                as-child
+                                variant="outline"
+                                size="xl"
+                            >
+                                <Link :href="shop.index.url()">
+                                    Lanjut belanja
+                                </Link>
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
             </template>
         </div>
     </Container>
