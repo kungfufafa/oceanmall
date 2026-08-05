@@ -2,6 +2,7 @@
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { Smartphone } from 'lucide-vue-next';
 import { computed } from 'vue';
+import Card from '@/components/shop/card.vue';
 import Container from '@/components/shop/container.vue';
 import HeroCarousel from '@/components/shop/hero-carousel.vue';
 import ProductRail from '@/components/shop/product-rail.vue';
@@ -39,11 +40,12 @@ function brandShopUrl(brandId: number): string {
 
     <div class="pb-6">
         <Container class="pt-3">
-            <div
+            <Card
                 v-if="isGuest"
-                class="rounded-md border border-[var(--om-navy)]/25 bg-white px-3 py-3"
+                class="border-[var(--om-navy)]/25"
+                content-class="px-3 py-3"
             >
-                <p class="om-meta leading-snug !text-zinc-600">
+                <p class="om-meta leading-snug !text-muted-foreground">
                     Masuk atau daftar akun OceanMall untuk kemudahan berbelanja
                     dan promo eksklusif bagi member
                 </p>
@@ -55,11 +57,11 @@ function brandShopUrl(brandId: number): string {
                         <Link :href="register.url()"> Daftar </Link>
                     </Button>
                 </div>
-            </div>
+            </Card>
 
-            <div
+            <Card
                 v-else
-                class="flex items-center justify-between rounded-md border border-zinc-200 px-3 py-2.5"
+                content-class="flex items-center justify-between px-3 py-2.5"
             >
                 <div>
                     <p class="text-[13px] font-semibold text-[var(--om-navy)]">
@@ -72,7 +74,7 @@ function brandShopUrl(brandId: number): string {
                 <Link :href="dashboard.url()" class="om-action-primary">
                     Akun
                 </Link>
-            </div>
+            </Card>
         </Container>
 
         <section v-if="categories.length" class="mt-4">
@@ -87,7 +89,7 @@ function brandShopUrl(brandId: number): string {
                         class="flex w-[4.5rem] shrink-0 flex-col items-center gap-1.5 text-center"
                     >
                         <div
-                            class="flex size-11 items-center justify-center overflow-hidden rounded-full bg-zinc-50 ring-1 ring-zinc-100"
+                            class="flex size-11 items-center justify-center overflow-hidden rounded-full bg-muted ring-1 ring-border/60"
                         >
                             <img
                                 v-if="category.thumbnail"
@@ -103,7 +105,7 @@ function brandShopUrl(brandId: number): string {
                             />
                         </div>
                         <span
-                            class="line-clamp-2 text-[11px] leading-tight font-medium text-zinc-700"
+                            class="line-clamp-2 text-[11px] leading-tight font-medium text-foreground"
                         >
                             {{ category.name }}
                         </span>
@@ -126,7 +128,7 @@ function brandShopUrl(brandId: number): string {
                         class="flex w-[4.25rem] shrink-0 flex-col items-center gap-1"
                     >
                         <div
-                            class="flex size-12 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-zinc-200"
+                            class="flex size-12 items-center justify-center overflow-hidden rounded-full bg-card ring-1 ring-border"
                         >
                             <img
                                 v-if="brand.thumbnail"
@@ -143,7 +145,7 @@ function brandShopUrl(brandId: number): string {
                             </span>
                         </div>
                         <span
-                            class="line-clamp-1 text-center text-[10px] text-zinc-600"
+                            class="line-clamp-1 text-center text-[10px] text-muted-foreground"
                         >
                             {{ brand.name }}
                         </span>

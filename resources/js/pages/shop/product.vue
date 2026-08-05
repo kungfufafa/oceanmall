@@ -263,7 +263,7 @@ function addToCart(): void {
             <div class="lg:grid lg:grid-cols-2 lg:gap-x-10">
                 <div>
                     <div
-                        class="relative aspect-square overflow-hidden rounded-md bg-zinc-100"
+                        class="relative aspect-square overflow-hidden rounded-md bg-muted"
                     >
                         <img
                             v-if="activeImage"
@@ -289,7 +289,7 @@ function addToCart(): void {
                             :key="url"
                             type="button"
                             :class="[
-                                'aspect-square overflow-hidden rounded-md bg-zinc-100 ring-2 ring-transparent',
+                                'aspect-square overflow-hidden rounded-md bg-muted ring-2 ring-transparent',
                                 activeImage === url &&
                                     'ring-[var(--om-navy)]',
                             ]"
@@ -353,8 +353,8 @@ function addToCart(): void {
                                                         option.id,
                                                         value.id,
                                                     )
-                                                  ? 'border-zinc-300'
-                                                  : 'cursor-not-allowed border-zinc-200 opacity-30',
+                                                  ? 'border-border hover:border-primary'
+                                                  : 'cursor-not-allowed border-border opacity-30',
                                         ]"
                                         :style="
                                             value.key
@@ -391,8 +391,8 @@ function addToCart(): void {
                                                         option.id,
                                                         value.id,
                                                     )
-                                                  ? 'border-zinc-300 text-zinc-900'
-                                                  : 'cursor-not-allowed border-zinc-200 text-zinc-300',
+                                                  ? 'border-border text-foreground hover:border-primary'
+                                                  : 'cursor-not-allowed border-border text-muted-foreground/50',
                                         ]"
                                         :disabled="
                                             !isOptionAvailable(
@@ -445,7 +445,7 @@ function addToCart(): void {
 
                 <div
                     v-if="reviews.totalCount > 0"
-                    class="mt-3 grid gap-4 rounded-md border border-zinc-200 bg-zinc-50/70 p-3.5 sm:grid-cols-[7.5rem_1fr] sm:gap-5 sm:p-4"
+                    class="mt-3 grid gap-4 rounded-md border border-border bg-muted/70 p-3.5 sm:grid-cols-[7.5rem_1fr] sm:gap-5 sm:p-4"
                 >
                     <div class="flex flex-col items-center justify-center text-center">
                         <p
@@ -470,12 +470,12 @@ function addToCart(): void {
                             class="flex items-center gap-2"
                         >
                             <span
-                                class="w-3 shrink-0 text-right text-[11px] font-medium text-zinc-600"
+                                class="w-3 shrink-0 text-right text-[11px] font-medium text-muted-foreground"
                             >
                                 {{ level }}
                             </span>
                             <div
-                                class="h-1.5 flex-1 overflow-hidden rounded-sm bg-zinc-200"
+                                class="h-1.5 flex-1 overflow-hidden rounded-sm bg-border"
                             >
                                 <div
                                     class="h-full rounded-sm bg-[var(--om-navy)]"
@@ -485,7 +485,7 @@ function addToCart(): void {
                                 />
                             </div>
                             <span
-                                class="w-8 shrink-0 text-right text-[11px] tabular-nums text-zinc-500"
+                                class="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground"
                             >
                                 {{ reviews.breakdown?.[level] ?? 0 }}
                             </span>
@@ -500,24 +500,25 @@ function addToCart(): void {
                 <template v-if="reviews.items.length">
                     <Separator class="mt-4" />
                     <div class="mt-3 flex items-center justify-between gap-3">
-                        <p class="text-[12px] font-semibold text-zinc-800">
+                        <p class="text-[12px] font-semibold text-foreground">
                             Semua ulasan
                         </p>
                         <div class="flex gap-1">
-                            <button
+                            <Button
                                 v-for="option in reviewSortOptions"
                                 :key="option.value"
                                 type="button"
-                                class="rounded-md px-2 py-1 text-[11px] font-semibold transition"
-                                :class="
+                                size="sm"
+                                :variant="
                                     reviewSort === option.value
-                                        ? 'bg-[var(--om-navy)] text-white'
-                                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                                        ? 'default'
+                                        : 'secondary'
                                 "
+                                class="h-7 px-2 text-[11px] font-semibold"
                                 @click="reviewSort = option.value"
                             >
                                 {{ option.label }}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </template>
@@ -525,7 +526,7 @@ function addToCart(): void {
                 <ul
                     v-if="sortedReviews.length"
                     role="list"
-                    class="mt-1 divide-y divide-zinc-100"
+                    class="mt-1 divide-y divide-border"
                 >
                     <li
                         v-for="review in sortedReviews"
@@ -534,7 +535,7 @@ function addToCart(): void {
                     >
                         <div class="flex gap-3">
                             <div
-                                class="flex size-9 shrink-0 items-center justify-center rounded-md bg-[#0a2a6b]/10 text-[11px] font-bold text-[var(--om-navy)]"
+                                class="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-[11px] font-bold text-[var(--om-navy)]"
                                 aria-hidden="true"
                             >
                                 {{ authorInitials(review.author_name) }}
@@ -544,7 +545,7 @@ function addToCart(): void {
                                     class="flex flex-wrap items-center gap-x-2 gap-y-1"
                                 >
                                     <p
-                                        class="text-[13px] font-semibold text-zinc-900"
+                                        class="text-[13px] font-semibold text-foreground"
                                     >
                                         {{ review.author_name }}
                                     </p>
@@ -563,7 +564,7 @@ function addToCart(): void {
                                     class="mt-1 flex flex-wrap items-center gap-2"
                                 >
                                     <RatingStars :value="review.rating" />
-                                    <span class="text-[11px] text-zinc-400">
+                                    <span class="text-[11px] text-muted-foreground">
                                         {{
                                             formatReviewDate(review.created_at)
                                         }}
@@ -571,13 +572,13 @@ function addToCart(): void {
                                 </div>
                                 <p
                                     v-if="review.title"
-                                    class="mt-2 text-[13px] font-medium text-zinc-800"
+                                    class="mt-2 text-[13px] font-medium text-foreground"
                                 >
                                     {{ review.title }}
                                 </p>
                                 <p
                                     v-if="review.content"
-                                    class="mt-1 text-[13px] leading-relaxed text-zinc-600"
+                                    class="mt-1 text-[13px] leading-relaxed text-muted-foreground"
                                 >
                                     {{ review.content }}
                                 </p>
@@ -588,7 +589,7 @@ function addToCart(): void {
 
                 <p
                     v-if="reviews.totalCount > reviews.items.length"
-                    class="mt-2 text-center text-[11px] text-zinc-500"
+                    class="mt-2 text-center text-[11px] text-muted-foreground"
                 >
                     Menampilkan {{ reviews.items.length }} dari
                     {{ reviews.totalCount }} ulasan
@@ -596,7 +597,7 @@ function addToCart(): void {
 
                 <form
                     v-if="canReview"
-                    class="mt-5 flex flex-col gap-3 rounded-md border border-zinc-200 p-3.5 sm:p-4"
+                    class="mt-5 flex flex-col gap-3 rounded-md border border-border bg-card p-3.5 sm:p-4"
                     @submit.prevent="submitReview"
                 >
                     <h3 class="text-[14px] font-semibold text-[var(--om-navy)]">
@@ -637,7 +638,7 @@ function addToCart(): void {
                             id="review-content"
                             v-model="reviewForm.content"
                             rows="3"
-                            class="om-control mt-1 w-full bg-white text-[13px]"
+                            class="om-control mt-1 w-full bg-background text-[13px]"
                             placeholder="Bagaimana pengalamanmu dengan produk ini?"
                             :aria-invalid="
                                 Boolean(reviewForm.errors.content) || undefined
@@ -679,7 +680,7 @@ function addToCart(): void {
             </section>
         </Container>
         <div
-            class="fixed inset-x-0 z-40 border-t border-zinc-200 bg-white px-4 py-2.5 sm:px-6 lg:hidden"
+            class="fixed inset-x-0 z-40 border-t border-border bg-card px-4 py-2.5 sm:px-6 lg:hidden"
             style="
                 bottom: calc(
                     var(--om-bottom-nav-height) +

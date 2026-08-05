@@ -3,6 +3,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { ShoppingBag, Trash2 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
+import Card from '@/components/shop/card.vue';
 import Container from '@/components/shop/container.vue';
 import CouponField from '@/components/shop/coupon-field.vue';
 import EmptyState from '@/components/shop/empty-state.vue';
@@ -76,7 +77,7 @@ function confirmClear(): void {
     >
         <template #title>
             Keranjang
-            <span v-if="!isEmpty" class="font-medium text-zinc-400">
+            <span v-if="!isEmpty" class="font-medium text-muted-foreground">
                 ({{ itemCount }})
             </span>
         </template>
@@ -86,7 +87,7 @@ function confirmClear(): void {
         <div class="hidden items-center justify-between lg:flex">
             <h1 class="om-page-title !text-lg">
                 Keranjang
-                <span v-if="!isEmpty" class="font-medium text-zinc-400">
+                <span v-if="!isEmpty" class="font-medium text-muted-foreground">
                     ({{ itemCount }})
                 </span>
             </h1>
@@ -95,7 +96,7 @@ function confirmClear(): void {
                 type="button"
                 variant="ghost"
                 size="sm"
-                class="h-auto px-0 text-zinc-500"
+                class="h-auto px-0 text-muted-foreground"
                 @click="confirmClear"
             >
                 Kosongkan
@@ -120,14 +121,14 @@ function confirmClear(): void {
             v-else
             class="lg:mt-6 lg:grid lg:grid-cols-12 lg:gap-x-12"
         >
-            <ul role="list" class="divide-y divide-zinc-100 lg:col-span-7">
+            <ul role="list" class="divide-y divide-border lg:col-span-7">
                 <li
                     v-for="line in cart!.lines"
                     :key="line.id"
                     class="flex gap-3 py-3.5"
                 >
                     <div
-                        class="size-16 shrink-0 overflow-hidden rounded-md bg-zinc-100 sm:size-[72px]"
+                        class="size-16 shrink-0 overflow-hidden rounded-md bg-muted sm:size-[72px]"
                     >
                         <img
                             v-if="line.purchasable.thumbnail"
@@ -141,7 +142,7 @@ function confirmClear(): void {
                         <div class="flex items-start justify-between gap-2">
                             <div class="min-w-0">
                                 <h3
-                                    class="line-clamp-2 text-[13px] leading-snug font-medium text-zinc-900"
+                                    class="line-clamp-2 text-[13px] leading-snug font-medium text-foreground"
                                 >
                                     <Link
                                         v-if="productSlug(line.purchasable)"
@@ -159,7 +160,7 @@ function confirmClear(): void {
                                         {{ lineName(line.purchasable) }}
                                     </template>
                                 </h3>
-                                <p class="mt-0.5 text-[12px] text-zinc-500">
+                                <p class="mt-0.5 text-[12px] text-muted-foreground">
                                     {{
                                         formatMoney(
                                             line.unit_price_amount,
@@ -173,7 +174,7 @@ function confirmClear(): void {
                                 type="button"
                                 variant="ghost"
                                 size="icon-sm"
-                                class="shrink-0 text-zinc-400"
+                                class="shrink-0 text-muted-foreground"
                                 aria-label="Hapus"
                                 @click="cartActions.remove(line.id)"
                             >
@@ -207,17 +208,15 @@ function confirmClear(): void {
             </ul>
 
             <aside class="mt-6 lg:col-span-5 lg:mt-0">
-                <div
-                    class="rounded-lg border border-zinc-200 p-4 lg:sticky lg:top-6"
-                >
+                <Card class="lg:sticky lg:top-6" content-class="p-4">
                     <h2 class="om-page-title !text-[14px]">Ringkasan</h2>
                     <div class="mt-3">
                         <CouponField :coupon-code="couponCode" />
                     </div>
                     <dl class="mt-3 flex flex-col gap-2 text-[13px]">
-                        <div class="flex justify-between text-zinc-500">
+                        <div class="flex justify-between text-muted-foreground">
                             <dt>Subtotal {{ taxLabel }}</dt>
-                            <dd class="font-medium text-zinc-900">
+                            <dd class="font-medium text-foreground">
                                 {{
                                     formatMoney(
                                         cartContext?.subtotal ?? 0,
@@ -228,7 +227,7 @@ function confirmClear(): void {
                         </div>
                         <div
                             v-if="cartContext && cartContext.discountTotal > 0"
-                            class="flex justify-between text-zinc-500"
+                            class="flex justify-between text-muted-foreground"
                         >
                             <dt>Diskon</dt>
                             <dd class="font-medium text-emerald-600">
@@ -240,14 +239,14 @@ function confirmClear(): void {
                                 }}
                             </dd>
                         </div>
-                        <div class="flex justify-between text-zinc-500">
+                        <div class="flex justify-between text-muted-foreground">
                             <dt>Ongkir</dt>
                             <dd>Di checkout</dd>
                         </div>
                     </dl>
                     <Separator class="mt-3" />
                     <div class="mt-3 flex items-center justify-between gap-3">
-                        <span class="text-[13px] font-bold text-zinc-900"
+                        <span class="text-[13px] font-bold text-foreground"
                             >Total</span
                         >
                         <span class="om-page-title">
@@ -275,7 +274,7 @@ function confirmClear(): void {
                     >
                         <Link :href="shop.index.url()"> Lanjut belanja </Link>
                     </Button>
-                </div>
+                </Card>
             </aside>
         </div>
     </Container>
@@ -283,7 +282,7 @@ function confirmClear(): void {
     <!-- Mobile sticky checkout bar -->
     <div
         v-if="!isEmpty"
-        class="fixed inset-x-0 z-40 border-t border-zinc-200 bg-white py-2.5 lg:hidden"
+        class="fixed inset-x-0 z-40 border-t border-border bg-card py-2.5 lg:hidden"
         style="
             bottom: calc(
                 var(--om-bottom-nav-height) + env(safe-area-inset-bottom, 0px)
@@ -293,7 +292,7 @@ function confirmClear(): void {
         <Container class="flex items-center gap-3">
             <div class="min-w-0 flex-1">
                 <p
-                    class="text-zinc-500"
+                    class="text-muted-foreground"
                     :style="{ fontSize: 'var(--om-text-micro)' }"
                 >
                     Total {{ taxLabel }}

@@ -44,7 +44,7 @@ const trustPoints = [
 <template>
     <footer
         aria-labelledby="footer-heading"
-        class="mt-auto border-t border-zinc-200 bg-white"
+        class="mt-auto border-t border-border bg-card"
     >
         <h2 id="footer-heading" class="sr-only">Footer</h2>
         <Container>
@@ -67,11 +67,11 @@ const trustPoints = [
                             OceanMall
                         </span>
                     </Link>
-                    <p class="mt-4 max-w-xs text-sm leading-6 text-zinc-600">
+                    <p class="mt-4 max-w-xs text-sm leading-6 text-muted-foreground">
                         Belanja gadget & lifestyle terpercaya. Produk original,
                         pengiriman ke seluruh Indonesia, pembayaran aman.
                     </p>
-                    <p class="mt-5 text-sm text-zinc-700">
+                    <p class="mt-5 text-sm text-foreground">
                         Pengiriman ke
                         <span class="font-semibold text-[var(--om-navy)]"
                             >seluruh Indonesia</span
@@ -79,19 +79,19 @@ const trustPoints = [
                     </p>
                 </div>
                 <div>
-                    <h3 class="text-sm font-bold text-zinc-900">Belanja</h3>
+                    <h3 class="text-sm font-bold text-foreground">Belanja</h3>
                     <ul role="list" class="mt-4 space-y-2.5">
                         <li>
                             <Link
                                 :href="shop.index.url()"
-                                class="text-sm text-zinc-600 hover:text-[var(--om-navy)]"
+                                class="text-sm text-muted-foreground hover:text-[var(--om-navy)]"
                                 >Semua produk</Link
                             >
                         </li>
                         <li>
                             <Link
                                 :href="shop.categories.url()"
-                                class="text-sm text-zinc-600 hover:text-[var(--om-navy)]"
+                                class="text-sm text-muted-foreground hover:text-[var(--om-navy)]"
                                 >Kategori</Link
                             >
                         </li>
@@ -99,7 +99,7 @@ const trustPoints = [
                 </div>
 
                 <div v-if="footerCategories.length">
-                    <h3 class="text-sm font-bold text-zinc-900">Kategori</h3>
+                    <h3 class="text-sm font-bold text-foreground">Kategori</h3>
                     <ul role="list" class="mt-4 space-y-2.5">
                         <li
                             v-for="category in footerCategories"
@@ -111,7 +111,7 @@ const trustPoints = [
                                         category: category.slug,
                                     })
                                 "
-                                class="text-sm text-zinc-600 hover:text-[var(--om-navy)]"
+                                class="text-sm text-muted-foreground hover:text-[var(--om-navy)]"
                             >
                                 {{ category.name }}
                             </Link>
@@ -125,7 +125,7 @@ const trustPoints = [
                     class="space-y-7"
                 >
                     <div v-if="paymentMethods.length">
-                        <h3 class="text-sm font-bold text-zinc-900">
+                        <h3 class="text-sm font-bold text-foreground">
                             Metode Pembayaran
                         </h3>
                         <ul
@@ -146,7 +146,7 @@ const trustPoints = [
                                 />
                                 <span
                                     v-else
-                                    class="text-xs font-semibold text-zinc-700"
+                                    class="text-xs font-semibold text-foreground"
                                 >
                                     {{ method.title }}
                                 </span>
@@ -155,7 +155,7 @@ const trustPoints = [
                     </div>
 
                     <div v-if="shippingCouriers.length">
-                        <h3 class="text-sm font-bold text-zinc-900">
+                        <h3 class="text-sm font-bold text-foreground">
                             Jasa Pengiriman
                         </h3>
                         <ul
@@ -176,7 +176,7 @@ const trustPoints = [
                                 />
                                 <span
                                     v-else
-                                    class="text-xs font-semibold text-zinc-700"
+                                    class="text-xs font-semibold text-foreground"
                                 >
                                     {{ courier.label }}
                                 </span>
@@ -187,13 +187,13 @@ const trustPoints = [
             </div>
 
             <div
-                class="flex flex-col gap-4 border-t border-zinc-200 py-6 sm:flex-row sm:items-center sm:justify-between"
+                class="flex flex-col gap-4 border-t border-border py-6 sm:flex-row sm:items-center sm:justify-between"
             >
-                <p class="text-sm text-zinc-500">
+                <p class="text-sm text-muted-foreground">
                     © {{ currentYear }} OceanMall. Hak cipta dilindungi.
                 </p>
                 <ul
-                    class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-500"
+                    class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground"
                 >
                     <li
                         v-for="point in trustPoints"

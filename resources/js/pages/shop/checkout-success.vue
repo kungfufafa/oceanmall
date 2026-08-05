@@ -149,7 +149,7 @@ onBeforeUnmount(() => {
                         </h1>
                         <p class="om-meta mt-1">
                             Pesanan
-                            <span class="font-semibold text-zinc-800"
+                            <span class="font-semibold text-foreground"
                                 >#{{ order.number }}</span
                             >
                             sudah dibuat. Bayar sekarang supaya langsung
@@ -228,7 +228,7 @@ onBeforeUnmount(() => {
                         as-child
                         variant="ghost"
                         size="xl"
-                        class="flex-1 text-zinc-500 hover:text-zinc-800"
+                        class="flex-1 text-muted-foreground hover:text-foreground"
                     >
                         <Link :href="shop.index.url()">Belanja lagi</Link>
                     </Button>
@@ -271,7 +271,7 @@ onBeforeUnmount(() => {
                     </h1>
                     <p class="om-meta mt-2">
                         Nomor pesanan
-                        <span class="font-semibold text-zinc-800"
+                        <span class="font-semibold text-foreground"
                             >#{{ order.number }}</span
                         >
                         ·

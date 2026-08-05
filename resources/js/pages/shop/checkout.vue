@@ -9,11 +9,13 @@ import Container from '@/components/shop/container.vue';
 import CouponField from '@/components/shop/coupon-field.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
 import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
+import SelectableCard from '@/components/shop/selectable-card.vue';
 import ShipmentRatePicker from '@/components/shop/shipment-rate-picker.vue';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { useShop } from '@/composables/useShop';
 import { formatMoney } from '@/lib/format';
@@ -230,6 +232,13 @@ const shippingForm = useForm<{ service_code: string }>({
             : '',
 });
 
+const selectedShippingServiceValue = computed<string>({
+    get: () => shippingForm.service_code,
+    set: (value) => {
+        shippingForm.service_code = value;
+    },
+});
+
 const isMultiPackage = computed<boolean>(
     () => (props.allocation?.length ?? 0) > 1,
 );
@@ -277,6 +286,16 @@ function submitMultiShipping(): void {
 
 const paymentForm = useForm<{ payment_method_id: number | null }>({
     payment_method_id: props.selectedPaymentMethod ?? null,
+});
+
+const selectedPaymentMethodValue = computed<string>({
+    get: () =>
+        paymentForm.payment_method_id === null
+            ? ''
+            : String(paymentForm.payment_method_id),
+    set: (value) => {
+        paymentForm.payment_method_id = value ? Number(value) : null;
+    },
 });
 
 const selectedDelivery = computed<DeliveryOption | null>(
@@ -496,7 +515,7 @@ const steps = [
                                 ? 'text-[var(--om-navy)]'
                                 : maxStep > s.n
                                   ? 'text-green-600'
-                                  : 'text-zinc-400',
+                                  : 'text-muted-foreground',
                         ]"
                         @click="goToStep(s.n as 1 | 2 | 3)"
                     >
@@ -507,7 +526,7 @@ const steps = [
                                     ? 'bg-[var(--om-navy)] text-white'
                                     : step > s.n
                                       ? 'bg-green-100 text-green-600'
-                                      : 'bg-zinc-100 text-zinc-400',
+                                      : 'bg-muted text-muted-foreground',
                             ]"
                         >
                             <Check
@@ -521,7 +540,7 @@ const steps = [
                     </button>
                     <ChevronRight
                         v-if="i < steps.length - 1"
-                        class="size-4 text-zinc-300"
+                        class="size-4 text-muted-foreground/50"
                         aria-hidden="true"
                     />
                 </li>
@@ -532,10 +551,10 @@ const steps = [
             <div class="lg:col-span-7">
                 <template v-if="step === 1">
                     <div v-if="savedAddresses.length" class="mb-8">
-                        <h2 class="text-[13px] font-semibold text-zinc-900">
+                        <h2 class="text-[13px] font-semibold text-foreground">
                             Alamat tersimpan
                         </h2>
-                        <p class="mt-1 text-[11px] text-zinc-500">
+                        <p class="mt-1 text-[11px] text-muted-foreground">
                             Ketuk sekali untuk pakai lagi — district tersimpan
                             ikut dipakai.
                         </p>
@@ -548,18 +567,18 @@ const steps = [
                                     'rounded-md border text-left transition',
                                     selectedAddressId === address.id
                                         ? 'border-[var(--om-navy)] ring-2 ring-[var(--om-navy)]'
-                                        : 'border-zinc-200 hover:border-zinc-400',
+                                        : 'border-border hover:border-primary',
                                 ]"
                                 @click="selectAddress(address)"
                             >
                                 <Card>
                                     <p
-                                        class="text-sm font-medium text-zinc-900"
+                                        class="text-sm font-medium text-foreground"
                                     >
                                         {{ address.first_name }}
                                         {{ address.last_name }}
                                     </p>
-                                    <p class="mt-1 text-xs text-zinc-500">
+                                    <p class="mt-1 text-xs text-muted-foreground">
                                         {{ address.street_address }},
                                         {{ address.city }}
                                         {{ address.postal_code }}
@@ -574,7 +593,7 @@ const steps = [
                                             address.rajaongkir_destination_label
                                         }}
                                     </p>
-                                    <p class="text-xs text-zinc-500">
+                                    <p class="text-xs text-muted-foreground">
                                         {{ address.country?.name }}
                                     </p>
                                     <Badge
@@ -591,7 +610,7 @@ const steps = [
                         <button
                             v-if="selectedAddressId"
                             type="button"
-                            class="mt-3 text-sm text-zinc-500 underline transition hover:text-zinc-900"
+                            class="mt-3 text-sm text-muted-foreground underline transition hover:text-foreground"
                             @click="clearAddress"
                         >
                             Pakai alamat lain
@@ -604,7 +623,7 @@ const steps = [
                         class="flex flex-col gap-5"
                         @submit.prevent="submitAddress"
                     >
-                        <h2 class="text-[13px] font-semibold text-zinc-900">
+                        <h2 class="text-[13px] font-semibold text-foreground">
                             Alamat pengiriman
                         </h2>
 
@@ -685,7 +704,7 @@ const steps = [
                                     >*</span
                                 >
                             </label>
-                            <p class="text-[11px] leading-snug text-zinc-500">
+                            <p class="text-[11px] leading-snug text-muted-foreground">
                                 Ketik nama kecamatan / kota, lalu pilih dari
                                 daftar supaya ongkir akurat.
                             </p>
@@ -711,20 +730,20 @@ const steps = [
                                 <button
                                     v-if="addressForm.rajaongkir_destination_id"
                                     type="button"
-                                    class="absolute inset-y-0 right-2 text-xs text-zinc-500 hover:text-zinc-800"
+                                    class="absolute inset-y-0 right-2 text-xs text-muted-foreground hover:text-foreground"
                                     @click="clearDestination"
                                 >
                                     Ganti
                                 </button>
                                 <div
                                     v-if="destinationResults.length"
-                                    class="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-zinc-200 bg-white shadow-sm"
+                                    class="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-border bg-card shadow-sm"
                                 >
                                     <button
                                         v-for="result in destinationResults"
                                         :key="result.id"
                                         type="button"
-                                        class="block w-full px-3 py-2.5 text-left text-[13px] hover:bg-zinc-50"
+                                        class="block w-full px-3 py-2.5 text-left text-[13px] hover:bg-accent"
                                         @click="selectDestination(result)"
                                     >
                                         {{ result.label }}
@@ -733,7 +752,7 @@ const steps = [
                             </div>
                             <p
                                 v-if="destinationSearching"
-                                class="text-xs text-zinc-500"
+                                class="text-xs text-muted-foreground"
                             >
                                 Mencari…
                             </p>
@@ -800,7 +819,7 @@ const steps = [
                 <template v-else-if="step === 2">
                     <template v-if="isMultiPackage">
                         <div class="flex flex-col gap-5">
-                            <h2 class="text-[13px] font-semibold text-zinc-900">
+                            <h2 class="text-[13px] font-semibold text-foreground">
                                 Metode pengiriman
                             </h2>
 
@@ -851,7 +870,7 @@ const steps = [
                             </Alert>
                             <button
                                 type="button"
-                                class="mt-4 text-sm text-zinc-500 transition hover:text-zinc-900"
+                                class="mt-4 text-sm text-muted-foreground transition hover:text-foreground"
                                 @click="goToStep(1)"
                             >
                                 ← Kembali ke alamat
@@ -863,7 +882,7 @@ const steps = [
                             class="flex flex-col gap-5"
                             @submit.prevent="submitShipping"
                         >
-                            <h2 class="text-[13px] font-semibold text-zinc-900">
+                            <h2 class="text-[13px] font-semibold text-foreground">
                                 Metode pengiriman
                             </h2>
                             <p
@@ -873,67 +892,65 @@ const steps = [
                                 {{ shippingForm.errors.service_code }}
                             </p>
 
-                            <div class="flex flex-col gap-3">
-                                <label
+                            <RadioGroup
+                                v-model="selectedShippingServiceValue"
+                                class="flex flex-col gap-3"
+                            >
+                                <SelectableCard
                                     v-for="option in deliveryOptions"
                                     :key="option.service_code"
-                                    :class="[
-                                        'flex cursor-pointer items-center justify-between gap-4 rounded-md border p-4 transition',
-                                        shippingForm.service_code ===
-                                        option.service_code
-                                            ? 'border-[var(--om-navy)] ring-2 ring-[var(--om-navy)]'
-                                            : 'border-zinc-200 hover:border-zinc-300',
-                                    ]"
+                                    :id="`shipping_${option.service_code}`"
+                                    :value="String(option.service_code)"
+                                    class="items-center p-4"
                                 >
-                                    <input
-                                        v-model="shippingForm.service_code"
-                                        type="radio"
-                                        :value="option.service_code"
-                                        name="service_code"
-                                        class="sr-only"
-                                    />
-                                    <div class="flex items-start gap-3">
-                                        <img
-                                            v-if="option.carrier_logo"
-                                            :src="option.carrier_logo"
-                                            :alt="option.carrier_name ?? ''"
-                                            class="mt-0.5 size-6 rounded-full object-cover"
-                                        />
-                                        <div class="flex flex-col">
-                                            <span
-                                                class="font-heading text-sm font-medium text-zinc-900"
-                                                >{{
-                                                    option.service_name
-                                                }}</span
-                                            >
-                                            <span
-                                                v-if="option.estimated_days"
-                                                class="text-sm text-zinc-500"
-                                                >{{
-                                                    option.estimated_days
-                                                }}
-                                                hari pengiriman</span
-                                            >
-                                            <span
-                                                v-else-if="option.description"
-                                                class="text-sm text-zinc-500"
-                                                >{{
-                                                    option.description
-                                                }}</span
-                                            >
-                                        </div>
-                                    </div>
-                                    <span
-                                        class="text-sm font-medium text-zinc-900"
-                                        >{{
-                                            formatMoney(
-                                                option.amount,
-                                                option.currency,
-                                            )
-                                        }}</span
+                                    <div
+                                        class="flex items-center justify-between gap-4"
                                     >
-                                </label>
-                            </div>
+                                        <div class="flex items-start gap-3">
+                                            <img
+                                                v-if="option.carrier_logo"
+                                                :src="option.carrier_logo"
+                                                :alt="option.carrier_name ?? ''"
+                                                class="mt-0.5 size-6 rounded-full object-cover"
+                                            />
+                                            <div class="flex flex-col">
+                                                <span
+                                                    class="font-heading text-sm font-medium text-foreground"
+                                                    >{{
+                                                        option.service_name
+                                                    }}</span
+                                                >
+                                                <span
+                                                    v-if="option.estimated_days"
+                                                    class="text-sm text-muted-foreground"
+                                                    >{{
+                                                        option.estimated_days
+                                                    }}
+                                                    hari pengiriman</span
+                                                >
+                                                <span
+                                                    v-else-if="
+                                                        option.description
+                                                    "
+                                                    class="text-sm text-muted-foreground"
+                                                    >{{
+                                                        option.description
+                                                    }}</span
+                                                >
+                                            </div>
+                                        </div>
+                                        <span
+                                            class="shrink-0 text-sm font-medium text-foreground"
+                                            >{{
+                                                formatMoney(
+                                                    option.amount,
+                                                    option.currency,
+                                                )
+                                            }}</span
+                                        >
+                                    </div>
+                                </SelectableCard>
+                            </RadioGroup>
 
                             <div class="flex">
                                 <Button
@@ -954,10 +971,10 @@ const steps = [
                 <template v-else>
                     <div class="flex flex-col gap-5">
                         <div>
-                            <h2 class="text-[13px] font-semibold text-zinc-900">
+                            <h2 class="text-[13px] font-semibold text-foreground">
                                 Metode pembayaran
                             </h2>
-                            <p class="text-sm text-zinc-500">
+                            <p class="text-sm text-muted-foreground">
                                 Semua transaksi aman dan terenkripsi.
                             </p>
                         </div>
@@ -971,66 +988,39 @@ const steps = [
 
                         <p
                             v-if="!paymentOptions.length"
-                            class="text-sm text-zinc-600"
+                            class="text-sm text-muted-foreground"
                         >
                             Tidak ada metode pembayaran untuk wilayahmu.
                         </p>
 
                         <template v-else>
-                            <div
-                                class="flex flex-col gap-1 rounded-md border border-zinc-200 p-1"
+                            <RadioGroup
+                                v-model="selectedPaymentMethodValue"
+                                class="flex flex-col gap-1"
                             >
-                                <label
+                                <SelectableCard
                                     v-for="method in paymentOptions"
                                     :key="method.id"
-                                    :class="[
-                                        'group flex cursor-pointer items-center justify-between gap-6 rounded-md px-3 py-3 transition',
-                                        paymentForm.payment_method_id ===
-                                        method.id
-                                            ? 'bg-zinc-100'
-                                            : 'hover:bg-zinc-50',
-                                    ]"
+                                    :id="`payment_method_${method.id}`"
+                                    :value="String(method.id)"
+                                    class="items-center px-3 py-3"
                                 >
-                                    <div class="flex items-center gap-3">
+                                    <div
+                                        class="flex items-center justify-between gap-6"
+                                    >
                                         <span
-                                            :class="[
-                                                'inline-flex size-4 items-center justify-center rounded-full border-2 transition',
-                                                paymentForm.payment_method_id ===
-                                                method.id
-                                                    ? 'border-[var(--om-navy)]'
-                                                    : 'border-zinc-300',
-                                            ]"
-                                        >
-                                            <span
-                                                v-if="
-                                                    paymentForm.payment_method_id ===
-                                                    method.id
-                                                "
-                                                class="size-2 rounded-full bg-[var(--om-navy)]"
-                                            />
-                                        </span>
-                                        <input
-                                            v-model="
-                                                paymentForm.payment_method_id
-                                            "
-                                            type="radio"
-                                            :value="method.id"
-                                            name="payment_method_id"
-                                            class="sr-only"
-                                        />
-                                        <span
-                                            class="text-sm font-medium text-zinc-900"
+                                            class="text-sm font-medium text-foreground"
                                             >{{ method.title }}</span
                                         >
+                                        <img
+                                            v-if="method.logo"
+                                            :src="method.logo!"
+                                            :alt="method.title"
+                                            class="h-5 w-auto object-cover"
+                                        />
                                     </div>
-                                    <img
-                                        v-if="method.logo"
-                                        :src="method.logo!"
-                                        :alt="method.title"
-                                        class="h-5 w-auto object-cover"
-                                    />
-                                </label>
-                            </div>
+                                </SelectableCard>
+                            </RadioGroup>
 
                             <div
                                 v-if="isStripeSelected && stripeData"
@@ -1038,7 +1028,7 @@ const steps = [
                             >
                                 <div class="flex items-center gap-3">
                                     <h3
-                                        class="text-xs font-medium tracking-wider text-zinc-500 uppercase"
+                                        class="text-xs font-medium tracking-wider text-muted-foreground uppercase"
                                     >
                                         Detail kartu
                                     </h3>
@@ -1075,11 +1065,11 @@ const steps = [
                                         class="flex items-center justify-between gap-4"
                                     >
                                         <div class="flex flex-col">
-                                            <span class="text-xs text-zinc-500"
+                                            <span class="text-xs text-muted-foreground"
                                                 >Total {{ taxLabel }}</span
                                             >
                                             <span
-                                                class="text-lg font-semibold text-zinc-900"
+                                                class="text-lg font-semibold text-foreground"
                                                 >{{
                                                     formatMoney(total, currency)
                                                 }}</span
@@ -1101,7 +1091,7 @@ const steps = [
                                         </Button>
                                     </div>
                                     <p
-                                        class="inline-flex items-center gap-1.5 text-xs text-zinc-500"
+                                        class="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
                                     >
                                         <Lock
                                             class="size-3"
@@ -1118,10 +1108,10 @@ const steps = [
                                     !stripeData &&
                                     preparingStripe
                                 "
-                                class="flex items-center gap-2 pt-3 text-sm text-zinc-500"
+                                class="flex items-center gap-2 pt-3 text-sm text-muted-foreground"
                             >
                                 <span
-                                    class="inline-block size-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900"
+                                    class="inline-block size-4 animate-spin rounded-full border-2 border-border border-t-foreground"
                                 />
                                 Menyiapkan formulir pembayaran…
                             </div>
@@ -1131,15 +1121,15 @@ const steps = [
             </div>
 
             <div class="mt-8 lg:col-span-5 lg:mt-0">
-                <Card class="rounded-md border border-zinc-200 p-6">
-                    <h2 class="text-[13px] font-semibold text-zinc-900">
+                <Card content-class="p-6">
+                    <h2 class="text-[13px] font-semibold text-foreground">
                         Ringkasan pesanan
                     </h2>
 
                     <ul
                         v-if="cart"
                         role="list"
-                        class="mt-4 divide-y divide-zinc-200"
+                        class="mt-4 divide-y divide-border"
                     >
                         <li
                             v-for="line in cart.lines"
@@ -1147,7 +1137,7 @@ const steps = [
                             class="flex gap-3 py-3"
                         >
                             <div
-                                class="size-14 shrink-0 overflow-hidden rounded-md bg-zinc-100"
+                                class="size-14 shrink-0 overflow-hidden rounded-md bg-muted"
                             >
                                 <img
                                     v-if="lineImage(line)"
@@ -1159,16 +1149,16 @@ const steps = [
                             <div class="flex flex-1 justify-between">
                                 <div>
                                     <p
-                                        class="text-sm font-medium text-zinc-900"
+                                        class="text-sm font-medium text-foreground"
                                     >
                                         {{ lineName(line) }}
                                     </p>
-                                    <p class="text-xs text-zinc-500">
+                                    <p class="text-xs text-muted-foreground">
                                         Jml: {{ line.quantity }}
                                     </p>
                                 </div>
                                 <p
-                                    class="text-sm font-medium text-zinc-900"
+                                    class="text-sm font-medium text-foreground"
                                 >
                                     {{
                                         formatMoney(
@@ -1184,16 +1174,16 @@ const steps = [
 
                     <Separator class="mt-4" />
 
-                    <dl class="mt-4 flex flex-col gap-3 text-sm text-zinc-500">
-                        <div class="border-b border-zinc-200 pb-3">
+                    <dl class="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
+                        <div class="border-b border-border pb-3">
                             <CouponField :coupon-code="couponCode" />
                         </div>
 
                         <div
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3"
+                            class="flex items-center justify-between border-b border-border pb-3"
                         >
                             <dt>Pajak</dt>
-                            <dd class="text-base text-zinc-900">
+                            <dd class="text-base text-foreground">
                                 {{
                                     formatMoney(
                                         cartContext?.taxTotal ?? 0,
@@ -1204,10 +1194,10 @@ const steps = [
                         </div>
 
                         <div
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3"
+                            class="flex items-center justify-between border-b border-border pb-3"
                         >
                             <dt>Ongkir</dt>
-                            <dd class="text-base text-zinc-900">
+                            <dd class="text-base text-foreground">
                                 <template
                                     v-if="
                                         isMultiPackage &&
@@ -1238,7 +1228,7 @@ const steps = [
 
                         <div
                             v-if="cartContext && cartContext.discountTotal > 0"
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3"
+                            class="flex items-center justify-between border-b border-border pb-3"
                         >
                             <dt>Diskon</dt>
                             <dd class="text-emerald-600">
@@ -1253,12 +1243,12 @@ const steps = [
 
                         <div class="flex items-center justify-between pt-1">
                             <dt
-                                class="text-base font-semibold text-zinc-900"
+                                class="text-base font-semibold text-foreground"
                             >
                                 Total {{ taxLabel }}
                             </dt>
                             <dd
-                                class="text-base font-semibold text-zinc-900"
+                                class="text-base font-semibold text-foreground"
                             >
                                 {{ formatMoney(total, currency) }}
                             </dd>

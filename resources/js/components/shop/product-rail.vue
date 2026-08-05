@@ -23,7 +23,7 @@ withDefaults(
         v-if="products.length"
         :class="[
             'mt-5',
-            tone === 'soft' && 'bg-zinc-50 py-4',
+            tone === 'soft' && 'bg-muted/50 py-4',
         ]"
     >
         <div class="mx-auto max-w-7xl px-4 sm:px-6">

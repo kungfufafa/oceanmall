@@ -93,11 +93,11 @@ watch(
 </script>
 
 <template>
-    <div class="overflow-hidden rounded-md border border-zinc-200 bg-white">
-        <div class="border-b border-zinc-100 bg-zinc-50 px-4 py-3">
+    <div class="overflow-hidden rounded-md border border-border bg-card">
+        <div class="border-b border-border bg-muted px-4 py-3">
             <div class="flex items-center justify-between gap-3">
                 <div>
-                    <p class="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+                    <p class="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
                         Total dibayar
                     </p>
                     <p class="mt-0.5 text-2xl font-bold text-[var(--om-navy)]">
@@ -108,16 +108,16 @@ watch(
                     Belum dibayar
                 </Badge>
             </div>
-            <p v-if="formattedExpiry" class="mt-2 text-[12px] text-zinc-600">
+            <p v-if="formattedExpiry" class="mt-2 text-[12px] text-muted-foreground">
                 Bayar sebelum
-                <span class="font-semibold text-zinc-900">{{
+                <span class="font-semibold text-foreground">{{
                     formattedExpiry
                 }}</span>
             </p>
         </div>
 
         <div class="flex flex-col gap-4 p-4">
-            <p class="text-[13px] font-semibold text-zinc-900">
+            <p class="text-[13px] font-semibold text-foreground">
                 Cara bayar · {{ methodLabel }}
             </p>
 
@@ -127,7 +127,7 @@ watch(
                         Nomor Virtual Account
                     </p>
                     <div
-                        class="flex items-center justify-between gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3"
+                        class="flex items-center justify-between gap-2 rounded-md border border-border bg-muted px-3 py-3"
                     >
                         <span
                             class="font-mono text-lg font-bold tracking-wider text-[var(--om-navy)] sm:text-xl"
@@ -147,7 +147,7 @@ watch(
                     </div>
                 </div>
 
-                <ol class="flex flex-col gap-2 text-[13px] text-zinc-600">
+                <ol class="flex flex-col gap-2 text-[13px] text-muted-foreground">
                     <li class="flex gap-2">
                         <span
                             class="flex size-5 shrink-0 items-center justify-center rounded-md bg-[var(--om-navy)] text-[10px] font-bold text-white"
@@ -174,7 +174,7 @@ watch(
 
             <template v-else-if="isQris && payment.qris_string">
                 <div
-                    class="flex flex-col items-center gap-3 rounded-md border border-zinc-100 bg-zinc-50 p-4"
+                    class="flex flex-col items-center gap-3 rounded-md border border-border bg-muted p-4"
                 >
                     <img
                         v-if="qrDataUrl"
@@ -190,10 +190,10 @@ watch(
                     >
                         QR gagal dimuat. Salin kode di bawah.
                     </p>
-                    <p v-else class="text-[12px] text-zinc-500">
+                    <p v-else class="text-[12px] text-muted-foreground">
                         Menyiapkan QR…
                     </p>
-                    <p class="text-center text-[12px] text-zinc-600">
+                    <p class="text-center text-[12px] text-muted-foreground">
                         Scan pakai GoPay, OVO, Dana, ShopeePay, atau m-banking
                     </p>
                     <Button
@@ -210,9 +210,9 @@ watch(
 
             <div
                 v-else-if="payment.payment_url"
-                class="rounded-md border border-zinc-200 bg-zinc-50 p-4"
+                class="rounded-md border border-border bg-muted p-4"
             >
-                <p class="text-[13px] text-zinc-700">
+                <p class="text-[13px] text-foreground">
                     Instruksi lengkap tersedia di halaman pembayaran Komerce.
                 </p>
                 <Button
@@ -241,7 +241,7 @@ watch(
                 </AlertDescription>
             </Alert>
 
-            <p class="text-[10px] text-zinc-400">
+            <p class="text-[10px] text-muted-foreground">
                 Ref {{ payment.payment_id }}
             </p>
         </div>

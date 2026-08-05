@@ -75,7 +75,7 @@ defineExpose({ totalShipping, allSelected });
         <div
             v-for="(pkg, pkgIndex) in packages"
             :key="pkg.inventory_id"
-            class="rounded-md border border-zinc-200 p-4"
+            class="rounded-md border border-border bg-card p-4"
         >
             <h3 class="mb-3 flex items-center gap-2">
                 <Badge variant="secondary">Paket {{ pkgIndex + 1 }}</Badge>
@@ -105,7 +105,7 @@ defineExpose({ totalShipping, allSelected });
                         String(selected[pkg.inventory_id]) ===
                         String(option.service_code)
                             ? 'ring-2 ring-[var(--om-navy)]'
-                            : 'ring-1 ring-zinc-200 hover:ring-zinc-300',
+                            : 'ring-1 ring-border hover:ring-primary/40',
                     ]"
                 >
                     <input
@@ -153,9 +153,9 @@ defineExpose({ totalShipping, allSelected });
 
         <div
             v-if="packages.length > 1 && allSelected"
-            class="flex items-center justify-between rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm"
+            class="flex items-center justify-between rounded-md border border-border bg-muted px-4 py-3 text-sm"
         >
-            <span class="text-zinc-600">Total ongkir</span>
+            <span class="text-muted-foreground">Total ongkir</span>
             <span class="font-semibold text-[var(--om-navy)]">{{
                 formatMoney(totalShipping, totalCurrency)
             }}</span>
