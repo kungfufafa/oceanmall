@@ -185,6 +185,18 @@ watch(
                         Tempel nomor VA, konfirmasi nominal, lalu bayar
                     </li>
                 </ol>
+
+                <div v-if="payment.payment_url" class="mt-1">
+                    <Button as-child variant="outline" size="sm" class="w-full h-9 text-xs">
+                        <a
+                            :href="payment.payment_url"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            Buka Halaman Bayar Online (Komerce)
+                        </a>
+                    </Button>
+                </div>
             </template>
 
             <template v-else-if="isQris && payment.qris_string">

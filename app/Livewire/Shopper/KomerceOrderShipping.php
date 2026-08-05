@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Livewire\Shopper;
 
 use App\Actions\Warehouse\OverrideAllocation;
+use App\Jobs\CreateRajaOngkirDeliveryForShipment;
 use App\Models\User;
+use App\Services\Komerce\ShippingDeliveryClient;
 use App\Support\OrderShipmentOpsPresenter;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
@@ -93,12 +95,58 @@ final class KomerceOrderShipping extends Component
         $this->dispatch('order.updated');
     }
 
+    public function processDeliveryOrder(int $shipmentId): void
+    {
+        Gate::authorize('print-shipment-label', $this->order);
+        $this->overrideError = null;
+
+        try {
+            (new CreateRajaOngkirDeliveryForShipment($shipmentId))
+                ->handle(resolve(ShippingDeliveryClient::class));
+        } catch (\Throwable $e) {
+            report($e);
+            $this->overrideError = 'Gagal membuat Delivery Order Komerce: '.$e->getMessage();
+
+            return;
+        }
+
+        $this->order->refresh();
+        $this->seedOverrideDefaults();
+        $this->dispatch('order.updated');
+    }
+
+    public function processAllDeliveryOrders(): void
+    {
+        Gate::authorize('print-shipment-label', $this->order);
+        $this->overrideError = null;
+
+        $presenter = resolve(OrderShipmentOpsPresenter::class);
+        $deliveryClient = resolve(ShippingDeliveryClient::class);
+
+        foreach ($presenter->shipments($this->order) as $shipment) {
+            if (! $shipment['can_print_label']) {
+                try {
+                    (new CreateRajaOngkirDeliveryForShipment((int) $shipment['id']))
+                        ->handle($deliveryClient);
+                } catch (\Throwable $e) {
+                    report($e);
+                    $this->overrideError = 'Gagal membuat Delivery Order Komerce: '.$e->getMessage();
+                }
+            }
+        }
+
+        $this->order->refresh();
+        $this->seedOverrideDefaults();
+        $this->dispatch('order.updated');
+    }
+
     public function render(): View
     {
         $presenter = resolve(OrderShipmentOpsPresenter::class);
         $shipments = $presenter->shipments($this->order);
         $inventories = $presenter->inventories();
         $printableCount = $presenter->printableCount($shipments);
+        $hasUnprocessed = collect($shipments)->contains(fn (array $s): bool => ! $s['can_print_label']);
         $overridable = array_values(array_filter(
             $shipments,
             static fn (array $shipment): bool => (bool) $shipment['can_override'],
@@ -110,6 +158,7 @@ final class KomerceOrderShipping extends Component
             'komerceEnabled' => komerce_enabled(),
             'canPrintAnyLabel' => $printableCount > 0,
             'printableShipmentCount' => $printableCount,
+            'hasUnprocessedShipment' => $hasUnprocessed,
             'overridableShipments' => $overridable,
             'lineOptions' => collect($overridable)->flatMap(
                 static fn (array $shipment): array => collect($shipment['lines'])->map(

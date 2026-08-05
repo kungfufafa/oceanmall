@@ -178,10 +178,10 @@ function setDefaultBilling(address: Address): void {
                 :key="address.id"
                 class="gap-0 overflow-hidden py-0 shadow-none"
             >
-                <CardHeader class="flex-row items-start justify-between gap-2 space-y-0 border-b border-border bg-muted/30 p-3.5 pb-3">
-                    <CardTitle class="text-sm font-semibold">
+                <div class="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-3.5 py-2.5">
+                    <h3 class="text-sm font-semibold text-foreground">
                         {{ address.first_name }} {{ address.last_name }}
-                    </CardTitle>
+                    </h3>
                     <Badge
                         v-if="address.type === AddressType.BILLING"
                         variant="secondary"
@@ -189,7 +189,7 @@ function setDefaultBilling(address: Address): void {
                     >
                         Penagihan
                     </Badge>
-                </CardHeader>
+                </div>
 
                 <CardContent class="p-3.5 pt-3">
                     <address class="text-sm not-italic leading-5 text-muted-foreground">

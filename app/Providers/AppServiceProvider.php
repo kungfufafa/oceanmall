@@ -7,6 +7,8 @@ namespace App\Providers;
 use App\Livewire\Shopper\KomerceOrderShipping;
 use App\Models\User;
 use App\Payment\KomerceDriver;
+use App\Shipping\Drivers\KomerceShippingDriver;
+use App\Shipping\Drivers\RajaOngkirDriver;
 use App\Stock\AllocationPlanStockAllocator;
 use App\Support\CheckoutAllocationContext;
 use Carbon\CarbonImmutable;
@@ -17,8 +19,11 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
 use Shopper\Core\Contracts\StockAllocator;
+use Shopper\Core\Models\Carrier;
 use Shopper\Core\Models\Order;
+use Shopper\Core\Models\PaymentMethod;
 use Shopper\Payment\Facades\Payment;
+use Shopper\Shipping\Facades\Shipping;
 use Shopper\View\OrderRenderHook;
 
 class AppServiceProvider extends ServiceProvider
@@ -40,6 +45,8 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDefaults();
         $this->configureAuthorization();
         $this->configureShopperPayment();
+        $this->configureShopperShipping();
+        $this->configureShopperLogos();
         $this->configureShopperFulfillment();
     }
 
@@ -86,6 +93,90 @@ class AppServiceProvider extends ServiceProvider
         config()->set('shopper.payment.drivers.komerce.enabled', true);
     }
 
+    protected function configureShopperShipping(): void
+    {
+        Shipping::extend('rajaongkir', static fn (): RajaOngkirDriver => new RajaOngkirDriver);
+        Shipping::extend('komerce', static fn (): KomerceShippingDriver => new KomerceShippingDriver);
+
+        config()->set('shopper.shipping.drivers.rajaongkir.enabled', true);
+        config()->set('shopper.shipping.drivers.komerce.enabled', true);
+    }
+
+    protected function configureShopperLogos(): void
+    {
+        // Komerce assets/illustration PNG — exact filenames verified against GCS bucket
+        $komerceIllustrationBase = 'https://storage.googleapis.com/komerce/assets/illustration/';
+
+        /** @var array<string,string> slug → GCS filename (case-sensitive) */
+        $carrierLogoMap = [
+            'jnt' => 'JNT.png',
+            'jne' => 'jne.png',
+            'sicepat' => 'sicepat.png',
+            'ide' => null, // no illustration found; fallback to rajaongkir SVG
+            'anteraja' => null,
+            'pos' => null,
+            'tiki' => null,
+            'lion' => 'lion-parcel.png',
+            'ninja' => 'NINJA.png',
+            'wahana' => null,
+            'rpx' => null,
+            'ncs' => null,
+        ];
+
+        $this->app->bind('shopper.carrier.logo', static function () use ($komerceIllustrationBase, $carrierLogoMap): \Closure {
+            return static function (Carrier $carrier) use ($komerceIllustrationBase, $carrierLogoMap): ?string {
+                $logo = data_get($carrier->metadata, 'logo');
+                if (is_string($logo) && $logo !== '') {
+                    return asset($logo);
+                }
+
+                $slug = strtolower((string) $carrier->slug);
+
+                // Prefer Komerce assets/illustration PNG (exact, verified URLs)
+                if (array_key_exists($slug, $carrierLogoMap) && $carrierLogoMap[$slug] !== null) {
+                    return $komerceIllustrationBase.$carrierLogoMap[$slug];
+                }
+
+                // Fallback: Komerce rajaongkir SVG bucket
+                if (in_array($slug, ['jne', 'sicepat', 'ide', 'anteraja', 'pos', 'tiki', 'lion', 'ninja', 'wahana', 'rpx', 'ncs'], true)) {
+                    return "https://storage.googleapis.com/komerce/rajaongkir/{$slug}.svg";
+                }
+
+                // Fallback: local public/images/couriers/
+                if (file_exists(public_path("images/couriers/{$slug}.svg"))) {
+                    return asset("images/couriers/{$slug}.svg");
+                }
+                if (file_exists(public_path("images/couriers/{$slug}.png"))) {
+                    return asset("images/couriers/{$slug}.png");
+                }
+
+                return null;
+            };
+        });
+
+        $this->app->bind('shopper.payment.logo', static function (): \Closure {
+            return static function (PaymentMethod $method): ?string {
+                $logo = data_get($method->metadata, 'logo');
+                if (is_string($logo) && $logo !== '') {
+                    return asset($logo);
+                }
+
+                $channel = data_get($method->metadata, 'channel_code');
+                $slug = strtolower((string) ($channel ?: $method->slug));
+                $slug = str_replace(['komerce-va-', 'komerce-'], '', $slug);
+
+                if (file_exists(public_path("images/payments/{$slug}.svg"))) {
+                    return asset("images/payments/{$slug}.svg");
+                }
+                if (file_exists(public_path("images/payments/{$slug}.png"))) {
+                    return asset("images/payments/{$slug}.png");
+                }
+
+                return null;
+            };
+        });
+    }
+
     protected function configureShopperFulfillment(): void
     {
         Livewire::component('komerce-order-shipping', KomerceOrderShipping::class);
@@ -93,7 +184,14 @@ class AppServiceProvider extends ServiceProvider
         shopper()->renderHook(
             OrderRenderHook::DETAIL_MAIN_AFTER,
             static function (): string {
-                $order = request()->route('order');
+                $routeOrder = request()->route('order');
+
+                $order = match (true) {
+                    $routeOrder instanceof Order => $routeOrder,
+                    is_numeric($routeOrder) => Order::query()->find($routeOrder),
+                    is_string($routeOrder) && $routeOrder !== '' => Order::query()->where('number', $routeOrder)->orWhere('id', $routeOrder)->first(),
+                    default => null,
+                };
 
                 if (! $order instanceof Order) {
                     return '';

@@ -39,7 +39,7 @@ final class RetryKomercePayment
             throw new RuntimeException('Order has no Komerce payment method.');
         }
 
-        $selected = $this->selectedMethodPayload($method);
+        $selected = $this->selectedMethodPayload($order, $method);
 
         try {
             return $this->createPayment->handle($order, $selected);
@@ -53,8 +53,12 @@ final class RetryKomercePayment
     /**
      * @return array<string, mixed>
      */
-    private function selectedMethodPayload(PaymentMethod $method): array
+    private function selectedMethodPayload(Order $order, PaymentMethod $method): array
     {
+        $orderMeta = $this->decodeMetadata($order->getAttribute('metadata'));
+        $orderKomerce = is_array($orderMeta['komerce'] ?? null) ? $orderMeta['komerce'] : [];
+        $orderPayment = is_array($orderMeta['payment'] ?? null) ? $orderMeta['payment'] : [];
+
         $meta = $method->metadata;
         if (is_string($meta)) {
             $decoded = json_decode($meta, true);
@@ -64,12 +68,57 @@ final class RetryKomercePayment
             $meta = [];
         }
 
+        $paymentType = $orderKomerce['payment_type']
+            ?? $orderPayment['payment_type']
+            ?? $meta['payment_type']
+            ?? (str_contains(mb_strtolower((string) ($method->slug ?? '')), 'qris') ? 'qris' : 'bank_transfer');
+
+        $channelCode = $orderKomerce['channel_code']
+            ?? $orderPayment['channel_code']
+            ?? $meta['channel_code']
+            ?? null;
+
+        if ($paymentType === 'bank_transfer' && ($channelCode === null || $channelCode === '')) {
+            $slug = mb_strtolower((string) ($method->slug ?? ''));
+            $title = mb_strtolower((string) ($method->title ?? ''));
+
+            if (str_contains($slug, 'bri') || str_contains($title, 'bri')) {
+                $channelCode = 'BRIVA';
+            } elseif (str_contains($slug, 'bni') || str_contains($title, 'bni')) {
+                $channelCode = 'BNI';
+            } elseif (str_contains($slug, 'mandiri') || str_contains($title, 'mandiri')) {
+                $channelCode = 'MANDIRI';
+            } elseif (str_contains($slug, 'permata') || str_contains($title, 'permata')) {
+                $channelCode = 'PERMATA';
+            } else {
+                $channelCode = 'BCA';
+            }
+        }
+
         return [
             'id' => $method->id,
             'driver' => 'komerce',
             'title' => $method->title,
-            'channel_code' => $meta['channel_code'] ?? null,
-            'payment_type' => $meta['payment_type'] ?? 'bank_transfer',
+            'channel_code' => $channelCode,
+            'payment_type' => $paymentType,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeMetadata(mixed $metadata): array
+    {
+        if (is_array($metadata)) {
+            return $metadata;
+        }
+
+        if (is_string($metadata) && $metadata !== '') {
+            $decoded = json_decode($metadata, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
     }
 }

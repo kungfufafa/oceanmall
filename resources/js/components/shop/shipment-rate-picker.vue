@@ -81,7 +81,14 @@ const allSelected = computed<boolean>(() =>
     props.packages.every((pkg) => Boolean(selected.value[pkg.inventory_id])),
 );
 
-defineExpose({ totalShipping, allSelected });
+function formatCourierTitle(option: DeliveryOption): string {
+    const carrier = option.carrier_name || (option.carrier_code ? option.carrier_code.toUpperCase() : '');
+    if (!carrier) return option.service_name;
+    if (option.service_name.toLowerCase().includes(carrier.toLowerCase())) {
+        return option.service_name;
+    }
+    return `${carrier} - ${option.service_name}`;
+}
 </script>
 
 <template>
@@ -136,7 +143,7 @@ defineExpose({ totalShipping, allSelected });
                                 />
                                 <div class="flex flex-col">
                                     <span class="text-sm font-medium text-foreground">
-                                        {{ option.service_name }}
+                                        {{ formatCourierTitle(option) }}
                                     </span>
                                     <span
                                         v-if="option.estimated_days"

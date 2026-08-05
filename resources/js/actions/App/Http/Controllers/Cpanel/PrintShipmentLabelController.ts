@@ -1,7 +1,7 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 const PrintShipmentLabelController = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ PrintShipmentLabelController.definition = {
 
 /**
 * @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 PrintShipmentLabelController.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ PrintShipmentLabelController.url = (args: { order: number | { id: number } } | [
 
 /**
 * @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 PrintShipmentLabelController.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -59,12 +59,49 @@ PrintShipmentLabelController.get = (args: { order: number | { id: number } } | [
 
 /**
 * @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 PrintShipmentLabelController.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: PrintShipmentLabelController.url(args, options),
     method: 'head',
 })
+
+/**
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
+* @route '/cpanel/orders/{order}/fulfillment/label'
+*/
+const PrintShipmentLabelControllerForm = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: PrintShipmentLabelController.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
+* @route '/cpanel/orders/{order}/fulfillment/label'
+*/
+PrintShipmentLabelControllerForm.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: PrintShipmentLabelController.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
+* @route '/cpanel/orders/{order}/fulfillment/label'
+*/
+PrintShipmentLabelControllerForm.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: PrintShipmentLabelController.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+PrintShipmentLabelController.form = PrintShipmentLabelControllerForm
 
 export default PrintShipmentLabelController

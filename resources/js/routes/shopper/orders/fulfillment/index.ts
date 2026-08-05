@@ -1,7 +1,7 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 export const printLabel = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ printLabel.definition = {
 
 /**
 * @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 printLabel.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ printLabel.url = (args: { order: number | { id: number } } | [order: number | { 
 
 /**
 * @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 printLabel.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -59,13 +59,50 @@ printLabel.get = (args: { order: number | { id: number } } | [order: number | { 
 
 /**
 * @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
-* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:23
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
 * @route '/cpanel/orders/{order}/fulfillment/label'
 */
 printLabel.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: printLabel.url(args, options),
     method: 'head',
 })
+
+/**
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
+* @route '/cpanel/orders/{order}/fulfillment/label'
+*/
+const printLabelForm = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: printLabel.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
+* @route '/cpanel/orders/{order}/fulfillment/label'
+*/
+printLabelForm.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: printLabel.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see \App\Http\Controllers\Cpanel\PrintShipmentLabelController::__invoke
+* @see app/Http/Controllers/Cpanel/PrintShipmentLabelController.php:26
+* @route '/cpanel/orders/{order}/fulfillment/label'
+*/
+printLabelForm.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: printLabel.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+printLabel.form = printLabelForm
 
 /**
 * @see \App\Http\Controllers\Cpanel\OverrideAllocationController::__invoke
@@ -124,6 +161,28 @@ overrideAllocation.post = (args: { order: number | { id: number } } | [order: nu
     url: overrideAllocation.url(args, options),
     method: 'post',
 })
+
+/**
+* @see \App\Http\Controllers\Cpanel\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Cpanel/OverrideAllocationController.php:18
+* @route '/cpanel/orders/{order}/fulfillment/override-allocation'
+*/
+const overrideAllocationForm = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: overrideAllocation.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \App\Http\Controllers\Cpanel\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Cpanel/OverrideAllocationController.php:18
+* @route '/cpanel/orders/{order}/fulfillment/override-allocation'
+*/
+overrideAllocationForm.post = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: overrideAllocation.url(args, options),
+    method: 'post',
+})
+
+overrideAllocation.form = overrideAllocationForm
 
 const fulfillment = {
     printLabel: Object.assign(printLabel, printLabel),

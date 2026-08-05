@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, applyUrlDefaults } from './../../../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Cpanel\OverrideAllocationController::__invoke
 * @see app/Http/Controllers/Cpanel/OverrideAllocationController.php:18
@@ -56,5 +56,27 @@ OverrideAllocationController.post = (args: { order: number | { id: number } } | 
     url: OverrideAllocationController.url(args, options),
     method: 'post',
 })
+
+/**
+* @see \App\Http\Controllers\Cpanel\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Cpanel/OverrideAllocationController.php:18
+* @route '/cpanel/orders/{order}/fulfillment/override-allocation'
+*/
+const OverrideAllocationControllerForm = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: OverrideAllocationController.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \App\Http\Controllers\Cpanel\OverrideAllocationController::__invoke
+* @see app/Http/Controllers/Cpanel/OverrideAllocationController.php:18
+* @route '/cpanel/orders/{order}/fulfillment/override-allocation'
+*/
+OverrideAllocationControllerForm.post = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: OverrideAllocationController.url(args, options),
+    method: 'post',
+})
+
+OverrideAllocationController.form = OverrideAllocationControllerForm
 
 export default OverrideAllocationController

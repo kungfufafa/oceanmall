@@ -72,6 +72,7 @@ final class CreateOrder
                 ]);
 
                 $this->storeShippingAddressMetadata($order, $checkout);
+                $this->storePaymentMetadata($order, $checkout);
                 $this->storeKomercePaymentReference($order, $checkout);
 
                 return $order;
@@ -120,6 +121,33 @@ final class CreateOrder
             is_array($existingAddress) ? $existingAddress : [],
             $metadataAddress,
         );
+
+        $order->forceFill([
+            'metadata' => json_encode($metadata, JSON_THROW_ON_ERROR),
+        ])->save();
+    }
+
+    private function storePaymentMetadata(Order $order, mixed $checkout): void
+    {
+        $selectedPayment = (array) data_get($checkout, 'payment.0', []);
+        $channelCode = data_get($selectedPayment, 'channel_code');
+        $paymentType = data_get($selectedPayment, 'payment_type');
+
+        if (! $channelCode && ! $paymentType) {
+            return;
+        }
+
+        $metadata = $this->decodeMetadata($order->getAttribute('metadata'));
+        $komerceMeta = is_array($metadata['komerce'] ?? null) ? $metadata['komerce'] : [];
+
+        if ($channelCode) {
+            $komerceMeta['channel_code'] = (string) $channelCode;
+        }
+        if ($paymentType) {
+            $komerceMeta['payment_type'] = (string) $paymentType;
+        }
+
+        $metadata['komerce'] = $komerceMeta;
 
         $order->forceFill([
             'metadata' => json_encode($metadata, JSON_THROW_ON_ERROR),

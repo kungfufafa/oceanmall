@@ -50,7 +50,7 @@ final class CreateKomercePayment
         $channelCode = $selectedMethod['channel_code'] ?? null;
 
         if ($paymentType === 'bank_transfer' && ($channelCode === null || $channelCode === '')) {
-            throw new RuntimeException('Komerce VA payment requires a channel_code (bank).');
+            $channelCode = 'BCA';
         }
 
         $customer = $order->customer;
@@ -68,11 +68,18 @@ final class CreateKomercePayment
                 'phone' => $customerPhone,
             ],
             'items' => $this->paymentItems($order),
-            'callback_url' => Route::has('webhooks.komerce.payment')
-                ? route('webhooks.komerce.payment')
-                : '',
-            'callback_API_KEY' => (string) config('komerce.webhook_secret', ''),
         ];
+
+        $callbackUrl = Route::has('webhooks.komerce.payment')
+            ? route('webhooks.komerce.payment')
+            : '';
+        $webhookSecret = trim((string) config('komerce.webhook_secret', ''));
+
+        if ($callbackUrl !== '' && $webhookSecret !== '') {
+            $payload['callback_url'] = $callbackUrl;
+            $payload['callback_api_key'] = $webhookSecret;
+            $payload['callback_API_KEY'] = $webhookSecret;
+        }
 
         if ($channelCode !== null && $channelCode !== '') {
             $payload['channel_code'] = (string) $channelCode;

@@ -140,11 +140,12 @@ function clearSearch(): void {
             <div class="mx-auto flex max-w-7xl items-center gap-6 px-6 py-4">
                 <Link
                     :href="home.url()"
-                    class="inline-flex shrink-0 items-center gap-2 text-primary-foreground"
+                    class="inline-flex shrink-0 items-center gap-2.5 text-primary-foreground"
                 >
-                    <BrandIcon class="h-8 w-auto fill-current text-primary-foreground" />
-                    <span class="text-[1.35rem] font-extrabold tracking-tight">
-                        OceanMall
+                    <BrandIcon class="h-9 w-auto" />
+                    <span class="text-[1.35rem] font-extrabold tracking-tight flex items-center">
+                        <span class="text-[#38BDF8]">OCEAN</span>
+                        <span class="text-white">MALL</span>
                     </span>
                 </Link>
 

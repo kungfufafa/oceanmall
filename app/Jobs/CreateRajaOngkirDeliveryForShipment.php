@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Actions\Shipping\SyncOrderShippingFromShipments;
 use App\Models\OrderShipment;
 use App\Models\OrderShipmentLine;
+use App\Services\Komerce\ShippingCostClient;
 use App\Services\Komerce\ShippingDeliveryClient;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -190,8 +191,72 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             ], static fn (mixed $part): bool => is_scalar($part) && trim((string) $part) !== '')));
         }
 
-        $carrierName = strtoupper(trim((string) ($shipment->carrier_name ?: $shipment->carrier_code)));
-        $shippingType = trim((string) ($shipment->service_code ?: $shipment->service_name));
+        $rawCarrier = implode(' ', array_filter([
+            $shipment->carrier_code,
+            $shipment->service_code,
+            $shipment->carrier_name,
+            $shipment->service_name,
+        ], static fn (mixed $v): bool => is_scalar($v) && trim((string) $v) !== ''));
+
+        $carrierName = 'JNT';
+        if (preg_match('#\b(jnt|jne|sicepat|ide|anteraja|pos|tiki|lion|ninja|wahana|rpx|ncs)\b#i', $rawCarrier, $m)) {
+            $carrierName = strtoupper($m[1]);
+        }
+
+        $serviceName = (string) ($shipment->service_name ?: $shipment->carrier_name ?: $shipment->service_code);
+        if (str_contains($serviceName, ':')) {
+            $parts = explode(':', $serviceName);
+            $serviceName = end($parts);
+        }
+        $shippingType = trim($serviceName);
+
+        $totalWeightGrams = 0;
+        foreach ($shipment->lines as $line) {
+            $purchasable = $line->purchasable;
+            $weightInGrams = 1000;
+            if ($purchasable instanceof Model) {
+                $w = $purchasable->getAttribute('weight_value');
+                $unit = $purchasable->getAttribute('weight_unit');
+                if (is_numeric($w) && (float) $w > 0) {
+                    $weightInGrams = (int) round(Weight::from($unit ?? 'g')->toGrams((float) $w));
+                }
+            }
+            $totalWeightGrams += $weightInGrams * (int) $line->qty;
+        }
+        $weightInGrams = max(1000, $totalWeightGrams);
+
+        try {
+            $costClient = resolve(ShippingCostClient::class);
+            $response = $costClient->calculate(['id' => $originId], ['id' => $destinationId], $weightInGrams, [strtolower($carrierName)]);
+            $rates = data_get($response, 'data', []);
+            if (is_array($rates)) {
+                $matchedCost = null;
+                foreach ($rates as $rate) {
+                    $svc = (string) data_get($rate, 'service', data_get($rate, 'code', ''));
+                    if (strcasecmp($svc, $shippingType) === 0 || str_contains(strtoupper($svc), strtoupper($shippingType))) {
+                        $matchedCost = (int) data_get($rate, 'cost', data_get($rate, 'tariff'));
+                        break;
+                    }
+                }
+                if ($matchedCost === null && ! empty($rates)) {
+                    $matchedCost = (int) data_get($rates[0], 'cost', data_get($rates[0], 'tariff'));
+                }
+                if ($matchedCost !== null && $matchedCost > 0) {
+                    $shippingCost = $matchedCost;
+                }
+            }
+        } catch (\Throwable $e) {
+            // keep current shipment cost fallback
+        }
+
+        $cashbackPercent = match (strtoupper($carrierName)) {
+            'JNT', 'J&T', 'J&T EXPRESS' => 0.25,
+            'SICEPAT' => 0.20,
+            'JNE', 'TIKI' => 0.15,
+            'POS' => 0.10,
+            default => 0.25,
+        };
+        $shippingCashback = (int) round($shippingCost * $cashbackPercent);
 
         return [
             'order_date' => now()->format('Y-m-d'),
@@ -209,7 +274,7 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             'shipping' => $carrierName,
             'shipping_type' => $shippingType,
             'shipping_cost' => $shippingCost,
-            'shipping_cashback' => 0,
+            'shipping_cashback' => $shippingCashback,
             'payment_method' => 'BANK TRANSFER',
             'service_fee' => 0,
             'additional_cost' => 0,
@@ -242,7 +307,7 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             'postal_code' => $address?->postal_code ?? '',
             'city' => $address?->city ?? '',
             'state' => $address?->getAttribute('state'),
-            'phone_number' => $address?->phone ?? '',
+            'phone_number' => (string) ($address?->phone_number ?? $address?->phone ?? data_get($metadataAddress, 'phone_number') ?? data_get($metadata, 'phone_number') ?? '081234567890'),
             'country_name' => $address?->country_name,
         ];
 
@@ -333,7 +398,8 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
 
     private function weightGrams(Model $model): int
     {
-        $value = max(0.0, (float) ($model->getAttribute('weight_value') ?? 1.0));
+        $raw = (float) ($model->getAttribute('weight_value') ?? 0.0);
+        $value = $raw > 0 ? $raw : 1.0;
         $unit = $model->getAttribute('weight_unit');
 
         if ($unit instanceof Weight) {

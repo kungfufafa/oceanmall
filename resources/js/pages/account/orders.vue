@@ -152,14 +152,14 @@ function shippingLabel(order: Order): string {
     <ul v-else class="mt-4 flex flex-col gap-3">
         <li v-for="order in orders.data" :key="order.id">
             <Card class="gap-0 overflow-hidden py-0 shadow-none">
-                <CardHeader
-                    class="flex-row items-start justify-between gap-3 border-b border-border bg-muted/50 px-3.5 py-2.5"
+                <div
+                    class="flex items-center justify-between gap-3 border-b border-border bg-muted/50 px-3.5 py-2.5"
                 >
                     <div class="min-w-0">
                         <p class="text-[13px] font-semibold text-foreground">
                             #{{ order.number }}
                         </p>
-                        <p class="mt-0.5 text-sm text-muted-foreground">
+                        <p class="mt-0.5 text-xs text-muted-foreground">
                             {{ formatDate(order.created_at) }} ·
                             {{
                                 formatMoney(order.price_amount, order.currency_code)
@@ -172,7 +172,7 @@ function shippingLabel(order: Order): string {
                     >
                         Detail
                     </Link>
-                </CardHeader>
+                </div>
 
                 <CardContent class="px-3.5 py-3">
                     <div class="flex flex-wrap items-center gap-2">

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Checkout;
 
 use App\Services\Komerce\ShippingCostClient;
+use App\Support\EnabledCarriers;
 use Shopper\Core\Models\Carrier;
 use Shopper\Core\Models\Country;
 use Shopper\Core\Models\Inventory;
@@ -84,12 +85,19 @@ final class FetchDeliveryRates
             return null;
         }
 
+        $countryId = isset($shippingAddress['country_id']) ? (int) $shippingAddress['country_id'] : null;
+        $courierSlugs = $this->couriers($countryId > 0 ? $countryId : null);
+
+        if ($courierSlugs === []) {
+            return [];
+        }
+
         try {
             $response = resolve(ShippingCostClient::class)->calculate(
                 origin: ['id' => $originId],
                 destination: ['id' => $destinationId],
                 weightGrams: $this->totalWeightGrams($packages),
-                couriers: $this->couriers(),
+                couriers: $courierSlugs,
             );
         } catch (Throwable $e) {
             report($e);
@@ -97,7 +105,7 @@ final class FetchDeliveryRates
             return [];
         }
 
-        return $this->formatRajaOngkirRates($response);
+        return $this->formatRajaOngkirRates($response, $courierSlugs);
     }
 
     private function defaultInventoryOriginId(): ?string
@@ -120,24 +128,15 @@ final class FetchDeliveryRates
     }
 
     /**
-     * @return array<int, string>
+     * @return list<string>
      */
-    private function couriers(): array
+    private function couriers(?int $countryId = null): array
     {
-        $couriers = config('komerce.couriers', ['jne', 'jnt', 'sicepat']);
+        $zone = $countryId !== null
+            ? resolve(ResolveZoneForCountry::class)->handle($countryId)
+            : null;
 
-        if (is_string($couriers)) {
-            $couriers = explode(',', $couriers);
-        }
-
-        if (! is_array($couriers)) {
-            return ['jne', 'jnt', 'sicepat'];
-        }
-
-        return array_values(array_filter(
-            array_map(static fn (mixed $courier): string => trim((string) $courier), $couriers),
-            static fn (string $courier): bool => $courier !== '',
-        ));
+        return EnabledCarriers::rajaOngkirSlugs($zone);
     }
 
     /**
@@ -164,9 +163,10 @@ final class FetchDeliveryRates
 
     /**
      * @param  array<string, mixed>  $response
+     * @param  list<string>  $enabledCouriers
      * @return array<int, array<string, mixed>>
      */
-    private function formatRajaOngkirRates(array $response): array
+    private function formatRajaOngkirRates(array $response, array $enabledCouriers): array
     {
         $data = $response['data'] ?? [];
 
@@ -174,6 +174,7 @@ final class FetchDeliveryRates
             return [];
         }
 
+        $allowed = array_fill_keys(array_map('strtolower', $enabledCouriers), true);
         $rates = [];
 
         foreach ($data as $carrierRow) {
@@ -181,7 +182,11 @@ final class FetchDeliveryRates
                 continue;
             }
 
-            $carrierCode = (string) ($carrierRow['code'] ?? '');
+            $carrierCode = strtolower((string) ($carrierRow['code'] ?? ''));
+
+            if ($carrierCode === '' || ! isset($allowed[$carrierCode])) {
+                continue;
+            }
             $carrierName = (string) ($carrierRow['name'] ?? $carrierCode);
             $costRows = isset($carrierRow['costs']) && is_array($carrierRow['costs'])
                 ? $carrierRow['costs']
@@ -195,7 +200,7 @@ final class FetchDeliveryRates
                 $service = (string) ($costRow['service'] ?? '');
                 $amount = $this->costAmount($costRow);
 
-                if ($carrierCode === '' || $service === '' || $amount === null) {
+                if ($service === '' || $amount === null) {
                     continue;
                 }
 

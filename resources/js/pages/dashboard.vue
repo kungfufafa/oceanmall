@@ -95,19 +95,19 @@ function formatDate(value: string | null): string {
     </div>
 
     <Card class="mt-4 gap-0 overflow-hidden py-0 shadow-none">
-        <CardHeader
-            class="flex-row items-center justify-between gap-3 border-b border-border px-3.5 py-3"
+        <div
+            class="flex items-center justify-between gap-3 border-b border-border px-4 py-3.5"
         >
             <div>
-                <CardTitle class="text-[13px]">Pesanan terbaru</CardTitle>
-                <CardDescription class="text-[12px]">
+                <h3 class="text-sm font-semibold text-foreground">Pesanan terbaru</h3>
+                <p class="text-xs text-muted-foreground">
                     Lanjutkan pantau status atau belanja lagi
-                </CardDescription>
+                </p>
             </div>
-            <Button as-child variant="ghost" size="sm" class="h-8 shrink-0 text-xs">
+            <Button as-child variant="ghost" size="sm" class="h-8 shrink-0 text-xs font-medium">
                 <Link :href="accountOrders.url()">Semua</Link>
             </Button>
-        </CardHeader>
+        </div>
         <CardContent class="flex flex-col gap-0 p-0">
             <template v-if="recentOrders.length">
                 <Link

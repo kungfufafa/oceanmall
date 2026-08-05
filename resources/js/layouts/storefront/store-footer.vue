@@ -56,16 +56,20 @@ const trustPoints = [
                 <div>
                     <Link
                         :href="home.url()"
-                        class="inline-flex items-center gap-2"
+                        class="inline-flex items-center gap-2.5"
                     >
                         <BrandIcon
-                            class="h-9 w-auto fill-current text-[var(--om-navy)]"
+                            class="h-10 w-auto"
                         />
-                        <span
-                            class="text-lg font-extrabold tracking-tight text-[var(--om-navy)]"
-                        >
-                            OceanMall
-                        </span>
+                        <div class="flex flex-col">
+                            <span class="text-xl font-extrabold tracking-tight leading-none">
+                                <span class="text-[#0066FF]">OCEAN</span>
+                                <span class="text-[var(--om-navy)]">MALL</span>
+                            </span>
+                            <span class="text-[10px] tracking-wider text-muted-foreground uppercase font-semibold mt-1">
+                                Belanja Lebih Luas
+                            </span>
+                        </div>
                     </Link>
                     <p class="mt-4 max-w-xs text-sm leading-6 text-muted-foreground">
                         Belanja gadget & lifestyle terpercaya. Produk original,

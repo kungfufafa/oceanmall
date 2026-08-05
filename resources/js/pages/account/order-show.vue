@@ -276,14 +276,14 @@ function syncPayment(): void {
         v-if="komercePayment || canRetryPayment"
         class="mt-5 gap-0 overflow-hidden py-0 shadow-none"
     >
-        <CardHeader class="border-b border-[var(--om-warning)]/20 bg-[var(--om-warning-soft)]">
-            <CardTitle class="text-[13px] text-[var(--om-warning)]">
+        <div class="border-b border-[var(--om-warning)]/20 bg-[var(--om-warning-soft)] px-4 py-3">
+            <h3 class="text-[13px] font-semibold text-[var(--om-warning)]">
                 Menunggu pembayaran
-            </CardTitle>
-            <CardDescription class="text-[11px] text-[var(--om-warning)]/80">
+            </h3>
+            <p class="mt-0.5 text-[11px] text-[var(--om-warning)]/80">
                 Bayar dulu supaya pesanan bisa diproses & dikirim.
-            </CardDescription>
-        </CardHeader>
+            </p>
+        </div>
         <CardContent class="flex flex-col gap-3 p-3.5">
             <Alert v-if="paymentError" variant="destructive" class="py-2 text-[12px]">
                 <AlertDescription>{{ paymentError }}</AlertDescription>

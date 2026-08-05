@@ -6,21 +6,20 @@ namespace Tests\Feature\Checkout;
 
 use App\Actions\Checkout\BuildShippingPackages;
 use App\Actions\Checkout\FetchDeliveryRates;
-use App\Actions\CreateOrder;
 use App\CheckoutSession;
 use App\DTO\AllocationPlan;
 use App\DTO\ShipmentDraft;
-use App\Models\OrderShipment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\Http;
 use Shopper\Cart\CartManager;
 use Shopper\Cart\Models\Cart;
 use Shopper\Cart\Models\CartLine;
+use Shopper\Core\Models\Carrier;
 use Shopper\Core\Models\Country;
 use Shopper\Core\Models\Inventory;
-use Shopper\Core\Models\PaymentMethod;
 use Shopper\Core\Models\Product;
 use Shopper\Core\Models\Zone;
 use Tests\TestCase;
@@ -47,7 +46,19 @@ final class MultiPackageCheckoutTest extends TestCase
     {
         config()->set('komerce.api_key', 'test-komerce-key');
         config()->set('komerce.rajaongkir.cost_base_url', 'https://shipping.example.test');
-        config()->set('komerce.couriers', ['jne', 'jnt']);
+    }
+
+    private function attachRajaOngkirCarriers(Zone $zone): void
+    {
+        foreach (['jne' => 'JNE Express', 'jnt' => 'J&T Express'] as $slug => $name) {
+            $carrier = Carrier::query()->create([
+                'slug' => $slug,
+                'name' => $name,
+                'driver' => 'rajaongkir',
+                'is_enabled' => true,
+            ]);
+            $zone->carriers()->attach($carrier->id);
+        }
     }
 
     private function fakeDomesticCostResponse(string $originId, int $jneAmount, int $jntAmount): void
@@ -111,6 +122,7 @@ final class MultiPackageCheckoutTest extends TestCase
         $country = Country::factory()->create(['cca2' => 'ID']);
         $zone = Zone::factory()->create(['is_enabled' => true]);
         $zone->countries()->attach($country->id);
+        $this->attachRajaOngkirCarriers($zone);
 
         $defaultInventory = Inventory::factory()->create([
             'name' => 'Gudang Jakarta',
@@ -149,9 +161,15 @@ final class MultiPackageCheckoutTest extends TestCase
 
         $this->app->instance(BuildShippingPackages::class, new class
         {
-            public function handle(): array { return []; }
+            public function handle(): array
+            {
+                return [];
+            }
 
-            public function handleFromLines(array $lines): array { return []; }
+            public function handleFromLines(array $lines): array
+            {
+                return [];
+            }
         });
 
         $this->app->instance(CartManager::class, new class
@@ -255,9 +273,15 @@ final class MultiPackageCheckoutTest extends TestCase
 
         $this->app->instance(BuildShippingPackages::class, new class
         {
-            public function handle(): array { return []; }
+            public function handle(): array
+            {
+                return [];
+            }
 
-            public function handleFromLines(array $lines): array { return []; }
+            public function handleFromLines(array $lines): array
+            {
+                return [];
+            }
         });
 
         $shippingAddress = [
@@ -294,7 +318,7 @@ final class MultiPackageCheckoutTest extends TestCase
         $this->assertArrayHasKey($defaultInventory->id, $sessionRates);
         $this->assertArrayHasKey($secondaryInventory->id, $sessionRates);
 
-        $globalOption = session()->get(CheckoutSession::SHIPPING_OPTION . '.0');
+        $globalOption = session()->get(CheckoutSession::SHIPPING_OPTION.'.0');
         $this->assertIsArray($globalOption);
         $this->assertSame('split-shipment', $globalOption['service_code']);
         // jne:REG from first response (12000) + jnt:EZ from second response (10000+3000 = 13000) = 25000
@@ -362,7 +386,7 @@ final class MultiPackageCheckoutTest extends TestCase
         $this->assertNotEmpty($rates);
         $this->assertSame('jne:REG', $rates[0]['service_code']);
 
-        Http::assertSent(function (\Illuminate\Http\Client\Request $request) {
+        Http::assertSent(function (Request $request) {
             return (string) $request['origin'] === '999';
         });
     }
@@ -378,6 +402,7 @@ final class MultiPackageCheckoutTest extends TestCase
         $country = Country::factory()->create(['cca2' => 'ID']);
         $zone = Zone::factory()->create(['is_enabled' => true]);
         $zone->countries()->attach($country->id);
+        $this->attachRajaOngkirCarriers($zone);
 
         $inv1 = Inventory::factory()->create([
             'name' => 'Gudang A',
@@ -464,6 +489,7 @@ final class MultiPackageCheckoutTest extends TestCase
         $country = Country::factory()->create(['cca2' => 'ID']);
         $zone = Zone::factory()->create(['is_enabled' => true]);
         $zone->countries()->attach($country->id);
+        $this->attachRajaOngkirCarriers($zone);
 
         $inv1 = Inventory::factory()->create([
             'is_default' => true,

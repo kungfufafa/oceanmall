@@ -43,6 +43,10 @@ const labelMap: Record<string, string> = {
     partially_paid: 'Sebagian dibayar',
     voided: 'Dibatalkan',
     returned: 'Dikembalikan',
+    unfulfilled: 'Belum diproses',
+    fulfilled: 'Diproses',
+    partially_shipped: 'Dikirim sebagian',
+    ready_for_pickup: 'Siap diambil',
 };
 
 const variant = computed<BadgeVariants['variant']>(

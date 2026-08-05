@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Shopper\Core\Models\PaymentMethod;
+use Shopper\Core\Models\Zone;
 
 class PaymentMethodSeeder extends Seeder
 {
@@ -53,10 +54,52 @@ class PaymentMethodSeeder extends Seeder
         );
 
         PaymentMethod::query()->updateOrCreate(
+            ['slug' => 'komerce-va-mandiri'],
+            [
+                'title' => 'Mandiri Virtual Account',
+                'description' => 'Bayar via Mandiri Virtual Account (Komerce).',
+                'is_enabled' => true,
+                'driver' => 'komerce',
+                'metadata' => json_encode([
+                    'payment_type' => 'bank_transfer',
+                    'channel_code' => 'MANDIRI',
+                ], JSON_THROW_ON_ERROR),
+            ],
+        );
+
+        PaymentMethod::query()->updateOrCreate(
+            ['slug' => 'komerce-va-bni'],
+            [
+                'title' => 'BNI Virtual Account',
+                'description' => 'Bayar via BNI Virtual Account (Komerce).',
+                'is_enabled' => true,
+                'driver' => 'komerce',
+                'metadata' => json_encode([
+                    'payment_type' => 'bank_transfer',
+                    'channel_code' => 'BNI',
+                ], JSON_THROW_ON_ERROR),
+            ],
+        );
+
+        PaymentMethod::query()->updateOrCreate(
+            ['slug' => 'komerce-va-permata'],
+            [
+                'title' => 'Permata Virtual Account',
+                'description' => 'Bayar via Permata Virtual Account (Komerce).',
+                'is_enabled' => true,
+                'driver' => 'komerce',
+                'metadata' => json_encode([
+                    'payment_type' => 'bank_transfer',
+                    'channel_code' => 'PERMATA',
+                ], JSON_THROW_ON_ERROR),
+            ],
+        );
+
+        PaymentMethod::query()->updateOrCreate(
             ['slug' => 'komerce-qris'],
             [
                 'title' => 'QRIS',
-                'description' => 'Bayar via QRIS (Komerce).',
+                'description' => 'Bayar via QRIS (GoPay, OVO, Dana, ShopeePay, m-banking).',
                 'is_enabled' => true,
                 'driver' => 'komerce',
                 'metadata' => json_encode([
@@ -90,6 +133,12 @@ class PaymentMethodSeeder extends Seeder
                 'driver' => 'stripe',
             ],
         );
+
+        // Attach all enabled payment methods to existing zones
+        $enabledIds = PaymentMethod::query()->where('is_enabled', true)->pluck('id');
+        foreach (Zone::all() as $zone) {
+            $zone->paymentMethods()->syncWithoutDetaching($enabledIds);
+        }
 
         $this->command->info('Payment methods created successfully.');
     }

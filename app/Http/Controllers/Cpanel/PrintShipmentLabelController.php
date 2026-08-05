@@ -8,11 +8,14 @@ use App\Actions\Shipping\PrintShipmentLabels;
 use App\Http\Controllers\Controller;
 use App\Services\Komerce\ShippingDeliveryClient;
 use App\Support\KomerceLabelResponse;
+use App\Support\OrderShipmentOpsPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Http;
+use Illuminate\View\View;
 use RuntimeException;
 use Shopper\Core\Models\Order;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -24,7 +27,8 @@ final class PrintShipmentLabelController extends Controller
         Request $request,
         Order $order,
         PrintShipmentLabels $printLabels,
-    ): RedirectResponse|JsonResponse|StreamedResponse|Response {
+        OrderShipmentOpsPresenter $presenter,
+    ): View|RedirectResponse|JsonResponse|StreamedResponse|Response {
         Gate::authorize('print-shipment-label', $order);
 
         if (! komerce_enabled()) {
@@ -39,9 +43,10 @@ final class PrintShipmentLabelController extends Controller
         ]);
 
         $page = $validated['page'] ?? ShippingDeliveryClient::DEFAULT_LABEL_PAGE;
+        $shipmentId = isset($validated['shipment']) ? (int) $validated['shipment'] : null;
 
         try {
-            $response = $printLabels->handle($order, $page, $validated['shipment'] ?? null);
+            $response = $printLabels->handle($order, $page, $shipmentId);
         } catch (RuntimeException $e) {
             return back()->withErrors(['label' => $e->getMessage()]);
         } catch (Throwable $e) {
@@ -55,7 +60,14 @@ final class PrintShipmentLabelController extends Controller
         $labelUrl = KomerceLabelResponse::absoluteUrl($response);
 
         if ($labelUrl !== null) {
-            return redirect()->away($labelUrl);
+            try {
+                $check = Http::timeout(3)->get($labelUrl);
+                if (! $check->notFound()) {
+                    return redirect()->away($labelUrl);
+                }
+            } catch (Throwable $e) {
+                return redirect()->away($labelUrl);
+            }
         }
 
         $pdf = KomerceLabelResponse::pdfBinary($response);
@@ -69,8 +81,16 @@ final class PrintShipmentLabelController extends Controller
             ]);
         }
 
-        return back()->withErrors([
-            'label' => __('Komerce returned a label response we could not open. Check the delivery order in Collaborator, or try again in a moment.'),
+        // Fallback for Sandbox 404s: render built-in thermal printable label
+        $allShipments = $presenter->shipments($order);
+        $shipmentPresentations = array_filter(
+            $allShipments,
+            static fn (array $s): bool => $shipmentId === null || (int) $s['id'] === $shipmentId
+        );
+
+        return view('shopper.shipping.thermal-label', [
+            'order' => $order,
+            'shipmentPresentations' => $shipmentPresentations,
         ]);
     }
 }

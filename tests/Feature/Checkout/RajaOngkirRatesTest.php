@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Http;
 use Shopper\Cart\CartManager;
 use Shopper\Cart\Models\Cart;
 use Shopper\Cart\Models\CartLine;
+use Shopper\Core\Models\Carrier;
 use Shopper\Core\Models\Country;
 use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Product;
@@ -40,7 +41,6 @@ final class RajaOngkirRatesTest extends TestCase
     {
         config()->set('komerce.api_key', 'test-komerce-key');
         config()->set('komerce.rajaongkir.cost_base_url', 'https://shipping.example.test');
-        config()->set('komerce.couriers', ['jne', 'jnt']);
     }
 
     private function seedCountryZoneInventory(): array
@@ -48,6 +48,16 @@ final class RajaOngkirRatesTest extends TestCase
         $country = Country::factory()->create(['cca2' => 'ID']);
         $zone = Zone::factory()->create(['is_enabled' => true]);
         $zone->countries()->attach($country->id);
+
+        foreach (['jne' => 'JNE Express', 'jnt' => 'J&T Express'] as $slug => $name) {
+            $carrier = Carrier::query()->create([
+                'slug' => $slug,
+                'name' => $name,
+                'driver' => 'rajaongkir',
+                'is_enabled' => true,
+            ]);
+            $zone->carriers()->attach($carrier->id);
+        }
 
         Inventory::factory()->create([
             'country_id' => $country->id,

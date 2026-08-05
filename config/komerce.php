@@ -62,7 +62,7 @@ return [
         'delivery_base_url' => env('RAJAONGKIR_DELIVERY_BASE_URL', 'https://api-sandbox.collaborator.komerce.id'),
     ],
 
-    'couriers' => array_values(array_filter(array_map('trim', explode(',', env('RAJAONGKIR_COURIERS', 'jne,jnt,sicepat'))))),
+    'couriers' => array_values(array_filter(array_map('trim', explode(',', env('RAJAONGKIR_COURIERS', 'jne,jnt,sicepat,ide,anteraja,pos,tiki,lion,ninja,wahana,rpx,ncs'))))),
 
     'webhook_secret' => env('KOMERCE_WEBHOOK_SECRET', ''),
 

@@ -21,16 +21,41 @@ final class OrderShipmentOpsPresenter
     public function shipments(Order $order): array
     {
         return OrderShipment::query()
-            ->with(['lines.purchasable', 'inventory'])
+            ->with(['lines.purchasable', 'inventory', 'order.shippingAddress', 'order.customer'])
             ->where('order_id', $order->id)
             ->orderBy('id')
             ->get()
-            ->map(function (OrderShipment $shipment): array {
+            ->map(function (OrderShipment $shipment) use ($order): array {
                 $deliveryOrderNo = $this->deliveryOrderNo($shipment);
                 $canPrint = $deliveryOrderNo !== null;
                 $canOverride = in_array($shipment->status, ['pending', 'ready'], true)
                     && ! filled($shipment->awb)
                     && ! filled($shipment->tracking_number);
+
+                $inventory = $shipment->inventory;
+                $shipperAddress = implode(', ', array_filter([
+                    $inventory?->street_address,
+                    $inventory?->city,
+                    $inventory?->postal_code,
+                ], static fn (mixed $p): bool => is_scalar($p) && trim((string) $p) !== ''));
+
+                $shippingAddress = $order->shippingAddress;
+                $receiverName = trim(implode(' ', array_filter([
+                    $shippingAddress?->first_name,
+                    $shippingAddress?->last_name,
+                ], static fn (mixed $p): bool => is_scalar($p) && trim((string) $p) !== '')));
+                if ($receiverName === '') {
+                    $receiverName = (string) ($order->customer?->full_name ?? 'Pelanggan');
+                }
+
+                $receiverAddress = implode(', ', array_filter([
+                    $shippingAddress?->street_address,
+                    $shippingAddress?->street_address_plus,
+                    $shippingAddress?->city,
+                    $shippingAddress?->postal_code,
+                ], static fn (mixed $p): bool => is_scalar($p) && trim((string) $p) !== ''));
+
+                $receiverPhone = (string) ($shippingAddress?->phone_number ?? $shippingAddress?->phone ?? '-');
 
                 return [
                     'id' => $shipment->id,
@@ -50,6 +75,12 @@ final class OrderShipmentOpsPresenter
                         ? null
                         : 'Label unlocks after the RajaOngkir delivery order is created (usually right after payment clears).',
                     'can_override' => $canOverride,
+                    'shipper_name' => $inventory?->name ?? 'Gudang Utama',
+                    'shipper_address' => $shipperAddress ?: 'Jl. Tuparev No. 109F, Cirebon',
+                    'shipper_phone' => (string) ($inventory?->phone_number ?? '-'),
+                    'receiver_name' => $receiverName,
+                    'receiver_address' => $receiverAddress ?: '-',
+                    'receiver_phone' => $receiverPhone,
                     'lines' => $shipment->lines->map(static function ($line): array {
                         $purchasable = $line->purchasable;
 

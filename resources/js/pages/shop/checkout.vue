@@ -222,6 +222,15 @@ async function searchDestinations(query: string): Promise<void> {
     }
 }
 
+function formatCourierTitle(option: DeliveryOption): string {
+    const carrier = option.carrier_name || (option.carrier_code ? option.carrier_code.toUpperCase() : '');
+    if (!carrier) return option.service_name;
+    if (option.service_name.toLowerCase().includes(carrier.toLowerCase())) {
+        return option.service_name;
+    }
+    return `${carrier} - ${option.service_name}`;
+}
+
 function selectDestination(result: DestinationResult): void {
     addressForm.rajaongkir_destination_id = String(result.id);
     addressForm.rajaongkir_destination_label = result.label;
@@ -954,7 +963,9 @@ const steps = [
                                                 <span
                                                     class="font-heading text-sm font-medium text-foreground"
                                                     >{{
-                                                        option.service_name
+                                                        formatCourierTitle(
+                                                            option,
+                                                        )
                                                     }}</span
                                                 >
                                                 <span

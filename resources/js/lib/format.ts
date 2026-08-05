@@ -1,6 +1,11 @@
-import { isNoDivisionCurrency } from '@shopperlabs/shopper-types';
+import { isNoDivisionCurrency as shopperIsNoDivisionCurrency } from '@shopperlabs/shopper-types';
 
-export { isNoDivisionCurrency };
+export function isNoDivisionCurrency(currency: string): boolean {
+  if (!currency || currency.toUpperCase() === 'IDR') {
+    return true;
+  }
+  return shopperIsNoDivisionCurrency(currency);
+}
 
 export function formatMoney(
   amount: number,
@@ -11,7 +16,7 @@ export function formatMoney(
 
   return new Intl.NumberFormat(locale, {
     style: 'currency',
-    currency,
+    currency: currency || 'IDR',
     maximumFractionDigits: isNoDivisionCurrency(currency) ? 0 : undefined,
   }).format(value);
 }
