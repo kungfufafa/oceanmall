@@ -421,7 +421,7 @@ final class CheckoutController extends Controller
             'payment_method_id' => ['required', 'integer'],
         ]);
 
-        [$selectedMethod, $error] = $this->resolveSelectedMethod($data['payment_method_id']);
+        [$selectedMethod, $error] = $this->resolveSelectedMethod((int) $data['payment_method_id']);
 
         if ($error) {
             return $error;
@@ -491,7 +491,7 @@ final class CheckoutController extends Controller
             'payment_method_id' => ['required', 'integer'],
         ]);
 
-        [$selectedMethod, $error] = $this->resolveSelectedMethod($data['payment_method_id']);
+        [$selectedMethod, $error] = $this->resolveSelectedMethod((int) $data['payment_method_id']);
 
         if ($error) {
             return $error;

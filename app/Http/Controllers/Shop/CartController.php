@@ -50,7 +50,11 @@ final class CartController extends Controller
             : null;
 
         try {
-            resolve(AddToCart::class)->handle($product, $variant, $data['quantity'] ?? 1);
+            resolve(AddToCart::class)->handle(
+                $product,
+                $variant,
+                (int) ($data['quantity'] ?? 1),
+            );
         } catch (InsufficientStockException) {
             Inertia::flash('toast', [
                 'type' => 'error',
