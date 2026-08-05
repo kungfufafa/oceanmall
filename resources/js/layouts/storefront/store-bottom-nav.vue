@@ -57,14 +57,14 @@ function itemClass(key: string): string {
     const on = current.value === key;
     return [
         'flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-1',
-        on ? 'text-[var(--om-navy)]' : 'text-zinc-400',
+        on ? 'text-[var(--om-navy)]' : 'text-muted-foreground',
     ].join(' ');
 }
 </script>
 
 <template>
     <nav
-        class="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200 bg-white lg:hidden"
+        class="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background lg:hidden"
         style="padding-bottom: env(safe-area-inset-bottom, 0px)"
         aria-label="Navigasi utama"
     >

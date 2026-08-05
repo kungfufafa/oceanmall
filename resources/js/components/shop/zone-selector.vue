@@ -83,7 +83,7 @@ function select(country: CountryByZoneData): void {
         </button>
 
         <div v-else-if="zone" class="flex items-center">
-            <p class="text-sm/5 text-zinc-700">Dikirim ke:</p>
+            <p class="text-sm/5 text-muted-foreground">Dikirim ke:</p>
             <button
                 type="button"
                 class="group ml-4 flex items-center font-medium hover:text-[var(--om-navy)]"
@@ -106,7 +106,7 @@ function select(country: CountryByZoneData): void {
                 class="border-0 bg-transparent p-0 shadow-none sm:max-w-lg"
             >
                 <div
-                    class="space-y-4 rounded-md border border-zinc-200 bg-white p-4"
+                    class="flex flex-col gap-4 rounded-md border border-border bg-card p-4"
                 >
                     <DialogTitle class="om-page-title !text-lg"
                         >Pilih negara</DialogTitle
@@ -114,7 +114,7 @@ function select(country: CountryByZoneData): void {
 
                     <DialogDescription
                         v-if="zone"
-                        class="text-sm text-zinc-600"
+                        class="text-sm text-muted-foreground"
                     >
                         Saat ini dikirim ke:
                         <span class="font-semibold text-[var(--om-navy)]">{{
@@ -122,12 +122,12 @@ function select(country: CountryByZoneData): void {
                         }}</span>
                     </DialogDescription>
 
-                    <DialogDescription class="text-sm text-zinc-600">
+                    <DialogDescription class="text-sm text-muted-foreground">
                         Mengganti negara dapat mengubah harga dan mata uang.
                     </DialogDescription>
 
                     <div
-                        class="mt-4 max-h-96 divide-y divide-zinc-200 overflow-y-auto"
+                        class="mt-4 max-h-96 divide-y divide-border overflow-y-auto"
                     >
                         <div
                             v-for="(countries, zoneName) in grouped"
@@ -139,7 +139,7 @@ function select(country: CountryByZoneData): void {
                             >
                                 {{ zoneName }}
                             </h4>
-                            <ul role="listbox" class="mt-2 space-y-1">
+                            <ul role="listbox" class="mt-2 flex flex-col gap-1">
                                 <li
                                     v-for="country in countries"
                                     :key="country.countryId"
@@ -150,8 +150,8 @@ function select(country: CountryByZoneData): void {
                                             'flex w-full items-center rounded-md px-3 py-2 text-sm transition',
                                             zone?.country_code ===
                                             country.countryCode
-                                                ? 'bg-zinc-100 font-medium text-[var(--om-navy)]'
-                                                : 'text-zinc-600 hover:bg-zinc-50',
+                                                ? 'bg-muted font-medium text-[var(--om-navy)]'
+                                                : 'text-muted-foreground hover:bg-accent',
                                         ]"
                                         @click="select(country)"
                                     >

@@ -47,10 +47,10 @@ async function pay(): Promise<void> {
             </h1>
             <p class="om-meta mt-2">
                 Pesanan
-                <span class="font-mono text-zinc-800">{{ order.number }}</span>
+                <span class="font-mono text-foreground">{{ order.number }}</span>
             </p>
 
-            <form class="mt-8 space-y-4" @submit.prevent="pay">
+            <form class="mt-8 flex flex-col gap-4" @submit.prevent="pay">
                 <div ref="paymentElementRef" />
 
                 <p v-if="error" class="text-[13px] text-red-600">{{ error }}</p>

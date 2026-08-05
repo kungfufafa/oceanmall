@@ -28,7 +28,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-    <header class="sticky top-0 z-30 border-b border-zinc-200 bg-white">
+    <header class="sticky top-0 z-30 border-b border-border bg-background">
         <div
             :class="[
                 'mx-auto grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4',

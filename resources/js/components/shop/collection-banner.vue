@@ -9,7 +9,7 @@ defineProps<{ collection: Collection }>();
 <template>
     <Link
         :href="shop.collection.url({ collection: collection.slug })"
-        class="group relative block overflow-hidden rounded-2xl bg-zinc-100"
+        class="group relative block overflow-hidden rounded-2xl bg-muted"
     >
         <div class="relative aspect-[16/9] sm:aspect-[2/1]">
             <img

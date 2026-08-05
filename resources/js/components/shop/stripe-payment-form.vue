@@ -30,12 +30,12 @@ async function pay(): Promise<void> {
 </script>
 
 <template>
-    <div class="space-y-4">
+    <div class="flex flex-col gap-4">
         <div ref="mount" class="min-h-[240px]" />
 
         <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
 
-        <div class="flex flex-col gap-3 border-t border-zinc-200 pt-5">
+        <div class="flex flex-col gap-3 border-t border-border pt-5">
             <div class="flex items-center justify-between gap-4">
                 <div v-if="total !== undefined" class="flex flex-col">
                     <span class="om-meta !text-xs">Total {{ taxLabel }}</span>
@@ -52,7 +52,7 @@ async function pay(): Promise<void> {
                     {{ submitting ? 'Memproses…' : 'Bayar sekarang' }}
                 </Button>
             </div>
-            <p class="inline-flex items-center gap-1.5 text-xs text-zinc-500">
+            <p class="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Lock class="size-3" aria-hidden="true" />
                 Aman &amp; terenkripsi
             </p>

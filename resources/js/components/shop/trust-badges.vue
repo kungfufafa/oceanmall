@@ -30,7 +30,7 @@ const badges = [
         <div
             v-for="badge in badges"
             :key="badge.title"
-            class="flex flex-col items-center rounded-md border border-zinc-200 bg-zinc-50 px-3 py-4 text-center"
+            class="flex flex-col items-center rounded-md border border-border bg-muted px-3 py-4 text-center"
         >
             <div
                 class="flex size-11 items-center justify-center rounded-full bg-[var(--om-navy)]/10"

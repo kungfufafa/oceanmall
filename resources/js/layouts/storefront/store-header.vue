@@ -59,11 +59,11 @@ function clearSearch(): void {
                     >Cari produk</label
                 >
                 <div
-                    class="flex items-center overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-black/5"
+                    class="flex items-center overflow-hidden rounded-md bg-card shadow-sm ring-1 ring-black/5"
                 >
                     <div class="relative min-w-0 flex-1">
                         <Search
-                            class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-zinc-400"
+                            class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
                             aria-hidden="true"
                         />
                         <input
@@ -71,12 +71,12 @@ function clearSearch(): void {
                             v-model="searchQuery"
                             type="search"
                             :placeholder="searchPlaceholder"
-                            class="h-11 w-full border-0 bg-transparent pr-10 pl-10 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-400 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                            class="h-11 w-full border-0 bg-transparent pr-10 pl-10 text-[13px] text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
                         />
                         <button
                             v-if="hasQuery"
                             type="button"
-                            class="absolute top-1/2 right-2.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                            class="absolute top-1/2 right-2.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
                             aria-label="Hapus pencarian"
                             @click="clearSearch"
                         >
@@ -100,7 +100,7 @@ function clearSearch(): void {
             <Link
                 v-if="user"
                 :href="accountNotifications.url()"
-                class="relative flex size-11 items-center justify-center rounded-md text-white transition hover:bg-white/10"
+                class="relative flex size-11 items-center justify-center rounded-md text-primary-foreground transition hover:bg-primary-foreground/10"
                 aria-label="Notifikasi"
             >
                 <Bell class="size-6" stroke-width="1.75" aria-hidden="true" />
@@ -115,7 +115,7 @@ function clearSearch(): void {
 
             <Link
                 :href="shop.cart.url()"
-                class="relative flex size-11 items-center justify-center rounded-md text-white transition hover:bg-white/10"
+                class="relative flex size-11 items-center justify-center rounded-md text-primary-foreground transition hover:bg-primary-foreground/10"
                 aria-label="Keranjang"
             >
                 <ShoppingCart
@@ -138,9 +138,9 @@ function clearSearch(): void {
             <div class="mx-auto flex max-w-7xl items-center gap-6 px-6 py-4">
                 <Link
                     :href="home.url()"
-                    class="inline-flex shrink-0 items-center gap-2 text-white"
+                    class="inline-flex shrink-0 items-center gap-2 text-primary-foreground"
                 >
-                    <BrandIcon class="h-8 w-auto fill-current text-white" />
+                    <BrandIcon class="h-8 w-auto fill-current text-primary-foreground" />
                     <span class="text-[1.35rem] font-extrabold tracking-tight">
                         OceanMall
                     </span>
@@ -151,7 +151,7 @@ function clearSearch(): void {
                         >Cari produk</label
                     >
                     <div
-                        class="flex items-center overflow-hidden rounded-md bg-white shadow-sm ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-white/40"
+                        class="flex items-center overflow-hidden rounded-md bg-card shadow-sm ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-primary-foreground/40"
                     >
                         <div class="relative min-w-0 flex-1">
                             <input
@@ -159,12 +159,12 @@ function clearSearch(): void {
                                 v-model="searchQuery"
                                 type="search"
                                 :placeholder="searchPlaceholder"
-                                class="h-12 w-full border-0 bg-transparent pr-11 pl-5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                                class="h-12 w-full border-0 bg-transparent pr-11 pl-5 text-sm text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
                             />
                             <button
                                 v-if="hasQuery"
                                 type="button"
-                                class="absolute top-1/2 right-2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                                class="absolute top-1/2 right-2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
                                 aria-label="Hapus pencarian"
                                 @click="clearSearch"
                             >
@@ -189,7 +189,7 @@ function clearSearch(): void {
                     <Link
                         v-if="user"
                         :href="accountNotifications.url()"
-                        class="relative flex size-10 items-center justify-center rounded-md text-white transition hover:bg-white/10"
+                        class="relative flex size-10 items-center justify-center rounded-md text-primary-foreground transition hover:bg-primary-foreground/10"
                         aria-label="Notifikasi"
                     >
                         <Bell
@@ -208,7 +208,7 @@ function clearSearch(): void {
 
                     <Link
                         :href="shop.cart.url()"
-                        class="relative flex size-10 items-center justify-center rounded-md text-white transition hover:bg-white/10"
+                        class="relative flex size-10 items-center justify-center rounded-md text-primary-foreground transition hover:bg-primary-foreground/10"
                         aria-label="Keranjang"
                     >
                         <ShoppingCart
@@ -225,12 +225,15 @@ function clearSearch(): void {
                         </Badge>
                     </Link>
 
-                    <div class="h-7 w-px bg-white/25" aria-hidden="true" />
+                    <div
+                        class="h-7 w-px bg-primary-foreground/25"
+                        aria-hidden="true"
+                    />
 
                     <template v-if="user">
                         <Link
                             :href="dashboard.url()"
-                            class="inline-flex h-10 items-center rounded-lg border border-white/80 px-4 text-sm font-semibold text-white transition hover:bg-white/10"
+                            class="inline-flex h-10 items-center rounded-lg border border-primary-foreground/80 px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/10"
                         >
                             Akun
                         </Link>
@@ -238,13 +241,13 @@ function clearSearch(): void {
                     <template v-else>
                         <Link
                             :href="login.url()"
-                            class="inline-flex h-10 items-center rounded-lg border border-white/80 px-4 text-sm font-semibold text-white transition hover:bg-white/10"
+                            class="inline-flex h-10 items-center rounded-lg border border-primary-foreground/80 px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/10"
                         >
                             Masuk
                         </Link>
                         <Link
                             :href="register.url()"
-                            class="inline-flex h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-[var(--om-navy)] transition hover:bg-zinc-100"
+                            class="inline-flex h-10 items-center rounded-lg bg-background px-4 text-sm font-semibold text-[var(--om-navy)] transition hover:bg-muted"
                         >
                             Daftar
                         </Link>

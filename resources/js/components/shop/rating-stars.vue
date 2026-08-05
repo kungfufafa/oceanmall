@@ -69,7 +69,7 @@ function select(n: number): void {
             @click="select(n)"
         >
             <Star
-                class="absolute inset-0 size-full text-zinc-300"
+                class="absolute inset-0 size-full text-muted-foreground/40"
                 stroke-width="1.5"
             />
             <span
