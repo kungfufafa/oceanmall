@@ -4,7 +4,6 @@ import { Check, ChevronRight, Lock, ShoppingBag } from 'lucide-vue-next';
 import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import AuthTextField from '@/components/auth/auth-text-field.vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
-import Card from '@/components/shop/card.vue';
 import Container from '@/components/shop/container.vue';
 import CouponField from '@/components/shop/coupon-field.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
@@ -14,6 +13,12 @@ import ShipmentRatePicker from '@/components/shop/shipment-rate-picker.vue';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup } from '@/components/ui/radio-group';
@@ -518,7 +523,11 @@ const steps = [
     />
 
     <Container class="py-8 sm:py-12">
-        <h1 class="om-page-title hidden !text-lg lg:block">Checkout</h1>
+        <h1
+            class="hidden text-lg font-semibold tracking-tight text-foreground lg:block"
+        >
+            Checkout
+        </h1>
 
         <nav class="mt-8 mb-10">
             <ol class="flex items-center gap-2">
@@ -527,38 +536,39 @@ const steps = [
                     :key="s.n"
                     class="flex items-center gap-2"
                 >
-                    <button
+                    <Button
                         type="button"
+                        variant="ghost"
                         :disabled="s.n > maxStep"
+                        class="h-auto gap-2 px-0 text-sm font-medium"
                         :class="[
-                            'flex items-center gap-2 text-sm font-medium transition',
                             step === s.n
-                                ? 'text-[var(--om-navy)]'
+                                ? 'text-primary hover:text-primary'
                                 : maxStep > s.n
-                                  ? 'text-green-600'
+                                  ? 'text-green-600 hover:text-green-600'
                                   : 'text-muted-foreground',
                         ]"
                         @click="goToStep(s.n as 1 | 2 | 3)"
                     >
-                        <span
-                            :class="[
-                                'flex size-7 items-center justify-center rounded-full text-xs font-bold',
+                        <Badge
+                            :variant="
                                 step === s.n
-                                    ? 'bg-[var(--om-navy)] text-white'
+                                    ? 'default'
                                     : step > s.n
-                                      ? 'bg-green-100 text-green-600'
-                                      : 'bg-muted text-muted-foreground',
-                            ]"
+                                      ? 'success'
+                                      : 'secondary'
+                            "
+                            class="size-7 shrink-0 justify-center rounded-full p-0 text-xs font-bold"
                         >
                             <Check
                                 v-if="step > s.n"
-                                class="size-4"
+                                class="size-3.5"
                                 aria-hidden="true"
                             />
                             <template v-else>{{ s.n }}</template>
-                        </span>
+                        </Badge>
                         {{ s.label }}
-                    </button>
+                    </Button>
                     <ChevronRight
                         v-if="i < steps.length - 1"
                         class="size-4 text-muted-foreground/50"
@@ -572,7 +582,9 @@ const steps = [
             <div class="lg:col-span-7">
                 <template v-if="step === 1">
                     <div v-if="savedAddresses.length" class="mb-8">
-                        <h2 class="text-[13px] font-semibold text-foreground">
+                        <h2
+                            class="text-base font-semibold tracking-tight text-foreground"
+                        >
                             Alamat tersimpan
                         </h2>
                         <p class="mt-1 text-[11px] text-muted-foreground">
@@ -617,14 +629,16 @@ const steps = [
                             </SelectableCard>
                         </RadioGroup>
 
-                        <button
+                        <Button
                             v-if="selectedAddressId"
                             type="button"
-                            class="mt-3 text-sm text-muted-foreground underline transition hover:text-foreground"
+                            variant="link"
+                            size="sm"
+                            class="mt-3 h-auto px-0 text-muted-foreground"
                             @click="clearAddress"
                         >
                             Pakai alamat lain
-                        </button>
+                        </Button>
 
                         <Separator class="my-6" />
                     </div>
@@ -633,7 +647,9 @@ const steps = [
                         class="flex flex-col gap-5"
                         @submit.prevent="submitAddress"
                     >
-                        <h2 class="text-[13px] font-semibold text-foreground">
+                        <h2
+                            class="text-base font-semibold tracking-tight text-foreground"
+                        >
                             Alamat pengiriman
                         </h2>
 
@@ -747,20 +763,23 @@ const steps = [
                                 >
                                     Ganti
                                 </Button>
-                                <div
+                                <Card
                                     v-if="destinationResults.length"
-                                    class="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-border bg-card shadow-sm"
+                                    class="absolute z-20 mt-1 max-h-56 w-full gap-0 overflow-auto rounded-md py-0 shadow-sm"
                                 >
-                                    <button
-                                        v-for="result in destinationResults"
-                                        :key="result.id"
-                                        type="button"
-                                        class="block w-full px-3 py-2.5 text-left text-[13px] hover:bg-accent"
-                                        @click="selectDestination(result)"
-                                    >
-                                        {{ result.label }}
-                                    </button>
-                                </div>
+                                    <CardContent class="p-0">
+                                        <Button
+                                            v-for="result in destinationResults"
+                                            :key="result.id"
+                                            type="button"
+                                            variant="ghost"
+                                            class="h-auto w-full justify-start rounded-none px-3 py-2.5 text-left text-[13px] font-normal"
+                                            @click="selectDestination(result)"
+                                        >
+                                            {{ result.label }}
+                                        </Button>
+                                    </CardContent>
+                                </Card>
                             </div>
                             <p
                                 v-if="destinationSearching"
@@ -831,7 +850,9 @@ const steps = [
                 <template v-else-if="step === 2">
                     <template v-if="isMultiPackage">
                         <div class="flex flex-col gap-5">
-                            <h2 class="text-[13px] font-semibold text-foreground">
+                            <h2
+                                class="text-base font-semibold tracking-tight text-foreground"
+                            >
                                 Metode pengiriman
                             </h2>
 
@@ -880,13 +901,15 @@ const steps = [
                                     }}
                                 </AlertDescription>
                             </Alert>
-                            <button
+                            <Button
                                 type="button"
-                                class="mt-4 text-sm text-muted-foreground transition hover:text-foreground"
+                                variant="link"
+                                size="sm"
+                                class="mt-4 h-auto px-0 text-muted-foreground"
                                 @click="goToStep(1)"
                             >
                                 ← Kembali ke alamat
-                            </button>
+                            </Button>
                         </div>
 
                         <form
@@ -894,7 +917,9 @@ const steps = [
                             class="flex flex-col gap-5"
                             @submit.prevent="submitShipping"
                         >
-                            <h2 class="text-[13px] font-semibold text-foreground">
+                            <h2
+                                class="text-base font-semibold tracking-tight text-foreground"
+                            >
                                 Metode pengiriman
                             </h2>
                             <p
@@ -983,7 +1008,9 @@ const steps = [
                 <template v-else>
                     <div class="flex flex-col gap-5">
                         <div>
-                            <h2 class="text-[13px] font-semibold text-foreground">
+                            <h2
+                                class="text-base font-semibold tracking-tight text-foreground"
+                            >
                                 Metode pembayaran
                             </h2>
                             <p class="text-sm text-muted-foreground">
@@ -1133,10 +1160,15 @@ const steps = [
             </div>
 
             <div class="mt-8 lg:col-span-5 lg:mt-0">
-                <Card content-class="p-6">
-                    <h2 class="text-[13px] font-semibold text-foreground">
-                        Ringkasan pesanan
-                    </h2>
+                <Card
+                    class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none lg:sticky lg:top-6"
+                >
+                    <CardHeader class="gap-1 p-6 pb-0">
+                        <CardTitle class="text-base font-semibold tracking-tight">
+                            Ringkasan pesanan
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent class="p-6">
 
                     <ul
                         v-if="cart"
@@ -1266,6 +1298,7 @@ const steps = [
                             </dd>
                         </div>
                     </dl>
+                    </CardContent>
                 </Card>
             </div>
         </div>

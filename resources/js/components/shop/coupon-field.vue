@@ -43,7 +43,7 @@ function removeCoupon(): void {
 
 <template>
     <div class="flex flex-col gap-2">
-        <Label for="coupon-code" class="om-label">Kode kupon</Label>
+        <Label for="coupon-code">Kode kupon</Label>
 
         <Alert v-if="appliedCode" variant="success" class="py-2">
             <div class="flex items-center justify-between gap-3">

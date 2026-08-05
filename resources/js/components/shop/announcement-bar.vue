@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { X } from 'lucide-vue-next';
 import { ref } from 'vue';
+import { Button } from '@/components/ui/button';
 import Container from './container.vue';
 
 defineProps<{
@@ -22,14 +23,16 @@ const dismissed = ref<boolean>(false);
                 >
                     {{ message }}
                 </p>
-                <button
+                <Button
                     type="button"
-                    class="absolute right-4 text-white/70 hover:text-white"
+                    variant="ghost"
+                    size="icon-sm"
+                    class="absolute right-4 text-white/70 hover:bg-white/10 hover:text-white"
                     aria-label="Tutup"
                     @click="dismissed = true"
                 >
                     <X class="size-4" aria-hidden="true" />
-                </button>
+                </Button>
             </div>
         </Container>
     </div>

@@ -49,7 +49,7 @@ function select(n: number): void {
 
 <template>
     <div
-        class="inline-flex items-center gap-0.5 text-[var(--om-navy)]"
+        class="inline-flex items-center gap-0.5 text-primary"
         role="img"
         :aria-label="`${value} dari 5`"
     >
@@ -74,7 +74,7 @@ function select(n: number): void {
             />
             <span
                 v-if="fill(n) !== 'empty'"
-                class="absolute inset-y-0 left-0 overflow-hidden text-[var(--om-navy)]"
+                class="absolute inset-y-0 left-0 overflow-hidden text-primary"
                 :style="{ width: fill(n) === 'half' ? '50%' : '100%' }"
             >
                 <Star

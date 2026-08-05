@@ -38,10 +38,13 @@ async function pay(): Promise<void> {
         <div class="flex flex-col gap-3 border-t border-border pt-5">
             <div class="flex items-center justify-between gap-4">
                 <div v-if="total !== undefined" class="flex flex-col">
-                    <span class="om-meta !text-xs">Total {{ taxLabel }}</span>
-                    <span class="om-page-title !text-lg">{{
-                        formatMoney(total, currency)
-                    }}</span>
+                    <span class="text-xs text-muted-foreground"
+                        >Total {{ taxLabel }}</span
+                    >
+                    <span
+                        class="text-lg font-semibold tracking-tight text-foreground"
+                        >{{ formatMoney(total, currency) }}</span
+                    >
                 </div>
                 <Button
                     type="button"
