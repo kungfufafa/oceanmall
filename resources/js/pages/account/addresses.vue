@@ -10,7 +10,14 @@ import { computed, ref } from 'vue';
 import AuthSelectField from '@/components/auth/auth-select-field.vue';
 import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
 import AuthTextField from '@/components/auth/auth-text-field.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
     DropdownMenu,
@@ -18,6 +25,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import AddressController from '@/actions/App/Http/Controllers/Account/AddressController';
 import { AddressType, type Address } from '@/types/shop';
 
@@ -152,119 +161,122 @@ function setDefaultBilling(address: Address): void {
 
     <div class="flex items-center justify-between gap-3">
         <p class="om-meta">Alamat pengiriman & penagihan</p>
-        <button type="button" class="om-action-primary" @click="startCreate">
+        <Button type="button" variant="link" class="h-auto p-0 om-action-primary" @click="startCreate">
             Tambah
-        </button>
+        </Button>
     </div>
 
-    <div class="mt-4 space-y-3">
+    <div class="mt-4 flex flex-col gap-3">
         <div
             v-if="addresses.length"
-            class="space-y-3"
+            class="flex flex-col gap-3"
         >
-            <div
+            <Card
                 v-for="address in addresses"
                 :key="address.id"
-                class="rounded-md border border-zinc-200 bg-white p-3.5"
+                class="gap-0 py-0 shadow-none"
             >
-                <div class="flex items-start justify-between gap-2">
-                    <h4 class="text-[13px] font-semibold text-zinc-900">
+                <CardHeader class="flex-row items-start justify-between gap-2 p-3.5 pb-0">
+                    <CardTitle class="text-[13px] font-semibold text-foreground">
                         {{ address.first_name }} {{ address.last_name }}
-                    </h4>
-                    <span
+                    </CardTitle>
+                    <Badge
                         v-if="address.type === AddressType.BILLING"
-                        class="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600"
-                        >Penagihan</span
+                        variant="secondary"
+                        class="text-[11px]"
                     >
-                </div>
+                        Penagihan
+                    </Badge>
+                </CardHeader>
 
-                <address class="om-meta mt-2 not-italic leading-5">
-                    <span class="block">
-                        {{ address.street_address
-                        }}<span v-if="address.street_address_plus"
-                            >, {{ address.street_address_plus }}</span
+                <CardContent class="p-3.5 pt-2">
+                    <address class="om-meta not-italic leading-5">
+                        <span class="block">
+                            {{ address.street_address
+                            }}<span v-if="address.street_address_plus"
+                                >, {{ address.street_address_plus }}</span
+                            >
+                        </span>
+                        <span class="block"
+                            >{{ address.postal_code }}, {{ address.city }}</span
                         >
-                    </span>
-                    <span class="block"
-                        >{{ address.postal_code }}, {{ address.city }}</span
-                    >
-                    <span v-if="address.country" class="block">{{
-                        address.country.name
-                    }}</span>
-                </address>
+                        <span v-if="address.country" class="block">{{
+                            address.country.name
+                        }}</span>
+                    </address>
 
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                    <span
-                        v-if="address.shipping_default"
-                        class="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600"
-                    >
-                        <Check class="size-3" aria-hidden="true" />
-                        Default kirim
-                    </span>
-                    <span
-                        v-if="address.billing_default"
-                        class="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600"
-                    >
-                        <Check class="size-3" aria-hidden="true" />
-                        Default tagih
-                    </span>
-                </div>
+                    <div class="mt-2 flex flex-wrap gap-1.5">
+                        <Badge
+                            v-if="address.shipping_default"
+                            variant="secondary"
+                            class="text-[11px]"
+                        >
+                            <Check aria-hidden="true" />
+                            Default kirim
+                        </Badge>
+                        <Badge
+                            v-if="address.billing_default"
+                            variant="secondary"
+                            class="text-[11px]"
+                        >
+                            <Check aria-hidden="true" />
+                            Default tagih
+                        </Badge>
+                    </div>
 
-                <div class="mt-3 flex items-center gap-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        class="px-3 text-[12px]"
-                        @click="startEdit(address)"
-                    >
-                        Ubah
-                    </Button>
-                    <button
-                        type="button"
-                        class="inline-flex h-9 items-center justify-center rounded-md px-3 text-[12px] font-semibold text-red-600"
-                        @click="destroy(address)"
-                    >
-                        Hapus
-                    </button>
-                    <DropdownMenu
-                        v-if="
-                            !address.shipping_default || !address.billing_default
-                        "
-                    >
-                        <DropdownMenuTrigger as-child>
-                            <button
-                                type="button"
-                                class="inline-flex size-9 items-center justify-center rounded-md border border-zinc-200 text-zinc-500"
-                                aria-label="Lainnya"
-                            >
-                                <MoreHorizontal
-                                    class="size-4"
-                                    aria-hidden="true"
-                                />
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                                v-if="!address.shipping_default"
-                                @click="setDefaultShipping(address)"
-                            >
-                                <Truck class="size-4" aria-hidden="true" />
-                                Jadikan default kirim
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                v-if="!address.billing_default"
-                                @click="setDefaultBilling(address)"
-                            >
-                                <CreditCard
-                                    class="size-4"
-                                    aria-hidden="true"
-                                />
-                                Jadikan default tagih
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
+                    <div class="mt-3 flex items-center gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            class="px-3 text-[12px]"
+                            @click="startEdit(address)"
+                        >
+                            Ubah
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            class="px-3 text-[12px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            @click="destroy(address)"
+                        >
+                            Hapus
+                        </Button>
+                        <DropdownMenu
+                            v-if="
+                                !address.shipping_default || !address.billing_default
+                            "
+                        >
+                            <DropdownMenuTrigger as-child>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    class="size-9"
+                                    aria-label="Lainnya"
+                                >
+                                    <MoreHorizontal aria-hidden="true" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                    v-if="!address.shipping_default"
+                                    @click="setDefaultShipping(address)"
+                                >
+                                    <Truck aria-hidden="true" />
+                                    Jadikan default kirim
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    v-if="!address.billing_default"
+                                    @click="setDefaultBilling(address)"
+                                >
+                                    <CreditCard aria-hidden="true" />
+                                    Jadikan default tagih
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
 
         <p v-else class="om-meta py-8 text-center">
@@ -352,42 +364,49 @@ function setDefaultBilling(address: Address): void {
                             placeholder="08xxxxxxxxxx"
                             :error="form.errors.phone_number"
                         />
-                    </div>                    <fieldset class="col-span-2 space-y-2">
+                    </div>
+                    <fieldset class="col-span-2 flex flex-col gap-2">
                         <legend class="om-label">Jenis alamat</legend>
-                        <div class="flex flex-wrap gap-4 pt-1">
-                            <label
-                                class="flex items-center gap-2 text-[13px] text-zinc-700"
-                            >
-                                <input
-                                    v-model="form.type"
-                                    type="radio"
+                        <RadioGroup
+                            v-model="form.type"
+                            class="flex flex-wrap gap-4 pt-1"
+                        >
+                            <div class="flex items-center gap-2">
+                                <RadioGroupItem
+                                    :id="`type-shipping`"
                                     :value="AddressType.SHIPPING"
-                                    class="border-zinc-300 text-[var(--om-navy)] focus:ring-[var(--om-navy)]"
                                 />
-                                Pengiriman
-                            </label>
-                            <label
-                                class="flex items-center gap-2 text-[13px] text-zinc-700"
-                            >
-                                <input
-                                    v-model="form.type"
-                                    type="radio"
+                                <Label
+                                    :for="`type-shipping`"
+                                    class="text-[13px] font-normal text-foreground"
+                                >
+                                    Pengiriman
+                                </Label>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <RadioGroupItem
+                                    :id="`type-billing`"
                                     :value="AddressType.BILLING"
-                                    class="border-zinc-300 text-[var(--om-navy)] focus:ring-[var(--om-navy)]"
                                 />
-                                Penagihan
-                            </label>
-                        </div>
+                                <Label
+                                    :for="`type-billing`"
+                                    class="text-[13px] font-normal text-foreground"
+                                >
+                                    Penagihan
+                                </Label>
+                            </div>
+                        </RadioGroup>
                     </fieldset>
                 </div>
                 <div class="flex justify-end gap-2 pt-1">
-                    <button
+                    <Button
                         type="button"
+                        variant="ghost"
                         class="om-action-muted px-3"
                         @click="open = false"
                     >
                         Batal
-                    </button>
+                    </Button>
                     <AuthSubmitButton
                         class="!w-auto px-5"
                         label="Simpan"

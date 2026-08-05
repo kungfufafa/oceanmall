@@ -89,7 +89,7 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
                 :processing="processing"
             />
 
-            <p class="text-center text-[13px] text-zinc-500">
+            <p class="text-center text-[13px] text-muted-foreground">
                 atau kamu bisa
                 <button
                     type="button"
@@ -127,7 +127,7 @@ const toggleRecoveryMode = (clearErrors: () => void): void => {
                 :processing="processing"
             />
 
-            <p class="text-center text-[13px] text-zinc-500">
+            <p class="text-center text-[13px] text-muted-foreground">
                 atau kamu bisa
                 <button
                     type="button"

@@ -46,7 +46,7 @@ const canSubmit = computed(
             name="email"
             autocomplete="email"
             readonly
-            class="bg-zinc-50 text-zinc-500"
+            class="bg-muted text-muted-foreground"
             :error="errors.email"
         />
 

@@ -152,8 +152,8 @@ function confirmDelete(): void {
         </div>
     </form>
 
-    <div class="mt-10 border-t border-zinc-200 pt-6">
-        <h3 class="text-[13px] font-semibold text-zinc-900">Hapus akun</h3>
+    <div class="mt-10 border-t border-border pt-6">
+        <h3 class="text-[13px] font-semibold text-foreground">Hapus akun</h3>
         <p class="om-meta mt-1">
             Hapus akun dan seluruh datanya secara permanen.
         </p>

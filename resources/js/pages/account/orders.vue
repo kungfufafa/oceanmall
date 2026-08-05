@@ -3,7 +3,15 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { ShoppingBag } from 'lucide-vue-next';
 import { computed } from 'vue';
 import OrderStatusBadge from '@/components/account/order-status-badge.vue';
+import EmptyState from '@/components/shop/empty-state.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+} from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/format';
 import { orders as accountOrders } from '@/routes/account';
 import { show as ordersShow } from '@/routes/account/orders';
@@ -111,141 +119,133 @@ function shippingLabel(order: Order): string {
     <div
         class="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
-        <button
+        <Badge
             v-for="tab in tabs"
             :key="tab.value"
+            as="button"
             type="button"
-            :class="[
-                'shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold',
-                activeTab === tab.value
-                    ? 'bg-[var(--om-navy)] text-white'
-                    : 'bg-zinc-100 text-zinc-600',
-            ]"
+            :variant="activeTab === tab.value ? 'default' : 'secondary'"
+            :class="cn(
+                'shrink-0 cursor-pointer px-3 py-1.5 text-[12px] font-semibold',
+                activeTab !== tab.value && 'bg-muted text-muted-foreground hover:bg-muted/80',
+            )"
             @click="changeTab(tab.value)"
         >
             {{ tab.label }}
-        </button>
+        </Badge>
     </div>
 
-    <div
+    <EmptyState
         v-if="!orders.data.length"
-        class="mt-10 flex flex-col items-center px-2 text-center"
+        title="Belum ada pesanan"
+        description="Pesananmu akan muncul di sini setelah checkout."
+        :icon="ShoppingBag"
+        class="mt-10"
     >
-        <div
-            class="flex size-14 items-center justify-center rounded-full bg-zinc-100"
-        >
-            <ShoppingBag
-                class="size-6 text-zinc-400"
-                stroke-width="1.75"
-                aria-hidden="true"
-            />
-        </div>
-        <h2 class="om-page-title mt-4">Belum ada pesanan</h2>
-        <p class="om-meta mt-1">Pesananmu akan muncul di sini setelah checkout.</p>
-        <Button as-child size="xl" class="mt-5">
-            <Link :href="shop.index.url()"> Belanja sekarang </Link>
-        </Button>
-    </div>
+        <template #action>
+            <Button as-child size="xl">
+                <Link :href="shop.index.url()"> Belanja sekarang </Link>
+            </Button>
+        </template>
+    </EmptyState>
 
-    <ul v-else class="mt-4 space-y-3">
-        <li
-            v-for="order in orders.data"
-            :key="order.id"
-            class="overflow-hidden rounded-md border border-zinc-200 bg-white"
-        >
-            <div
-                class="flex items-start justify-between gap-3 border-b border-zinc-100 bg-zinc-50 px-3.5 py-2.5"
-            >
-                <div class="min-w-0">
-                    <p class="text-[13px] font-semibold text-zinc-900">
-                        #{{ order.number }}
-                    </p>
-                    <p class="om-meta mt-0.5">
-                        {{ formatDate(order.created_at) }} ·
-                        {{
-                            formatMoney(order.price_amount, order.currency_code)
-                        }}
-                    </p>
-                </div>
-                <Link
-                    :href="ordersShow.url(order.id)"
-                    class="om-action-primary shrink-0"
+    <ul v-else class="mt-4 flex flex-col gap-3">
+        <li v-for="order in orders.data" :key="order.id">
+            <Card class="gap-0 overflow-hidden py-0 shadow-none">
+                <CardHeader
+                    class="flex-row items-start justify-between gap-3 border-b border-border bg-muted/50 px-3.5 py-2.5"
                 >
-                    Detail
-                </Link>
-            </div>
-
-            <div class="px-3.5 py-3">
-                <div class="flex flex-wrap items-center gap-2">
-                    <p class="text-[13px] font-semibold text-zinc-900">
-                        {{ shippingLabel(order) }}
-                    </p>
-                    <template v-if="order.status === 'cancelled'">
-                        <OrderStatusBadge
-                            :status="order.status"
-                            type="order"
-                        />
-                    </template>
-                    <template v-else>
-                        <OrderStatusBadge
-                            :status="order.payment_status"
-                            type="payment"
-                        />
-                        <OrderStatusBadge
-                            :status="order.shipping_status"
-                            type="shipping"
-                        />
-                    </template>
-                </div>
-
-                <div class="mt-3 space-y-2.5">
-                    <div
-                        v-for="item in order.items"
-                        :key="item.id"
-                        class="flex gap-3"
+                    <div class="min-w-0">
+                        <p class="text-[13px] font-semibold text-foreground">
+                            #{{ order.number }}
+                        </p>
+                        <p class="om-meta mt-0.5">
+                            {{ formatDate(order.created_at) }} ·
+                            {{
+                                formatMoney(order.price_amount, order.currency_code)
+                            }}
+                        </p>
+                    </div>
+                    <Link
+                        :href="ordersShow.url(order.id)"
+                        class="om-action-primary shrink-0"
                     >
-                        <div
-                            class="size-14 shrink-0 overflow-hidden rounded-md bg-zinc-100"
-                        >
-                            <img
-                                v-if="itemThumbnail(item)"
-                                :src="itemThumbnail(item)!"
-                                :alt="item.name"
-                                loading="lazy"
-                                class="size-full object-cover object-center"
+                        Detail
+                    </Link>
+                </CardHeader>
+
+                <CardContent class="px-3.5 py-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-[13px] font-semibold text-foreground">
+                            {{ shippingLabel(order) }}
+                        </p>
+                        <template v-if="order.status === 'cancelled'">
+                            <OrderStatusBadge
+                                :status="order.status"
+                                type="order"
                             />
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <Link
-                                v-if="item.product?.slug"
-                                :href="
-                                    shop.product.url({
-                                        product: item.product.slug,
-                                    })
-                                "
-                                class="line-clamp-2 text-[13px] font-medium text-zinc-900"
+                        </template>
+                        <template v-else>
+                            <OrderStatusBadge
+                                :status="order.payment_status"
+                                type="payment"
+                            />
+                            <OrderStatusBadge
+                                :status="order.shipping_status"
+                                type="shipping"
+                            />
+                        </template>
+                    </div>
+
+                    <div class="mt-3 flex flex-col gap-2.5">
+                        <div
+                            v-for="item in order.items"
+                            :key="item.id"
+                            class="flex gap-3"
+                        >
+                            <div
+                                class="size-14 shrink-0 overflow-hidden rounded-md bg-muted"
                             >
-                                {{ item.name }}
-                            </Link>
-                            <p
-                                v-else
-                                class="line-clamp-2 text-[13px] font-medium text-zinc-900"
-                            >
-                                {{ item.name }}
-                            </p>
-                            <p class="om-meta mt-0.5">
-                                {{ item.quantity }}×
-                                {{
-                                    formatMoney(
-                                        item.unit_price_amount,
-                                        order.currency_code,
-                                    )
-                                }}
-                            </p>
+                                <img
+                                    v-if="itemThumbnail(item)"
+                                    :src="itemThumbnail(item)!"
+                                    :alt="item.name"
+                                    loading="lazy"
+                                    class="size-full object-cover object-center"
+                                />
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <Link
+                                    v-if="item.product?.slug"
+                                    :href="
+                                        shop.product.url({
+                                            product: item.product.slug,
+                                        })
+                                    "
+                                    class="line-clamp-2 text-[13px] font-medium text-foreground"
+                                >
+                                    {{ item.name }}
+                                </Link>
+                                <p
+                                    v-else
+                                    class="line-clamp-2 text-[13px] font-medium text-foreground"
+                                >
+                                    {{ item.name }}
+                                </p>
+                                <p class="om-meta mt-0.5">
+                                    {{ item.quantity }}×
+                                    {{
+                                        formatMoney(
+                                            item.unit_price_amount,
+                                            order.currency_code,
+                                        )
+                                    }}
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
+                </CardContent>
+            </Card>
         </li>
     </ul>
 
@@ -258,13 +258,13 @@ function shippingLabel(order: Order): string {
             v-for="link in orders.links"
             :key="link.label"
             :href="link.url ?? '#'"
-            :class="[
+            :class="cn(
                 'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2.5 text-[13px]',
                 link.active
-                    ? 'bg-[var(--om-navy)] text-white'
-                    : 'text-zinc-600',
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground',
                 link.url === null && 'pointer-events-none opacity-40',
-            ]"
+            )"
             v-html="link.label"
         />
     </nav>

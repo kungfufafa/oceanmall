@@ -7,6 +7,7 @@ import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes.vue';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal.vue';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
 import { edit } from '@/routes/security';
 import { disable, enable } from '@/routes/two-factor';
@@ -61,9 +62,9 @@ onUnmounted(() => clearTwoFactorAuthData());
 <template>
     <Head title="Keamanan" />
 
-    <div class="space-y-5">
+    <div class="flex flex-col gap-5">
         <div>
-            <h2 class="text-[13px] font-semibold text-zinc-900">
+            <h2 class="text-[13px] font-semibold text-foreground">
                 Ubah password
             </h2>
             <p class="om-meta mt-1">
@@ -130,10 +131,12 @@ onUnmounted(() => clearTwoFactorAuthData());
 
     <div
         v-if="canManageTwoFactor"
-        class="mt-10 space-y-4 border-t border-zinc-200 pt-6"
+        class="mt-10 flex flex-col gap-4"
     >
+        <Separator />
+
         <div>
-            <h2 class="text-[13px] font-semibold text-zinc-900">
+            <h2 class="text-[13px] font-semibold text-foreground">
                 Autentikasi dua faktor
             </h2>
             <p class="om-meta mt-1">
@@ -178,13 +181,14 @@ onUnmounted(() => clearTwoFactorAuthData());
             </p>
 
             <Form v-bind="disable.form()" #default="{ processing }">
-                <button
+                <Button
                     type="submit"
-                    class="inline-flex h-10 items-center rounded-md bg-red-600 px-4 text-[13px] font-semibold text-white disabled:opacity-50"
+                    variant="destructive"
+                    class="h-10 px-4 text-[13px] font-semibold"
                     :disabled="processing"
                 >
                     Nonaktifkan 2FA
-                </button>
+                </Button>
             </Form>
 
             <TwoFactorRecoveryCodes />

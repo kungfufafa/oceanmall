@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Bell } from 'lucide-vue-next';
+import EmptyState from '@/components/shop/empty-state.vue';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import accountNotifications from '@/routes/account/notifications';
 import * as shop from '@/routes/shop';
 
@@ -62,83 +65,90 @@ function markAllRead(): void {
 
     <div class="flex items-center justify-between gap-3 lg:hidden">
         <h1 class="om-page-title !text-lg">Notifikasi</h1>
-        <button
+        <Button
             v-if="notifications.data.some((n) => !n.read_at)"
             type="button"
-            class="om-action-muted !text-[12px]"
+            variant="ghost"
+            class="h-auto p-0 om-action-muted !text-[12px]"
             @click="markAllRead"
         >
             Tandai semua dibaca
-        </button>
+        </Button>
     </div>
 
     <div
         v-if="notifications.data.some((n) => !n.read_at)"
         class="mb-3 hidden justify-end lg:flex"
     >
-        <button
+        <Button
             type="button"
-            class="om-action-muted !text-[12px]"
+            variant="ghost"
+            class="h-auto p-0 om-action-muted !text-[12px]"
             @click="markAllRead"
         >
             Tandai semua dibaca
-        </button>
-    </div>
-
-    <div
-        v-if="notifications.data.length === 0"
-        class="flex flex-col items-center py-16 text-center"
-    >
-        <div
-            class="flex size-14 items-center justify-center rounded-full bg-zinc-100"
-        >
-            <Bell class="size-6 text-zinc-400" stroke-width="1.75" />
-        </div>
-        <h2 class="om-page-title mt-4">Belum ada notifikasi</h2>
-        <p class="om-meta mt-1">Update pesanan akan muncul di sini.</p>
-        <Button as-child size="xl" class="mt-5">
-            <Link :href="shop.index.url()"> Belanja sekarang </Link>
         </Button>
     </div>
 
-    <ul v-else role="list" class="mt-2 divide-y divide-zinc-100 lg:mt-0">
-        <li v-for="item in notifications.data" :key="item.id">
-            <button
+    <EmptyState
+        v-if="notifications.data.length === 0"
+        title="Belum ada notifikasi"
+        description="Update pesanan akan muncul di sini."
+        :icon="Bell"
+    >
+        <template #action>
+            <Button as-child size="xl">
+                <Link :href="shop.index.url()"> Belanja sekarang </Link>
+            </Button>
+        </template>
+    </EmptyState>
+
+    <Card
+        v-else
+        class="mt-2 gap-0 overflow-hidden py-0 shadow-none lg:mt-0"
+    >
+        <CardContent class="flex flex-col gap-0 p-0">
+            <Button
+                v-for="item in notifications.data"
+                :key="item.id"
                 type="button"
-                class="flex w-full gap-3 py-3.5 text-left transition hover:bg-zinc-50"
-                :class="!item.read_at ? 'bg-sky-50/60' : ''"
+                variant="ghost"
+                :class="cn(
+                    'h-auto w-full justify-start gap-3 rounded-none px-3.5 py-3.5 text-left font-normal hover:bg-muted',
+                    !item.read_at && 'bg-accent/60',
+                )"
                 @click="markRead(item)"
             >
                 <span
                     class="mt-1.5 size-2 shrink-0 rounded-full"
                     :class="
-                        item.read_at ? 'bg-transparent' : 'bg-[var(--om-navy)]'
+                        item.read_at ? 'bg-transparent' : 'bg-primary'
                     "
                     aria-hidden="true"
                 />
                 <div class="min-w-0 flex-1">
                     <div class="flex items-start justify-between gap-2">
-                        <p class="text-[13px] font-semibold text-zinc-900">
+                        <p class="text-[13px] font-semibold text-foreground">
                             {{ item.title }}
                         </p>
                         <time
-                            class="shrink-0 text-[11px] text-zinc-400"
+                            class="shrink-0 text-[11px] text-muted-foreground"
                             :datetime="item.created_at ?? undefined"
                         >
                             {{ formatDate(item.created_at) }}
                         </time>
                     </div>
-                    <p class="mt-0.5 text-[13px] leading-snug text-zinc-600">
+                    <p class="mt-0.5 text-[13px] leading-snug text-muted-foreground">
                         {{ item.body }}
                     </p>
                     <p
                         v-if="item.order_number"
-                        class="mt-1 text-[12px] text-zinc-400"
+                        class="mt-1 text-[12px] text-muted-foreground"
                     >
                         {{ item.order_number }}
                     </p>
                 </div>
-            </button>
-        </li>
-    </ul>
+            </Button>
+        </CardContent>
+    </Card>
 </template>

@@ -41,7 +41,7 @@ onUnmounted(() => {
 
 <template>
     <div
-        class="storefront flex min-h-dvh flex-col bg-white font-sans text-zinc-900 antialiased"
+        class="storefront flex min-h-dvh flex-col bg-white font-sans text-foreground antialiased"
         style="color-scheme: light"
     >
         <StoreHeader :class="useAppPageChrome ? 'hidden lg:block' : undefined" />

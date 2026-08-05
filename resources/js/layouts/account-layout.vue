@@ -3,6 +3,9 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import { dashboard, logout } from '@/routes';
 import {
     addresses as accountAddresses,
@@ -106,12 +109,12 @@ function onLogout(): void {
                             v-for="item in items"
                             :key="item.href"
                             :href="item.href"
-                            :class="[
-                                'shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold',
+                            :class="cn(
+                                'shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold transition',
                                 isActive(item)
-                                    ? 'bg-[var(--om-navy)] text-white'
-                                    : 'bg-zinc-100 text-zinc-600',
-                            ]"
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-muted-foreground',
+                            )"
                         >
                             {{ item.label }}
                         </Link>
@@ -127,12 +130,12 @@ function onLogout(): void {
                             v-for="item in settingsItems"
                             :key="`m-${item.href}`"
                             :href="item.href"
-                            :class="[
-                                'shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold',
+                            :class="cn(
+                                'shrink-0 rounded-full px-3 py-1.5 text-[12px] font-semibold transition',
                                 isActive(item)
-                                    ? 'bg-zinc-900 text-white'
-                                    : 'bg-zinc-50 text-zinc-600 ring-1 ring-zinc-200',
-                            ]"
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted text-muted-foreground',
+                            )"
                         >
                             {{ item.label }}
                         </Link>
@@ -148,20 +151,17 @@ function onLogout(): void {
                             v-for="item in items"
                             :key="`d-${item.href}`"
                             :href="item.href"
-                            :class="[
+                            :class="cn(
                                 'rounded-md px-3 py-2 text-sm transition',
                                 isActive(item)
-                                    ? 'bg-zinc-100 font-semibold text-[var(--om-navy)]'
-                                    : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900',
-                            ]"
+                                    ? 'bg-muted font-semibold text-primary'
+                                    : 'text-muted-foreground hover:bg-muted',
+                            )"
                         >
                             {{ item.label }}
                         </Link>
 
-                        <div
-                            v-if="isSettings"
-                            class="my-2 border-t border-zinc-200"
-                        />
+                        <Separator v-if="isSettings" class="my-2" />
 
                         <template v-if="isSettings">
                             <p
@@ -173,24 +173,25 @@ function onLogout(): void {
                                 v-for="item in settingsItems"
                                 :key="`ds-${item.href}`"
                                 :href="item.href"
-                                :class="[
+                                :class="cn(
                                     'rounded-md px-3 py-2 text-sm transition',
                                     isActive(item)
-                                        ? 'bg-zinc-100 font-semibold text-[var(--om-navy)]'
-                                        : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900',
-                                ]"
+                                        ? 'bg-muted font-semibold text-primary'
+                                        : 'text-muted-foreground hover:bg-muted',
+                                )"
                             >
                                 {{ item.label }}
                             </Link>
                         </template>
 
-                        <button
+                        <Button
                             type="button"
-                            class="mt-3 rounded-md px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
+                            variant="ghost"
+                            class="mt-3 justify-start px-3 text-destructive hover:bg-destructive/10 hover:text-destructive"
                             @click="onLogout"
                         >
                             Keluar
-                        </button>
+                        </Button>
                     </nav>
                 </aside>
 

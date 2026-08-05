@@ -4,7 +4,16 @@ import { computed, ref } from 'vue';
 import OrderStatusBadge from '@/components/account/order-status-badge.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
 import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { formatMoney } from '@/lib/format';
 import { dashboard } from '@/routes';
 import { orders as accountOrders } from '@/routes/account';
@@ -241,48 +250,51 @@ function syncPayment(): void {
         </template>
     </div>
 
-    <div
+    <Alert
         v-if="flashSuccess && !(komercePayment || canRetryPayment)"
-        class="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-[13px] text-emerald-900"
+        variant="success"
+        class="mt-5"
     >
-        {{ flashSuccess }}
-    </div>
+        <AlertDescription>{{ flashSuccess }}</AlertDescription>
+    </Alert>
 
-    <div
+    <Card
         v-if="komercePayment || canRetryPayment"
-        class="mt-5 overflow-hidden rounded-md border border-amber-200 bg-amber-50/40"
+        class="mt-5 gap-0 overflow-hidden py-0 shadow-none"
     >
-        <div class="border-b border-amber-200/80 px-3.5 py-2.5">
-            <h2 class="text-[13px] font-semibold text-amber-950">
+        <CardHeader class="border-b border-[var(--om-warning)]/20 bg-[var(--om-warning-soft)]">
+            <CardTitle class="text-[13px] text-[var(--om-warning)]">
                 Menunggu pembayaran
-            </h2>
-            <p class="mt-0.5 text-[11px] text-amber-900/80">
+            </CardTitle>
+            <CardDescription class="text-[11px] text-[var(--om-warning)]/80">
                 Bayar dulu supaya pesanan bisa diproses & dikirim.
-            </p>
-        </div>
-        <div class="space-y-3 bg-white p-3.5">
-            <p v-if="paymentError" class="text-[12px] text-red-600">
-                {{ paymentError }}
-            </p>
-            <p
+            </CardDescription>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-3 p-3.5">
+            <Alert v-if="paymentError" variant="destructive" class="py-2 text-[12px]">
+                <AlertDescription>{{ paymentError }}</AlertDescription>
+            </Alert>
+            <Alert
                 v-else-if="flashInfo"
-                class="rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-2 text-[12px] text-zinc-700"
+                variant="info"
+                class="py-2 text-[12px]"
             >
-                {{ flashInfo }}
-            </p>
-            <p
+                <AlertDescription>{{ flashInfo }}</AlertDescription>
+            </Alert>
+            <Alert
                 v-else-if="flashSuccess"
-                class="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[12px] text-emerald-900"
+                variant="success"
+                class="py-2 text-[12px]"
             >
-                {{ flashSuccess }}
-            </p>
+                <AlertDescription>{{ flashSuccess }}</AlertDescription>
+            </Alert>
             <KomercePaymentPanel
                 v-if="komercePayment"
                 :payment="komercePayment"
             />
             <p
                 v-else-if="canRetryPayment"
-                class="text-[13px] text-zinc-600"
+                class="text-[13px] text-muted-foreground"
             >
                 Instruksi pembayaran belum siap. Ketuk tombol di bawah untuk
                 membuatnya.
@@ -320,8 +332,8 @@ function syncPayment(): void {
                     }}
                 </Button>
             </div>
-        </div>
-    </div>
+        </CardContent>
+    </Card>
 
     <div v-if="canConfirmReceived" class="mt-4">
         <Button
@@ -332,7 +344,7 @@ function syncPayment(): void {
         >
             {{ confirmingReceived ? 'Memproses…' : 'Tandai sudah diterima' }}
         </Button>
-        <p v-if="receivedError" class="mt-2 text-sm text-red-600">
+        <p v-if="receivedError" class="mt-2 text-sm text-destructive">
             {{ receivedError }}
         </p>
     </div>
@@ -345,119 +357,130 @@ function syncPayment(): void {
     </div>
 
     <div class="mt-8 grid gap-6 lg:grid-cols-3">
-        <div
+        <Card
             v-if="order.shipping_address"
-            class="rounded-md border border-zinc-200 bg-white p-4"
+            class="gap-0 py-0 shadow-none"
         >
-            <h3 class="om-page-title !text-sm">Alamat pengiriman</h3>
-            <address class="om-meta mt-3 not-italic">
-                <p class="font-medium text-[var(--om-navy)]">
-                    {{
-                        order.shipping_address.full_name ??
-                        `${order.shipping_address.first_name ?? ''} ${order.shipping_address.last_name ?? ''}`.trim()
-                    }}
-                </p>
-                <p>{{ order.shipping_address.street_address }}</p>
-                <p v-if="order.shipping_address.street_address_plus">
-                    {{ order.shipping_address.street_address_plus }}
-                </p>
-                <p>
-                    {{ order.shipping_address.city }}
-                    {{ order.shipping_address.postal_code }}
-                </p>
-                <p
-                    v-if="
-                        order.shipping_address.country?.name ||
-                        order.shipping_address.country_name
-                    "
-                >
-                    {{
-                        order.shipping_address.country?.name ??
-                        order.shipping_address.country_name
-                    }}
-                </p>
-            </address>
-        </div>
+            <CardHeader class="p-4 pb-0">
+                <CardTitle class="om-page-title !text-sm">
+                    Alamat pengiriman
+                </CardTitle>
+            </CardHeader>
+            <CardContent class="p-4 pt-3">
+                <address class="om-meta not-italic">
+                    <p class="font-medium text-[var(--om-navy)]">
+                        {{
+                            order.shipping_address.full_name ??
+                            `${order.shipping_address.first_name ?? ''} ${order.shipping_address.last_name ?? ''}`.trim()
+                        }}
+                    </p>
+                    <p>{{ order.shipping_address.street_address }}</p>
+                    <p v-if="order.shipping_address.street_address_plus">
+                        {{ order.shipping_address.street_address_plus }}
+                    </p>
+                    <p>
+                        {{ order.shipping_address.city }}
+                        {{ order.shipping_address.postal_code }}
+                    </p>
+                    <p
+                        v-if="
+                            order.shipping_address.country?.name ||
+                            order.shipping_address.country_name
+                        "
+                    >
+                        {{
+                            order.shipping_address.country?.name ??
+                            order.shipping_address.country_name
+                        }}
+                    </p>
+                </address>
+            </CardContent>
+        </Card>
 
-        <div
-            class="rounded-md border border-zinc-200 bg-white p-4 lg:col-span-2"
-        >
-            <h3 class="om-page-title !text-sm">Ringkasan pesanan</h3>
-            <dl class="mt-3 space-y-2 text-sm">
-                <div class="flex justify-between">
-                    <dt class="text-zinc-500">Produk</dt>
-                    <dd class="text-[var(--om-navy)]">
-                        {{ formatMoney(itemsTotal, order.currency_code) }}
-                    </dd>
-                </div>
-                <div class="flex justify-between">
-                    <dt class="text-zinc-500">
-                        Ongkir
-                        <span
-                            v-if="order.shipping_option?.carrier?.name"
-                            class="text-zinc-400"
-                            >({{
-                                order.shipping_option.carrier.name
-                            }})</span
-                        >
-                    </dt>
-                    <dd class="text-[var(--om-navy)]">
-                        {{
-                            shippingPrice > 0
-                                ? formatMoney(
-                                      shippingPrice,
-                                      order.currency_code,
-                                  )
-                                : 'Gratis'
-                        }}
-                    </dd>
-                </div>
-                <div
-                    v-if="(order.tax_amount ?? 0) > 0"
-                    class="flex justify-between"
-                >
-                    <dt class="text-zinc-500">Pajak</dt>
-                    <dd class="text-[var(--om-navy)]">
-                        {{
-                            formatMoney(
-                                order.tax_amount!,
-                                order.currency_code,
-                            )
-                        }}
-                    </dd>
-                </div>
-                <div
-                    class="flex justify-between border-t border-zinc-200 pt-2"
-                >
-                    <dt class="font-semibold text-[var(--om-navy)]">Total</dt>
-                    <dd class="font-semibold text-[var(--om-navy)]">
-                        {{
-                            formatMoney(
-                                order.price_amount,
-                                order.currency_code,
-                            )
-                        }}
-                    </dd>
-                </div>
-            </dl>
-        </div>
+        <Card class="gap-0 py-0 shadow-none lg:col-span-2">
+            <CardHeader class="p-4 pb-0">
+                <CardTitle class="om-page-title !text-sm">
+                    Ringkasan pesanan
+                </CardTitle>
+            </CardHeader>
+            <CardContent class="p-4 pt-3">
+                <dl class="flex flex-col gap-2 text-sm">
+                    <div class="flex justify-between">
+                        <dt class="text-muted-foreground">Produk</dt>
+                        <dd class="text-[var(--om-navy)]">
+                            {{ formatMoney(itemsTotal, order.currency_code) }}
+                        </dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-muted-foreground">
+                            Ongkir
+                            <span
+                                v-if="order.shipping_option?.carrier?.name"
+                                class="text-muted-foreground/70"
+                                >({{
+                                    order.shipping_option.carrier.name
+                                }})</span
+                            >
+                        </dt>
+                        <dd class="text-[var(--om-navy)]">
+                            {{
+                                shippingPrice > 0
+                                    ? formatMoney(
+                                          shippingPrice,
+                                          order.currency_code,
+                                      )
+                                    : 'Gratis'
+                            }}
+                        </dd>
+                    </div>
+                    <div
+                        v-if="(order.tax_amount ?? 0) > 0"
+                        class="flex justify-between"
+                    >
+                        <dt class="text-muted-foreground">Pajak</dt>
+                        <dd class="text-[var(--om-navy)]">
+                            {{
+                                formatMoney(
+                                    order.tax_amount!,
+                                    order.currency_code,
+                                )
+                            }}
+                        </dd>
+                    </div>
+                    <Separator />
+                    <div class="flex justify-between pt-2">
+                        <dt class="font-semibold text-[var(--om-navy)]">Total</dt>
+                        <dd class="font-semibold text-[var(--om-navy)]">
+                            {{
+                                formatMoney(
+                                    order.price_amount,
+                                    order.currency_code,
+                                )
+                            }}
+                        </dd>
+                    </div>
+                </dl>
+            </CardContent>
+        </Card>
     </div>
 
-    <div
+    <Card
         v-if="shipments.length"
-        class="mt-8 overflow-hidden rounded-md border border-zinc-200 bg-white"
+        class="mt-8 gap-0 overflow-hidden py-0 shadow-none"
     >
-        <div class="border-b border-zinc-200 px-5 py-4">
-            <h3 class="om-page-title !text-sm">Pengiriman / Paket</h3>
-            <p class="om-meta mt-1">
+        <CardHeader class="border-b border-border px-5 py-4">
+            <CardTitle class="om-page-title !text-sm">
+                Pengiriman / Paket
+            </CardTitle>
+            <CardDescription class="om-meta mt-1">
                 Lacak setiap paket dalam pesanan ini.
-            </p>
-        </div>
-        <div class="divide-y divide-zinc-200">
+            </CardDescription>
+        </CardHeader>
+        <CardContent class="flex flex-col gap-0 p-0">
             <div
                 v-for="(shipment, index) in shipments"
                 :key="shipment.id"
-                class="px-5 py-4"
+                class="border-b border-border px-5 py-4 last:border-b-0"
             >
                 <div
                     class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
@@ -483,13 +506,13 @@ function syncPayment(): void {
 
                 <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
                     <div>
-                        <dt class="text-zinc-500">AWB</dt>
+                        <dt class="text-muted-foreground">AWB</dt>
                         <dd class="mt-1 text-[var(--om-navy)]">
                             {{ shipment.awb ?? 'Label menunggu' }}
                         </dd>
                     </div>
                     <div>
-                        <dt class="text-zinc-500">Nomor resi</dt>
+                        <dt class="text-muted-foreground">Nomor resi</dt>
                         <dd class="mt-1 text-[var(--om-navy)]">
                             {{
                                 shipment.tracking_number ??
@@ -499,7 +522,7 @@ function syncPayment(): void {
                         </dd>
                     </div>
                     <div>
-                        <dt class="text-zinc-500">Biaya ongkir</dt>
+                        <dt class="text-muted-foreground">Biaya ongkir</dt>
                         <dd class="mt-1 text-[var(--om-navy)]">
                             {{
                                 formatMoney(
@@ -529,14 +552,14 @@ function syncPayment(): void {
 
                     <p
                         v-if="trackingError?.id === shipment.id"
-                        class="mt-2 text-sm text-red-600"
+                        class="mt-2 text-sm text-destructive"
                     >
                         {{ trackingError.message }}
                     </p>
 
                     <ol
                         v-if="shipment.tracking_history.length"
-                        class="mt-4 space-y-3 border-l border-zinc-200 pl-4"
+                        class="mt-4 flex flex-col gap-3 border-l border-border pl-4"
                     >
                         <li
                             v-for="(event, eventIndex) in shipment.tracking_history"
@@ -544,7 +567,7 @@ function syncPayment(): void {
                             class="relative"
                         >
                             <span
-                                class="absolute -left-[21px] top-1 size-2 rounded-full bg-zinc-400"
+                                class="absolute -left-[21px] top-1 size-2 rounded-full bg-muted-foreground/50"
                             />
                             <p class="text-sm text-[var(--om-navy)]">
                                 {{ event.description }}
@@ -569,20 +592,18 @@ function syncPayment(): void {
                     </ol>
                 </div>
             </div>
-        </div>
-    </div>
+        </CardContent>
+    </Card>
 
-    <div
-        class="mt-8 overflow-hidden rounded-md border border-zinc-200 bg-white"
-    >
-        <div class="divide-y divide-zinc-200">
+    <Card class="mt-8 gap-0 overflow-hidden py-0 shadow-none">
+        <CardContent class="flex flex-col gap-0 p-0">
             <div
                 v-for="item in order.items"
                 :key="item.id"
-                class="flex gap-4 px-5 py-4"
+                class="flex gap-4 border-b border-border px-5 py-4 last:border-b-0"
             >
                 <div
-                    class="size-24 shrink-0 overflow-hidden rounded-md bg-zinc-100 ring-1 ring-zinc-200"
+                    class="size-24 shrink-0 overflow-hidden rounded-md bg-muted ring-1 ring-border"
                 >
                     <img
                         v-if="thumbnail(item)"
@@ -630,6 +651,6 @@ function syncPayment(): void {
                     }}
                 </p>
             </div>
-        </div>
-    </div>
+        </CardContent>
+    </Card>
 </template>

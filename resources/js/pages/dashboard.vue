@@ -2,6 +2,10 @@
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { ChevronRight, MapPin, ShoppingBag, User } from 'lucide-vue-next';
 import {
+    Card,
+    CardContent,
+} from '@/components/ui/card';
+import {
     addresses as accountAddresses,
     orders as accountOrders,
 } from '@/routes/account';
@@ -45,14 +49,16 @@ const shortcuts = [
         >. Kelola pesanan dan akunmu di sini.
     </p>
 
-    <ul class="mt-4 divide-y divide-zinc-100 overflow-hidden rounded-md border border-zinc-200 bg-white">
-        <li v-for="item in shortcuts" :key="item.href">
+    <Card class="mt-4 gap-0 overflow-hidden py-0 shadow-none">
+        <CardContent class="flex flex-col gap-0 p-0">
             <Link
+                v-for="item in shortcuts"
+                :key="item.href"
                 :href="item.href"
-                class="flex items-center gap-3 px-3.5 py-3.5 transition hover:bg-zinc-50"
+                class="flex items-center gap-3 border-b border-border px-3.5 py-3.5 transition last:border-b-0 hover:bg-muted"
             >
                 <span
-                    class="flex size-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[var(--om-navy)]"
+                    class="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-[var(--om-navy)]"
                 >
                     <component
                         :is="item.icon"
@@ -62,16 +68,16 @@ const shortcuts = [
                     />
                 </span>
                 <span class="min-w-0 flex-1">
-                    <span class="block text-[13px] font-semibold text-zinc-900">{{
+                    <span class="block text-[13px] font-semibold text-foreground">{{
                         item.label
                     }}</span>
                     <span class="om-meta mt-0.5 block">{{ item.hint }}</span>
                 </span>
                 <ChevronRight
-                    class="size-4 shrink-0 text-zinc-300"
+                    class="size-4 shrink-0 text-muted-foreground/50"
                     aria-hidden="true"
                 />
             </Link>
-        </li>
-    </ul>
+        </CardContent>
+    </Card>
 </template>
