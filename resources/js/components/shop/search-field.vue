@@ -31,7 +31,7 @@ withDefaults(
             v-model="model"
             type="search"
             :placeholder="placeholder"
-            class="om-control h-[var(--om-control-height)] border-border bg-background pr-9 pl-9 text-[13px] placeholder:text-muted-foreground focus-visible:border-primary [&::-webkit-search-cancel-button]:hidden"
+            class="h-[var(--om-control-height)] border-border bg-background pr-9 pl-9 text-[13px] placeholder:text-muted-foreground focus-visible:border-primary [&::-webkit-search-cancel-button]:hidden"
         />
         <Button
             v-if="model"

@@ -4,12 +4,14 @@ import { BadgeCheck } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import AuthTextField from '@/components/auth/auth-text-field.vue';
 import AppPageHeader from '@/components/shop/app-page-header.vue';
+import Card from '@/components/shop/card.vue';
 import Container from '@/components/shop/container.vue';
 import PriceDisplay from '@/components/shop/price-display.vue';
 import ProductCard from '@/components/shop/product-card.vue';
 import QtyStepper from '@/components/shop/qty-stepper.vue';
 import RatingStars from '@/components/shop/rating-stars.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -432,7 +434,7 @@ function addToCart(): void {
                         <Separator class="mb-4" />
                         <h3 class="om-label mb-2">Deskripsi</h3>
                         <div
-                            class="prose prose-sm max-w-none prose-zinc text-[13px] leading-relaxed"
+                            class="prose prose-sm max-w-none text-[13px] leading-relaxed text-muted-foreground"
                             v-html="product.description"
                         />
                     </div>
@@ -534,12 +536,13 @@ function addToCart(): void {
                         class="py-4"
                     >
                         <div class="flex gap-3">
-                            <div
-                                class="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-[11px] font-bold text-[var(--om-navy)]"
-                                aria-hidden="true"
-                            >
-                                {{ authorInitials(review.author_name) }}
-                            </div>
+                            <Avatar class="size-9 rounded-md">
+                                <AvatarFallback
+                                    class="rounded-md bg-accent text-[11px] font-bold text-foreground"
+                                >
+                                    {{ authorInitials(review.author_name) }}
+                                </AvatarFallback>
+                            </Avatar>
                             <div class="min-w-0 flex-1">
                                 <div
                                     class="flex flex-wrap items-center gap-x-2 gap-y-1"
@@ -595,71 +598,76 @@ function addToCart(): void {
                     {{ reviews.totalCount }} ulasan
                 </p>
 
-                <form
+                <Card
                     v-if="canReview"
-                    class="mt-5 flex flex-col gap-3 rounded-md border border-border bg-card p-3.5 sm:p-4"
-                    @submit.prevent="submitReview"
+                    class="mt-5"
+                    :padded="false"
+                    content-class="p-4"
                 >
-                    <h3 class="text-[14px] font-semibold text-[var(--om-navy)]">
-                        Tulis ulasan
-                    </h3>
-                    <Alert
-                        v-if="reviewError"
-                        variant="destructive"
-                        class="py-2 text-[12px]"
+                    <form
+                        class="flex flex-col gap-3"
+                        @submit.prevent="submitReview"
                     >
-                        <AlertTitle class="text-[13px]">
-                            Ulasan belum terkirim
-                        </AlertTitle>
-                        <AlertDescription class="text-[12px]">
-                            {{ reviewError }}
-                        </AlertDescription>
-                    </Alert>
-                    <div>
-                        <p class="om-label mb-1.5">Rating</p>
-                        <RatingStars
-                            :value="reviewForm.rating"
-                            size="lg"
-                            interactive
-                            @change="reviewForm.rating = $event"
-                        />
-                    </div>
-                    <AuthTextField
-                        id="review-title"
-                        v-model="reviewForm.title"
-                        label="Judul (opsional)"
-                        :error="reviewForm.errors.title"
-                    />
-                    <div>
-                        <Label class="om-label" for="review-content">
-                            Ulasan
-                        </Label>
-                        <Textarea
-                            id="review-content"
-                            v-model="reviewForm.content"
-                            rows="3"
-                            class="om-control mt-1 w-full bg-background text-[13px]"
-                            placeholder="Bagaimana pengalamanmu dengan produk ini?"
-                            :aria-invalid="
-                                Boolean(reviewForm.errors.content) || undefined
-                            "
-                        />
-                        <p
-                            v-if="reviewForm.errors.content"
-                            class="mt-1 text-[12px] text-red-600"
+                        <h3 class="text-sm font-semibold text-foreground">
+                            Tulis ulasan
+                        </h3>
+                        <Alert
+                            v-if="reviewError"
+                            variant="destructive"
+                            class="py-2 text-[12px]"
                         >
-                            {{ reviewForm.errors.content }}
-                        </p>
-                    </div>
-                    <Button
-                        type="submit"
-                        size="xl"
-                        class="self-start"
-                        :disabled="reviewForm.processing"
-                    >
-                        Kirim ulasan
-                    </Button>
-                </form>
+                            <AlertTitle class="text-[13px]">
+                                Ulasan belum terkirim
+                            </AlertTitle>
+                            <AlertDescription class="text-[12px]">
+                                {{ reviewError }}
+                            </AlertDescription>
+                        </Alert>
+                        <div>
+                            <p class="om-label mb-1.5">Rating</p>
+                            <RatingStars
+                                :value="reviewForm.rating"
+                                size="lg"
+                                interactive
+                                @change="reviewForm.rating = $event"
+                            />
+                        </div>
+                        <AuthTextField
+                            id="review-title"
+                            v-model="reviewForm.title"
+                            label="Judul (opsional)"
+                            :error="reviewForm.errors.title"
+                        />
+                        <div>
+                            <Label for="review-content">Ulasan</Label>
+                            <Textarea
+                                id="review-content"
+                                v-model="reviewForm.content"
+                                rows="3"
+                                class="mt-1.5 text-[13px]"
+                                placeholder="Bagaimana pengalamanmu dengan produk ini?"
+                                :aria-invalid="
+                                    Boolean(reviewForm.errors.content) ||
+                                    undefined
+                                "
+                            />
+                            <p
+                                v-if="reviewForm.errors.content"
+                                class="mt-1 text-[12px] text-destructive"
+                            >
+                                {{ reviewForm.errors.content }}
+                            </p>
+                        </div>
+                        <Button
+                            type="submit"
+                            size="xl"
+                            class="self-start"
+                            :disabled="reviewForm.processing"
+                        >
+                            Kirim ulasan
+                        </Button>
+                    </form>
+                </Card>
             </section>
 
             <section

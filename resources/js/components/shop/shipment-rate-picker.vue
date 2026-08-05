@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import SelectableCard from '@/components/shop/selectable-card.vue';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { RadioGroup } from '@/components/ui/radio-group';
 import { formatMoney } from '@/lib/format';
 import type { DeliveryOption } from '@/types/shop';
 
@@ -30,6 +32,10 @@ const selected = computed<Record<number | string, string>>(() => props.modelValu
 
 function selectRate(inventoryId: number, serviceCode: string): void {
     emit('update:modelValue', { ...selected.value, [inventoryId]: serviceCode });
+}
+
+function selectedRateFor(inventoryId: number): string {
+    return String(selected.value[inventoryId] ?? '');
 }
 
 function optionsFor(inventoryId: number): DeliveryOption[] {
@@ -79,7 +85,7 @@ defineExpose({ totalShipping, allSelected });
         >
             <h3 class="mb-3 flex items-center gap-2">
                 <Badge variant="secondary">Paket {{ pkgIndex + 1 }}</Badge>
-                <span class="om-page-title !text-sm">
+                <span class="text-sm font-semibold text-foreground">
                     {{ pkg.inventory_name }}
                 </span>
             </h3>
@@ -96,59 +102,53 @@ defineExpose({ totalShipping, allSelected });
                 </AlertDescription>
             </Alert>
 
-            <div v-else class="flex flex-col gap-2">
-                <label
+            <RadioGroup
+                v-else
+                :model-value="selectedRateFor(pkg.inventory_id)"
+                class="flex flex-col gap-2"
+                @update:model-value="
+                    (value) => selectRate(pkg.inventory_id, value)
+                "
+            >
+                <SelectableCard
                     v-for="option in optionsFor(pkg.inventory_id)"
                     :key="String(option.service_code)"
-                    :class="[
-                        'flex cursor-pointer items-center justify-between gap-4 rounded-md p-3 transition',
-                        String(selected[pkg.inventory_id]) ===
-                        String(option.service_code)
-                            ? 'ring-2 ring-[var(--om-navy)]'
-                            : 'ring-1 ring-border hover:ring-primary/40',
-                    ]"
+                    :id="`shipment_rate_${pkg.inventory_id}_${option.service_code}`"
+                    :value="String(option.service_code)"
+                    class="items-center p-3"
                 >
-                    <input
-                        type="radio"
-                        :name="`shipment_rate_${pkg.inventory_id}`"
-                        :value="String(option.service_code)"
-                        :checked="
-                            String(selected[pkg.inventory_id]) ===
-                            String(option.service_code)
-                        "
-                        class="sr-only"
-                        @change="selectRate(pkg.inventory_id, String(option.service_code))"
-                    />
-                    <div class="flex items-start gap-3">
-                        <img
-                            v-if="option.carrier_logo"
-                            :src="option.carrier_logo"
-                            :alt="option.carrier_name ?? ''"
-                            class="mt-0.5 size-5 rounded-full object-cover"
-                        />
-                        <div class="flex flex-col">
-                            <span
-                                class="text-sm font-medium text-[var(--om-navy)]"
-                                >{{ option.service_name }}</span
-                            >
-                            <span
-                                v-if="option.estimated_days"
-                                class="om-meta !text-xs"
-                                >{{ option.estimated_days }} hari</span
-                            >
-                            <span
-                                v-else-if="option.description"
-                                class="om-meta !text-xs"
-                                >{{ option.description }}</span
-                            >
+                    <div class="flex items-center justify-between gap-4">
+                        <div class="flex items-start gap-3">
+                            <img
+                                v-if="option.carrier_logo"
+                                :src="option.carrier_logo"
+                                :alt="option.carrier_name ?? ''"
+                                class="mt-0.5 size-5 rounded-full object-cover"
+                            />
+                            <div class="flex flex-col">
+                                <span class="text-sm font-medium text-foreground">
+                                    {{ option.service_name }}
+                                </span>
+                                <span
+                                    v-if="option.estimated_days"
+                                    class="text-xs text-muted-foreground"
+                                >
+                                    {{ option.estimated_days }} hari
+                                </span>
+                                <span
+                                    v-else-if="option.description"
+                                    class="text-xs text-muted-foreground"
+                                >
+                                    {{ option.description }}
+                                </span>
+                            </div>
                         </div>
+                        <span class="shrink-0 text-sm font-medium text-foreground">
+                            {{ formatMoney(option.amount, option.currency) }}
+                        </span>
                     </div>
-                    <span
-                        class="shrink-0 text-sm font-medium text-[var(--om-navy)]"
-                        >{{ formatMoney(option.amount, option.currency) }}</span
-                    >
-                </label>
-            </div>
+                </SelectableCard>
+            </RadioGroup>
         </div>
 
         <div
@@ -156,7 +156,7 @@ defineExpose({ totalShipping, allSelected });
             class="flex items-center justify-between rounded-md border border-border bg-muted px-4 py-3 text-sm"
         >
             <span class="text-muted-foreground">Total ongkir</span>
-            <span class="font-semibold text-[var(--om-navy)]">{{
+            <span class="font-semibold text-foreground">{{
                 formatMoney(totalShipping, totalCurrency)
             }}</span>
         </div>

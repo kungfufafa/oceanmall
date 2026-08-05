@@ -15,6 +15,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { RadioGroup } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { useShop } from '@/composables/useShop';
@@ -113,6 +114,26 @@ const maxStep = computed<1 | 2 | 3>(() => {
 });
 
 const selectedAddressId = ref<number | null>(null);
+
+const selectedSavedAddressValue = computed<string>({
+    get: () =>
+        selectedAddressId.value != null
+            ? String(selectedAddressId.value)
+            : '',
+    set: (value) => {
+        if (!value) {
+            clearAddress();
+            return;
+        }
+
+        const address = props.savedAddresses.find(
+            (item) => String(item.id) === value,
+        );
+        if (address) {
+            selectAddress(address);
+        }
+    },
+});
 
 const addressForm = useForm<ShippingAddressForm>({
     first_name: props.shippingAddress?.first_name ?? '',
@@ -558,54 +579,43 @@ const steps = [
                             Ketuk sekali untuk pakai lagi — district tersimpan
                             ikut dipakai.
                         </p>
-                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                            <button
+                        <RadioGroup
+                            v-model="selectedSavedAddressValue"
+                            class="mt-4 grid gap-3 sm:grid-cols-2"
+                        >
+                            <SelectableCard
                                 v-for="address in savedAddresses"
                                 :key="address.id"
-                                type="button"
-                                :class="[
-                                    'rounded-md border text-left transition',
-                                    selectedAddressId === address.id
-                                        ? 'border-[var(--om-navy)] ring-2 ring-[var(--om-navy)]'
-                                        : 'border-border hover:border-primary',
-                                ]"
-                                @click="selectAddress(address)"
+                                :id="`saved_address_${address.id}`"
+                                :value="String(address.id)"
                             >
-                                <Card>
-                                    <p
-                                        class="text-sm font-medium text-foreground"
-                                    >
-                                        {{ address.first_name }}
-                                        {{ address.last_name }}
-                                    </p>
-                                    <p class="mt-1 text-xs text-muted-foreground">
-                                        {{ address.street_address }},
-                                        {{ address.city }}
-                                        {{ address.postal_code }}
-                                    </p>
-                                    <p
-                                        v-if="
-                                            address.rajaongkir_destination_label
-                                        "
-                                        class="mt-1 text-[11px] text-emerald-700"
-                                    >
-                                        {{
-                                            address.rajaongkir_destination_label
-                                        }}
-                                    </p>
-                                    <p class="text-xs text-muted-foreground">
-                                        {{ address.country?.name }}
-                                    </p>
-                                    <Badge
-                                        v-if="address.shipping_default"
-                                        variant="secondary"
-                                        class="mt-2"
-                                    >
-                                        Utama
-                                    </Badge>
-                                </Card>
-                            </button>
-                        </div>
+                                <p class="text-sm font-medium text-foreground">
+                                    {{ address.first_name }}
+                                    {{ address.last_name }}
+                                </p>
+                                <p class="mt-1 text-xs text-muted-foreground">
+                                    {{ address.street_address }},
+                                    {{ address.city }}
+                                    {{ address.postal_code }}
+                                </p>
+                                <p
+                                    v-if="address.rajaongkir_destination_label"
+                                    class="mt-1 text-[11px] text-emerald-700"
+                                >
+                                    {{ address.rajaongkir_destination_label }}
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ address.country?.name }}
+                                </p>
+                                <Badge
+                                    v-if="address.shipping_default"
+                                    variant="secondary"
+                                    class="mt-2"
+                                >
+                                    Utama
+                                </Badge>
+                            </SelectableCard>
+                        </RadioGroup>
 
                         <button
                             v-if="selectedAddressId"
@@ -698,12 +708,12 @@ const steps = [
                         />
 
                         <div class="flex flex-col gap-1.5">
-                            <label for="destination_search" class="om-label">
+                            <Label for="destination_search">
                                 Kecamatan pengiriman
-                                <span v-if="komerceEnabled" class="text-red-600"
+                                <span v-if="komerceEnabled" class="text-destructive"
                                     >*</span
                                 >
-                            </label>
+                            </Label>
                             <p class="text-[11px] leading-snug text-muted-foreground">
                                 Ketik nama kecamatan / kota, lalu pilih dari
                                 daftar supaya ongkir akurat.
@@ -714,7 +724,7 @@ const steps = [
                                     v-model="destinationQuery"
                                     type="search"
                                     autocomplete="off"
-                                    class="om-control h-[var(--om-control-height)] w-full border-border bg-background pr-14 text-[13px] text-foreground placeholder:text-muted-foreground focus-visible:border-primary [&::-webkit-search-cancel-button]:hidden"
+                                    class="h-[var(--om-control-height)] w-full pr-14 text-[13px] [&::-webkit-search-cancel-button]:hidden"
                                     :placeholder="
                                         komerceEnabled
                                             ? 'Contoh: Kedawung Cirebon'
@@ -727,14 +737,16 @@ const steps = [
                                         )
                                     "
                                 />
-                                <button
+                                <Button
                                     v-if="addressForm.rajaongkir_destination_id"
                                     type="button"
-                                    class="absolute inset-y-0 right-2 text-xs text-muted-foreground hover:text-foreground"
+                                    variant="ghost"
+                                    size="sm"
+                                    class="absolute inset-y-0 right-2 h-auto px-2 text-xs text-muted-foreground"
                                     @click="clearDestination"
                                 >
                                     Ganti
-                                </button>
+                                </Button>
                                 <div
                                     v-if="destinationResults.length"
                                     class="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-border bg-card shadow-sm"

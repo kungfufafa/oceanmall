@@ -74,7 +74,7 @@ function removeCoupon(): void {
                     name="code"
                     autocomplete="off"
                     placeholder="Masukkan kode"
-                    class="om-control h-[var(--om-control-height)] min-w-0 flex-1 text-[13px]"
+                    class="h-[var(--om-control-height)] min-w-0 flex-1 text-[13px]"
                     :aria-invalid="Boolean(codeError) || undefined"
                 />
                 <Button
