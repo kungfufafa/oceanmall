@@ -42,3 +42,14 @@ OceanMall already has **shadcn-vue** (`components.json`, `resources/js/component
 - Shop pages import shadcn atoms / shop molecules; no new `om-btn-*` usage in pages
 - `npm run build` + `npm run types:check` pass
 - Visual consistency across home → checkout
+
+
+## Status (2026-08-05)
+
+Pass-2 complete on branch `cursor/storefront-ui-design-system-2aff`:
+
+- shadcn Select (FilterSelect), Tabs (shop category), RadioGroup + SelectableCard (checkout)
+- shop Card wraps ui Card
+- storefront zinc purge → semantic tokens
+- om-btn purged
+- Browser smoke: home / shop / PDP / cart EmptyState PASS
