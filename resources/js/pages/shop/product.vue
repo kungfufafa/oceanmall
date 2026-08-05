@@ -14,9 +14,14 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Card as UiCard,
+    CardContent,
+} from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useCart } from '@/composables/useCart';
 import * as shop from '@/routes/shop';
 import * as productReviews from '@/routes/shop/product/reviews';
@@ -235,6 +240,18 @@ function selectOption(optionId: number, valueId: number): void {
     selectedOptions.value = { ...selectedOptions.value, [optionId]: valueId };
 }
 
+function optionModel(optionId: number): string {
+    const value = selectedOptions.value[optionId];
+    return value != null ? String(value) : '';
+}
+
+function onOptionToggle(optionId: number, value: unknown): void {
+    if (typeof value !== 'string' || value === '') return;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return;
+    selectOption(optionId, parsed);
+}
+
 function addToCart(): void {
     if (!canAdd.value) return;
     adding.value = true;
@@ -258,7 +275,9 @@ function addToCart(): void {
     />
 
     <Container class="pt-3 pb-4 lg:pt-6">
-        <h1 class="om-page-title mb-4 hidden !text-lg lg:block">
+        <h1
+            class="mb-4 hidden text-lg font-semibold tracking-tight text-foreground lg:block"
+        >
             Detail produk
         </h1>
 
@@ -282,38 +301,45 @@ function addToCart(): void {
                         </Badge>
                     </div>
 
-                    <div
+                    <ToggleGroup
                         v-if="gallery.length > 1"
-                        class="mt-2.5 grid grid-cols-4 gap-2"
+                        type="single"
+                        :model-value="activeImage ?? undefined"
+                        variant="outline"
+                        spacing="2"
+                        class="mt-2.5 grid w-full grid-cols-4"
+                        @update:model-value="
+                            (value) => {
+                                if (typeof value === 'string') activeImage = value;
+                            }
+                        "
                     >
-                        <button
+                        <ToggleGroupItem
                             v-for="url in gallery"
                             :key="url"
-                            type="button"
-                            :class="[
-                                'aspect-square overflow-hidden rounded-md bg-muted ring-2 ring-transparent',
-                                activeImage === url &&
-                                    'ring-[var(--om-navy)]',
-                            ]"
-                            @click="activeImage = url"
+                            :value="url"
+                            class="aspect-square h-auto min-w-0 overflow-hidden rounded-md bg-muted p-0 data-[state=on]:ring-2 data-[state=on]:ring-primary"
+                            :aria-label="`Gambar produk`"
                         >
                             <img
                                 :src="url"
                                 alt=""
                                 class="size-full object-contain object-center p-1"
                             />
-                        </button>
-                    </div>
+                        </ToggleGroupItem>
+                    </ToggleGroup>
                 </div>
 
                 <div class="mt-4 lg:mt-0">
                     <p
                         v-if="product.brand"
-                        class="om-meta mb-1 !text-[11px] uppercase tracking-wide"
+                        class="mb-1 text-[11px] tracking-wide text-muted-foreground uppercase"
                     >
                         {{ product.brand.name }}
                     </p>
-                    <h1 class="om-page-title !text-[17px] leading-snug">
+                    <h1
+                        class="text-[17px] leading-snug font-semibold tracking-tight text-foreground"
+                    >
                         {{ product.name }}
                     </h1>
 
@@ -336,80 +362,50 @@ function addToCart(): void {
                         <div
                             v-for="option in variantOptions.productOptions"
                             :key="option.id"
+                            class="flex flex-col gap-2"
                         >
-                            <h3 class="om-label mb-2">{{ option.name }}</h3>
-                            <div class="flex flex-wrap gap-2">
-                                <template
+                            <Label>{{ option.name }}</Label>
+                            <ToggleGroup
+                                type="single"
+                                :model-value="optionModel(option.id) || undefined"
+                                :variant="
+                                    option.type === 'colorpicker'
+                                        ? 'default'
+                                        : 'outline'
+                                "
+                                spacing="2"
+                                class="flex flex-wrap"
+                                @update:model-value="
+                                    (value) => onOptionToggle(option.id, value)
+                                "
+                            >
+                                <ToggleGroupItem
                                     v-for="value in option.values"
                                     :key="value.id"
+                                    :value="String(value.id)"
+                                    :disabled="
+                                        !isOptionAvailable(option.id, value.id)
+                                    "
+                                    :title="value.value"
+                                    :class="
+                                        option.type === 'colorpicker'
+                                            ? 'size-8 min-w-8 rounded-full border-2 border-border p-0 data-[state=on]:border-primary data-[state=on]:ring-2 data-[state=on]:ring-primary/30'
+                                            : 'h-9 px-3 text-[13px] font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground'
+                                    "
+                                    :style="
+                                        option.type === 'colorpicker' && value.key
+                                            ? { backgroundColor: value.key }
+                                            : undefined
+                                    "
                                 >
-                                    <button
+                                    <span
                                         v-if="option.type === 'colorpicker'"
-                                        type="button"
-                                        :class="[
-                                            'size-8 rounded-full border-2',
-                                            selectedOptions[option.id] ===
-                                            value.id
-                                                ? 'border-[var(--om-navy)]'
-                                                : isOptionAvailable(
-                                                        option.id,
-                                                        value.id,
-                                                    )
-                                                  ? 'border-border hover:border-primary'
-                                                  : 'cursor-not-allowed border-border opacity-30',
-                                        ]"
-                                        :style="
-                                            value.key
-                                                ? {
-                                                      backgroundColor:
-                                                          value.key,
-                                                  }
-                                                : undefined
-                                        "
-                                        :disabled="
-                                            !isOptionAvailable(
-                                                option.id,
-                                                value.id,
-                                            )
-                                        "
-                                        :title="value.value"
-                                        @click="
-                                            selectOption(option.id, value.id)
-                                        "
+                                        class="sr-only"
+                                        >{{ value.value }}</span
                                     >
-                                        <span class="sr-only">{{
-                                            value.value
-                                        }}</span>
-                                    </button>
-                                    <button
-                                        v-else
-                                        type="button"
-                                        :class="[
-                                            'rounded-md border px-3 py-1.5 text-[13px] font-medium',
-                                            selectedOptions[option.id] ===
-                                            value.id
-                                                ? 'border-[var(--om-navy)] bg-[var(--om-navy)] text-white'
-                                                : isOptionAvailable(
-                                                        option.id,
-                                                        value.id,
-                                                    )
-                                                  ? 'border-border text-foreground hover:border-primary'
-                                                  : 'cursor-not-allowed border-border text-muted-foreground/50',
-                                        ]"
-                                        :disabled="
-                                            !isOptionAvailable(
-                                                option.id,
-                                                value.id,
-                                            )
-                                        "
-                                        @click="
-                                            selectOption(option.id, value.id)
-                                        "
-                                    >
-                                        {{ value.value }}
-                                    </button>
-                                </template>
-                            </div>
+                                    <template v-else>{{ value.value }}</template>
+                                </ToggleGroupItem>
+                            </ToggleGroup>
                         </div>
                     </div>
 
@@ -432,7 +428,9 @@ function addToCart(): void {
                         class="mt-6"
                     >
                         <Separator class="mb-4" />
-                        <h3 class="om-label mb-2">Deskripsi</h3>
+                        <h3 class="mb-2 text-sm font-medium text-foreground">
+                            Deskripsi
+                        </h3>
                         <div
                             class="prose prose-sm max-w-none text-[13px] leading-relaxed text-muted-foreground"
                             v-html="product.description"
@@ -443,15 +441,20 @@ function addToCart(): void {
 
             <section class="mt-8">
                 <Separator class="mb-5" />
-                <h2 class="om-page-title">Ulasan pembeli</h2>
+                <h2 class="text-base font-semibold tracking-tight text-foreground">
+                    Ulasan pembeli
+                </h2>
 
-                <div
+                <UiCard
                     v-if="reviews.totalCount > 0"
-                    class="mt-3 grid gap-4 rounded-md border border-border bg-muted/70 p-3.5 sm:grid-cols-[7.5rem_1fr] sm:gap-5 sm:p-4"
+                    class="mt-3 gap-0 py-0 shadow-none"
                 >
+                    <CardContent
+                        class="grid gap-4 bg-muted/70 p-3.5 sm:grid-cols-[7.5rem_1fr] sm:gap-5 sm:p-4"
+                    >
                     <div class="flex flex-col items-center justify-center text-center">
                         <p
-                            class="text-[2rem] leading-none font-bold tracking-tight text-[var(--om-navy)]"
+                            class="text-[2rem] leading-none font-bold tracking-tight text-primary"
                         >
                             {{ formatAverageRating(reviews.averageRating) }}
                         </p>
@@ -460,7 +463,7 @@ function addToCart(): void {
                             :value="reviews.averageRating"
                             size="md"
                         />
-                        <p class="om-meta mt-1.5 !text-[11px]">
+                        <p class="mt-1.5 text-[11px] text-muted-foreground">
                             {{ reviews.totalCount }} ulasan
                         </p>
                     </div>
@@ -480,7 +483,7 @@ function addToCart(): void {
                                 class="h-1.5 flex-1 overflow-hidden rounded-sm bg-border"
                             >
                                 <div
-                                    class="h-full rounded-sm bg-[var(--om-navy)]"
+                                    class="h-full rounded-sm bg-primary"
                                     :style="{
                                         width: `${breakdownPercent(level)}%`,
                                     }"
@@ -493,9 +496,10 @@ function addToCart(): void {
                             </span>
                         </div>
                     </div>
-                </div>
+                    </CardContent>
+                </UiCard>
 
-                <p v-else class="om-meta mt-2">
+                <p v-else class="mt-2 text-sm text-muted-foreground">
                     Belum ada ulasan yang disetujui
                 </p>
 
@@ -505,23 +509,33 @@ function addToCart(): void {
                         <p class="text-[12px] font-semibold text-foreground">
                             Semua ulasan
                         </p>
-                        <div class="flex gap-1">
-                            <Button
+                        <ToggleGroup
+                            type="single"
+                            :model-value="reviewSort"
+                            variant="outline"
+                            spacing="1"
+                            size="sm"
+                            @update:model-value="
+                                (value) => {
+                                    if (
+                                        value === 'highest' ||
+                                        value === 'newest' ||
+                                        value === 'lowest'
+                                    ) {
+                                        reviewSort = value;
+                                    }
+                                }
+                            "
+                        >
+                            <ToggleGroupItem
                                 v-for="option in reviewSortOptions"
                                 :key="option.value"
-                                type="button"
-                                size="sm"
-                                :variant="
-                                    reviewSort === option.value
-                                        ? 'default'
-                                        : 'secondary'
-                                "
-                                class="h-7 px-2 text-[11px] font-semibold"
-                                @click="reviewSort = option.value"
+                                :value="option.value"
+                                class="h-7 px-2 text-[11px] font-semibold data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
                             >
                                 {{ option.label }}
-                            </Button>
-                        </div>
+                            </ToggleGroupItem>
+                        </ToggleGroup>
                     </div>
                 </template>
 
@@ -624,7 +638,7 @@ function addToCart(): void {
                             </AlertDescription>
                         </Alert>
                         <div>
-                            <p class="om-label mb-1.5">Rating</p>
+                            <Label class="mb-1.5">Rating</Label>
                             <RatingStars
                                 :value="reviewForm.rating"
                                 size="lg"
@@ -675,7 +689,11 @@ function addToCart(): void {
                 class="mt-8"
             >
                 <Separator class="mb-5" />
-                <h2 class="om-page-title mb-3">Produk terkait</h2>
+                <h2
+                    class="mb-3 text-base font-semibold tracking-tight text-foreground"
+                >
+                    Produk terkait
+                </h2>
                 <div
                     class="grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
                 >
