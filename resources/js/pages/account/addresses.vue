@@ -3,6 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import {
     Check,
     CreditCard,
+    MapPin,
     MoreHorizontal,
     Truck,
 } from 'lucide-vue-next';
@@ -10,6 +11,7 @@ import { computed, ref } from 'vue';
 import AuthSelectField from '@/components/auth/auth-select-field.vue';
 import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
 import AuthTextField from '@/components/auth/auth-text-field.vue';
+import EmptyState from '@/components/shop/empty-state.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -160,7 +162,7 @@ function setDefaultBilling(address: Address): void {
     <Head title="Alamat" />
 
     <div class="flex items-center justify-between gap-3">
-        <p class="om-meta">Alamat pengiriman & penagihan</p>
+        <p class="text-sm text-muted-foreground">Alamat pengiriman & penagihan</p>
         <Button type="button" variant="link" class="h-auto p-0 om-action-primary" @click="startCreate">
             Tambah
         </Button>
@@ -174,10 +176,10 @@ function setDefaultBilling(address: Address): void {
             <Card
                 v-for="address in addresses"
                 :key="address.id"
-                class="gap-0 py-0 shadow-none"
+                class="gap-0 overflow-hidden py-0 shadow-none"
             >
-                <CardHeader class="flex-row items-start justify-between gap-2 p-3.5 pb-0">
-                    <CardTitle class="text-[13px] font-semibold text-foreground">
+                <CardHeader class="flex-row items-start justify-between gap-2 space-y-0 border-b border-border bg-muted/30 p-3.5 pb-3">
+                    <CardTitle class="text-sm font-semibold">
                         {{ address.first_name }} {{ address.last_name }}
                     </CardTitle>
                     <Badge
@@ -189,8 +191,8 @@ function setDefaultBilling(address: Address): void {
                     </Badge>
                 </CardHeader>
 
-                <CardContent class="p-3.5 pt-2">
-                    <address class="om-meta not-italic leading-5">
+                <CardContent class="p-3.5 pt-3">
+                    <address class="text-sm not-italic leading-5 text-muted-foreground">
                         <span class="block">
                             {{ address.street_address
                             }}<span v-if="address.street_address_plus"
@@ -279,14 +281,18 @@ function setDefaultBilling(address: Address): void {
             </Card>
         </div>
 
-        <p v-else class="om-meta py-8 text-center">
-            Belum ada alamat tersimpan.
-        </p>
+        <EmptyState
+            v-else
+            title="Belum ada alamat tersimpan"
+            description="Tambahkan alamat pengiriman atau penagihan untuk checkout."
+            :icon="MapPin"
+            class="py-8"
+        />
     </div>
 
     <Dialog v-model:open="open">
         <DialogContent class="sm:max-w-lg">
-            <DialogTitle class="om-page-title">
+            <DialogTitle>
                 {{ editing ? 'Ubah alamat' : 'Tambah alamat' }}
             </DialogTitle>
             <form class="flex flex-col gap-3.5" @submit.prevent="submit">
@@ -366,7 +372,9 @@ function setDefaultBilling(address: Address): void {
                         />
                     </div>
                     <fieldset class="col-span-2 flex flex-col gap-2">
-                        <legend class="om-label">Jenis alamat</legend>
+                        <legend class="text-sm font-medium text-foreground">
+                            Jenis alamat
+                        </legend>
                         <RadioGroup
                             v-model="form.type"
                             class="flex flex-wrap gap-4 pt-1"

@@ -35,7 +35,7 @@ onUnmounted(() => {
         <main
             class="mx-auto w-full max-w-lg flex-1 px-4 pt-4 pb-[calc(var(--om-bottom-nav-height)+env(safe-area-inset-bottom,0px))]"
         >
-            <p v-if="description" class="om-meta mb-4 leading-snug">
+            <p v-if="description" class="mb-4 text-sm leading-snug text-muted-foreground">
                 {{ description }}
             </p>
 

@@ -96,7 +96,9 @@ function onLogout(): void {
             <div class="grid grid-cols-1 lg:grid-cols-5 lg:gap-x-12">
                 <aside class="lg:col-span-1">
                     <div class="mb-4 hidden items-center justify-between lg:flex">
-                        <h2 class="om-page-title !text-lg">Akun saya</h2>
+                        <h2 class="text-lg font-semibold tracking-tight text-foreground">
+                            Akun saya
+                        </h2>
                     </div>
 
                     <!-- Mobile chips -->
@@ -165,7 +167,7 @@ function onLogout(): void {
 
                         <template v-if="isSettings">
                             <p
-                                class="om-meta px-3 pt-1 pb-1.5 !text-[11px] uppercase tracking-wide"
+                                class="px-3 pt-1 pb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase"
                             >
                                 Pengaturan
                             </p>
@@ -199,7 +201,9 @@ function onLogout(): void {
                     <div
                         class="mb-4 hidden items-center justify-between lg:flex"
                     >
-                        <h1 class="om-page-title !text-lg">{{ headerTitle }}</h1>
+                        <h1 class="text-lg font-semibold tracking-tight text-foreground">
+                            {{ headerTitle }}
+                        </h1>
                     </div>
                     <slot />
                 </div>

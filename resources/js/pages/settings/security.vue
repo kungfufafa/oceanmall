@@ -67,7 +67,7 @@ onUnmounted(() => clearTwoFactorAuthData());
             <h2 class="text-[13px] font-semibold text-foreground">
                 Ubah password
             </h2>
-            <p class="om-meta mt-1">
+            <p class="mt-1 text-sm text-muted-foreground">
                 Pakai password yang kuat dan unik untuk akunmu.
             </p>
         </div>
@@ -139,13 +139,13 @@ onUnmounted(() => clearTwoFactorAuthData());
             <h2 class="text-[13px] font-semibold text-foreground">
                 Autentikasi dua faktor
             </h2>
-            <p class="om-meta mt-1">
+            <p class="mt-1 text-sm text-muted-foreground">
                 Tambah lapisan keamanan saat masuk ke akun.
             </p>
         </div>
 
         <div v-if="!twoFactorEnabled" class="flex flex-col items-start gap-3">
-            <p class="om-meta leading-5">
+            <p class="text-sm leading-5 text-muted-foreground">
                 Setelah diaktifkan, kamu akan diminta kode dari aplikasi
                 autentikator di HP saat login.
             </p>
@@ -176,7 +176,7 @@ onUnmounted(() => clearTwoFactorAuthData());
         </div>
 
         <div v-else class="flex flex-col items-start gap-3">
-            <p class="om-meta leading-5">
+            <p class="text-sm leading-5 text-muted-foreground">
                 2FA aktif. Saat login, masukkan kode dari aplikasi autentikator.
             </p>
 

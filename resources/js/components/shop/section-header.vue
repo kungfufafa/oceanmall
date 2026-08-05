@@ -25,8 +25,10 @@ withDefaults(
         "
     >
         <div class="min-w-0">
-            <h2 class="om-page-title truncate">{{ title }}</h2>
-            <p v-if="$slots.description" class="om-meta mt-0.5">
+            <h2 class="truncate text-base font-semibold tracking-tight text-foreground">
+                {{ title }}
+            </h2>
+            <p v-if="$slots.description" class="mt-0.5 text-sm text-muted-foreground">
                 <slot name="description" />
             </p>
         </div>

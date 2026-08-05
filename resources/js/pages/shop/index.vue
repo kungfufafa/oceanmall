@@ -158,7 +158,9 @@ function clearFilters(): void {
 
     <Container class="pt-3 pb-8 lg:pt-6">
         <div class="mb-4 hidden lg:block">
-            <h1 class="om-page-title !text-lg">Belanja</h1>
+            <h1 class="text-lg font-semibold tracking-tight text-foreground">
+                Belanja
+            </h1>
         </div>
 
         <SearchField v-model="search" placeholder="Cari di katalog…" />

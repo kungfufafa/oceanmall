@@ -45,7 +45,7 @@ function brandShopUrl(brandId: number): string {
                 class="border-[var(--om-navy)]/25"
                 content-class="px-3 py-3"
             >
-                <p class="om-meta leading-snug !text-muted-foreground">
+                <p class="text-sm leading-snug text-muted-foreground">
                     Masuk atau daftar akun OceanMall untuk kemudahan berbelanja
                     dan promo eksklusif bagi member
                 </p>
@@ -67,7 +67,7 @@ function brandShopUrl(brandId: number): string {
                     <p class="text-[13px] font-semibold text-[var(--om-navy)]">
                         Halo, {{ firstName }}
                     </p>
-                    <p class="om-meta mt-0.5 !text-[11px]">
+                    <p class="mt-0.5 text-xs text-muted-foreground">
                         Siap belanja hari ini?
                     </p>
                 </div>

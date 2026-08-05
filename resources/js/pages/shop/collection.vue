@@ -72,8 +72,10 @@ watch(sort, (value) => {
     <Container class="pt-3 pb-8 lg:pt-6">
         <div class="mb-4 hidden items-end justify-between gap-4 lg:flex">
             <div class="min-w-0">
-                <h1 class="om-page-title !text-lg">{{ collection.name }}</h1>
-                <p v-if="description" class="om-meta mt-1 line-clamp-2">
+                <h1 class="text-lg font-semibold tracking-tight text-foreground">
+                    {{ collection.name }}
+                </h1>
+                <p v-if="description" class="mt-1 line-clamp-2 text-sm text-muted-foreground">
                     {{ description }}
                 </p>
             </div>
@@ -87,7 +89,7 @@ watch(sort, (value) => {
             />
         </div>
 
-        <p v-if="description" class="om-meta mb-4 line-clamp-2 lg:hidden">
+        <p v-if="description" class="mb-4 line-clamp-2 text-sm text-muted-foreground lg:hidden">
             {{ description }}
         </p>
 

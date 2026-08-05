@@ -72,7 +72,7 @@ function confirmDelete(): void {
 <template>
     <Head title="Profil" />
 
-    <p class="om-meta mb-4">Perbarui nama dan email akunmu.</p>
+    <p class="mb-4 text-sm text-muted-foreground">Perbarui nama dan email akunmu.</p>
 
     <form class="flex flex-col gap-3.5" @submit.prevent="submit">
         <div class="grid grid-cols-2 gap-2.5">
@@ -148,13 +148,15 @@ function confirmDelete(): void {
                 :enabled="canSubmit"
                 :processing="form.processing"
             />
-            <p v-if="form.recentlySuccessful" class="om-meta">Tersimpan.</p>
+            <p v-if="form.recentlySuccessful" class="text-sm text-muted-foreground">
+                Tersimpan.
+            </p>
         </div>
     </form>
 
     <div class="mt-10 border-t border-border pt-6">
         <h3 class="text-[13px] font-semibold text-foreground">Hapus akun</h3>
-        <p class="om-meta mt-1">
+        <p class="mt-1 text-sm text-muted-foreground">
             Hapus akun dan seluruh datanya secara permanen.
         </p>
         <button
@@ -168,8 +170,8 @@ function confirmDelete(): void {
 
     <Dialog v-model:open="deleteOpen">
         <DialogContent class="sm:max-w-lg">
-            <DialogTitle class="om-page-title">Hapus akun?</DialogTitle>
-            <p class="om-meta mt-2 leading-5">
+            <DialogTitle>Hapus akun?</DialogTitle>
+            <p class="mt-2 text-sm leading-5 text-muted-foreground">
                 Setelah dihapus, semua data tidak bisa dikembalikan. Masukkan
                 password untuk konfirmasi.
             </p>

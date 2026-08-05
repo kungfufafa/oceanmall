@@ -5,6 +5,14 @@ import OrderStatusBadge from '@/components/account/order-status-badge.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
 import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+    Breadcrumb,
+    BreadcrumbItem,
+    BreadcrumbLink,
+    BreadcrumbList,
+    BreadcrumbPage,
+    BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -215,25 +223,31 @@ function syncPayment(): void {
 <template>
     <Head :title="`Pesanan ${order.number}`" />
 
-    <nav class="om-meta flex items-center gap-2">
-        <Link
-            :href="dashboard.url()"
-            class="hover:text-[var(--om-navy)]"
-            >Akun</Link
-        >
-        <span>/</span>
-        <Link
-            :href="accountOrders.url()"
-            class="hover:text-[var(--om-navy)]"
-            >Pesanan</Link
-        >
-        <span>/</span>
-        <span class="text-[var(--om-navy)]">Detail pesanan</span>
-    </nav>
+    <Breadcrumb>
+        <BreadcrumbList>
+            <BreadcrumbItem>
+                <BreadcrumbLink as-child>
+                    <Link :href="dashboard.url()">Akun</Link>
+                </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+                <BreadcrumbLink as-child>
+                    <Link :href="accountOrders.url()">Pesanan</Link>
+                </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+                <BreadcrumbPage>Detail pesanan</BreadcrumbPage>
+            </BreadcrumbItem>
+        </BreadcrumbList>
+    </Breadcrumb>
 
     <div class="mt-6">
-        <h1 class="om-page-title">Detail pesanan</h1>
-        <p class="om-meta mt-1">
+        <h1 class="text-lg font-semibold tracking-tight text-foreground">
+            Detail pesanan
+        </h1>
+        <p class="mt-1 text-sm text-muted-foreground">
             Dipesan {{ formatDate(order.created_at) }}
             <span class="mx-2">|</span>
             Pesanan #{{ order.number }}
@@ -349,12 +363,14 @@ function syncPayment(): void {
         </p>
     </div>
 
-    <div
+    <p
         v-else-if="order.status === 'completed'"
-        class="om-meta mt-4"
+        class="mt-4 text-sm text-muted-foreground"
     >
         Pesanan selesai — terima kasih.
-    </div>
+    </p>
+
+    <Separator class="mt-8" />
 
     <div class="mt-8 grid gap-6 lg:grid-cols-3">
         <Card
@@ -362,12 +378,12 @@ function syncPayment(): void {
             class="gap-0 py-0 shadow-none"
         >
             <CardHeader class="p-4 pb-0">
-                <CardTitle class="om-page-title !text-sm">
+                <CardTitle class="text-sm">
                     Alamat pengiriman
                 </CardTitle>
             </CardHeader>
             <CardContent class="p-4 pt-3">
-                <address class="om-meta not-italic">
+                <address class="text-sm not-italic text-muted-foreground">
                     <p class="font-medium text-[var(--om-navy)]">
                         {{
                             order.shipping_address.full_name ??
@@ -399,7 +415,7 @@ function syncPayment(): void {
 
         <Card class="gap-0 py-0 shadow-none lg:col-span-2">
             <CardHeader class="p-4 pb-0">
-                <CardTitle class="om-page-title !text-sm">
+                <CardTitle class="text-sm">
                     Ringkasan pesanan
                 </CardTitle>
             </CardHeader>
@@ -464,15 +480,17 @@ function syncPayment(): void {
         </Card>
     </div>
 
+    <Separator v-if="shipments.length" class="mt-8" />
+
     <Card
         v-if="shipments.length"
         class="mt-8 gap-0 overflow-hidden py-0 shadow-none"
     >
         <CardHeader class="border-b border-border px-5 py-4">
-            <CardTitle class="om-page-title !text-sm">
+            <CardTitle class="text-sm">
                 Pengiriman / Paket
             </CardTitle>
-            <CardDescription class="om-meta mt-1">
+            <CardDescription>
                 Lacak setiap paket dalam pesanan ini.
             </CardDescription>
         </CardHeader>
@@ -492,7 +510,7 @@ function syncPayment(): void {
                                 · {{ shipment.inventory_name }}
                             </span>
                         </p>
-                        <p class="om-meta mt-1">
+                        <p class="mt-1 text-sm text-muted-foreground">
                             {{
                                 shipmentCarrierService(shipment) ??
                                 'Kurir menunggu'
@@ -574,7 +592,7 @@ function syncPayment(): void {
                             </p>
                             <p
                                 v-if="event.datetime || event.location"
-                                class="om-meta mt-0.5 !text-xs"
+                                class="mt-0.5 text-xs text-muted-foreground"
                             >
                                 <span v-if="event.datetime">{{
                                     event.datetime
@@ -594,6 +612,8 @@ function syncPayment(): void {
             </div>
         </CardContent>
     </Card>
+
+    <Separator class="mt-8" />
 
     <Card class="mt-8 gap-0 overflow-hidden py-0 shadow-none">
         <CardContent class="flex flex-col gap-0 p-0">
@@ -629,10 +649,10 @@ function syncPayment(): void {
                     >
                         {{ item.name }}
                     </p>
-                    <p v-if="item.sku" class="om-meta mt-0.5 !text-xs">
+                    <p v-if="item.sku" class="mt-0.5 text-xs text-muted-foreground">
                         SKU: {{ item.sku }}
                     </p>
-                    <p class="om-meta mt-1">
+                    <p class="mt-1 text-sm text-muted-foreground">
                         Jml: {{ item.quantity }} ·
                         {{
                             formatMoney(

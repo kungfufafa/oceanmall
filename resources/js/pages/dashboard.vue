@@ -44,7 +44,7 @@ const shortcuts = [
 <template>
     <Head title="Akun" />
 
-    <p class="om-meta">
+    <p class="text-sm text-muted-foreground">
         Halo<span v-if="firstName">, {{ firstName }}</span
         >. Kelola pesanan dan akunmu di sini.
     </p>
@@ -71,7 +71,7 @@ const shortcuts = [
                     <span class="block text-[13px] font-semibold text-foreground">{{
                         item.label
                     }}</span>
-                    <span class="om-meta mt-0.5 block">{{ item.hint }}</span>
+                    <span class="mt-0.5 block text-sm text-muted-foreground">{{ item.hint }}</span>
                 </span>
                 <ChevronRight
                     class="size-4 shrink-0 text-muted-foreground/50"

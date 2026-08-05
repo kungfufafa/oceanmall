@@ -46,7 +46,7 @@ const emit = defineEmits<{
                 </Link>
             </div>
 
-            <h1 class="om-page-title truncate text-center whitespace-nowrap">
+            <h1 class="truncate text-center text-base font-semibold tracking-tight whitespace-nowrap text-foreground">
                 <slot name="title">{{ title }}</slot>
             </h1>
 

@@ -29,8 +29,12 @@ function productLabel(count: number): string {
     />
 
     <Container class="pt-4 pb-8 lg:pt-6">
-        <h1 class="om-page-title mb-1 hidden !text-lg lg:block">Kategori</h1>
-        <p class="om-meta mb-4">Jelajahi produk berdasarkan kategori</p>
+        <h1 class="mb-1 hidden text-lg font-semibold tracking-tight text-foreground lg:block">
+            Kategori
+        </h1>
+        <p class="mb-4 text-sm text-muted-foreground">
+            Jelajahi produk berdasarkan kategori
+        </p>
 
         <EmptyState
             v-if="!categories.length"
@@ -77,7 +81,7 @@ function productLabel(count: number): string {
                         </h3>
                         <p
                             v-if="category.products_count !== undefined"
-                            class="om-meta mt-0.5 !text-[11px]"
+                            class="mt-0.5 text-xs text-muted-foreground"
                         >
                             {{ productLabel(category.products_count) }}
                         </p>

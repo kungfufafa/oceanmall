@@ -64,7 +64,9 @@ function markAllRead(): void {
     <Head title="Notifikasi" />
 
     <div class="flex items-center justify-between gap-3 lg:hidden">
-        <h1 class="om-page-title !text-lg">Notifikasi</h1>
+        <h1 class="text-lg font-semibold tracking-tight text-foreground lg:hidden">
+            Notifikasi
+        </h1>
         <Button
             v-if="notifications.data.some((n) => !n.read_at)"
             type="button"

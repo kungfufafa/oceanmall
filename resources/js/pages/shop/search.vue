@@ -51,7 +51,9 @@ watch(search, (value) => {
     />
 
     <Container class="py-6 sm:py-10">
-        <h1 class="om-page-title hidden !text-lg lg:block">Cari</h1>
+        <h1 class="hidden text-lg font-semibold tracking-tight text-foreground lg:block">
+            Cari
+        </h1>
         <label class="sr-only" for="shop-search">Cari</label>
         <SearchField
             id="shop-search"
@@ -77,7 +79,7 @@ watch(search, (value) => {
             />
 
             <template v-else>
-                <p class="om-meta mb-6">
+                <p class="mb-6 text-sm text-muted-foreground">
                     {{ products.total }} hasil untuk "<span
                         class="font-medium text-foreground"
                         >{{ query }}</span

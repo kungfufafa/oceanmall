@@ -159,7 +159,7 @@ function shippingLabel(order: Order): string {
                         <p class="text-[13px] font-semibold text-foreground">
                             #{{ order.number }}
                         </p>
-                        <p class="om-meta mt-0.5">
+                        <p class="mt-0.5 text-sm text-muted-foreground">
                             {{ formatDate(order.created_at) }} ·
                             {{
                                 formatMoney(order.price_amount, order.currency_code)
@@ -232,7 +232,7 @@ function shippingLabel(order: Order): string {
                                 >
                                     {{ item.name }}
                                 </p>
-                                <p class="om-meta mt-0.5">
+                                <p class="mt-0.5 text-sm text-muted-foreground">
                                     {{ item.quantity }}×
                                     {{
                                         formatMoney(
