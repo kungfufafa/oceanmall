@@ -306,7 +306,7 @@ function addToCart(): void {
                         type="single"
                         :model-value="activeImage ?? undefined"
                         variant="outline"
-                        spacing="2"
+                        :spacing="2"
                         class="mt-2.5 grid w-full grid-cols-4"
                         @update:model-value="
                             (value) => {
@@ -373,7 +373,7 @@ function addToCart(): void {
                                         ? 'default'
                                         : 'outline'
                                 "
-                                spacing="2"
+                                :spacing="2"
                                 class="flex flex-wrap"
                                 @update:model-value="
                                     (value) => onOptionToggle(option.id, value)
@@ -513,7 +513,7 @@ function addToCart(): void {
                             type="single"
                             :model-value="reviewSort"
                             variant="outline"
-                            spacing="1"
+                            :spacing="1"
                             size="sm"
                             @update:model-value="
                                 (value) => {
