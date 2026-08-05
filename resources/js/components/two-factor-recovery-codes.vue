@@ -4,6 +4,14 @@ import { Eye, EyeOff, RefreshCw } from 'lucide-vue-next';
 import { nextTick, onMounted, ref, useTemplateRef } from 'vue';
 import AlertError from '@/components/alert-error.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
 import { regenerateRecoveryCodes } from '@/routes/two-factor';
 
@@ -32,91 +40,94 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="w-full space-y-3 rounded-md border border-zinc-200 bg-white p-4">
-        <div>
-            <h3 class="text-[13px] font-semibold text-zinc-900">
-                Kode pemulihan 2FA
-            </h3>
-            <p class="om-meta mt-1 leading-5">
+    <Card class="w-full shadow-none">
+        <CardHeader class="pb-0">
+            <CardTitle class="text-[13px]">Kode pemulihan 2FA</CardTitle>
+            <CardDescription class="leading-5">
                 Simpan di tempat aman. Dipakai kalau HP autentikator hilang.
-            </p>
-        </div>
+            </CardDescription>
+        </CardHeader>
 
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button
-                type="button"
-                variant="outline"
-                size="xl"
-                @click="toggleRecoveryCodesVisibility"
-            >
-                <component
-                    :is="isRecoveryCodesVisible ? EyeOff : Eye"
-                    class="size-4"
-                />
-                {{
-                    isRecoveryCodesVisible
-                        ? 'Sembunyikan kode'
-                        : 'Lihat kode pemulihan'
-                }}
-            </Button>
-
-            <Form
-                v-if="isRecoveryCodesVisible && recoveryCodesList.length"
-                v-bind="regenerateRecoveryCodes.form()"
-                method="post"
-                :options="{ preserveScroll: true }"
-                @success="fetchRecoveryCodes"
-                #default="{ processing }"
-            >
-                <button
-                    type="submit"
-                    class="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white px-4 text-[13px] font-semibold text-zinc-700 disabled:opacity-50"
-                    :disabled="processing"
+        <CardContent class="flex flex-col gap-3 pt-3">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="xl"
+                    @click="toggleRecoveryCodesVisibility"
                 >
-                    <RefreshCw class="size-4" />
-                    Buat ulang kode
-                </button>
-            </Form>
-        </div>
+                    <component
+                        :is="isRecoveryCodesVisible ? EyeOff : Eye"
+                    />
+                    {{
+                        isRecoveryCodesVisible
+                            ? 'Sembunyikan kode'
+                            : 'Lihat kode pemulihan'
+                    }}
+                </Button>
 
-        <div
-            :class="[
-                'overflow-hidden transition-all duration-300',
-                isRecoveryCodesVisible
-                    ? 'h-auto opacity-100'
-                    : 'h-0 opacity-0',
-            ]"
-        >
-            <div v-if="errors?.length" class="mt-1">
-                <AlertError :errors="errors" />
-            </div>
-            <div v-else class="space-y-2">
-                <div
-                    ref="recoveryCodeSectionRef"
-                    class="grid gap-1 rounded-md bg-zinc-50 p-3 font-mono text-[13px] text-zinc-800"
+                <Form
+                    v-if="isRecoveryCodesVisible && recoveryCodesList.length"
+                    v-bind="regenerateRecoveryCodes.form()"
+                    method="post"
+                    :options="{ preserveScroll: true }"
+                    @success="fetchRecoveryCodes"
+                    #default="{ processing }"
                 >
-                    <div v-if="!recoveryCodesList.length" class="space-y-2">
-                        <div
-                            v-for="n in 8"
-                            :key="n"
-                            class="h-4 animate-pulse rounded bg-zinc-200"
-                        />
-                    </div>
-                    <div
-                        v-else
-                        v-for="(code, index) in recoveryCodesList"
-                        :key="index"
+                    <Button
+                        type="submit"
+                        variant="outline"
+                        size="xl"
+                        :disabled="processing"
                     >
-                        {{ code }}
-                    </div>
-                </div>
-                <p class="om-meta select-none leading-5">
-                    Tiap kode hanya bisa dipakai sekali. Butuh yang baru? Klik
-                    <span class="font-semibold text-zinc-700"
-                        >Buat ulang kode</span
-                    >.
-                </p>
+                        <RefreshCw />
+                        Buat ulang kode
+                    </Button>
+                </Form>
             </div>
-        </div>
-    </div>
+
+            <div
+                :class="[
+                    'overflow-hidden transition-all duration-300',
+                    isRecoveryCodesVisible
+                        ? 'h-auto opacity-100'
+                        : 'h-0 opacity-0',
+                ]"
+            >
+                <div v-if="errors?.length" class="mt-1">
+                    <AlertError :errors="errors" />
+                </div>
+                <div v-else class="flex flex-col gap-2">
+                    <div
+                        ref="recoveryCodeSectionRef"
+                        class="grid gap-1 rounded-md bg-muted p-3 font-mono text-[13px] text-foreground"
+                    >
+                        <div
+                            v-if="!recoveryCodesList.length"
+                            class="flex flex-col gap-2"
+                        >
+                            <Skeleton
+                                v-for="n in 8"
+                                :key="n"
+                                class="h-4 w-full"
+                            />
+                        </div>
+                        <div
+                            v-else
+                            v-for="(code, index) in recoveryCodesList"
+                            :key="index"
+                        >
+                            {{ code }}
+                        </div>
+                    </div>
+                    <p class="select-none text-sm leading-5 text-muted-foreground">
+                        Tiap kode hanya bisa dipakai sekali. Butuh yang baru? Klik
+                        <span class="font-semibold text-foreground"
+                            >Buat ulang kode</span
+                        >.
+                    </p>
+                </div>
+            </div>
+        </CardContent>
+    </Card>
 </template>

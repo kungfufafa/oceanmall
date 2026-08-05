@@ -2,6 +2,9 @@
 import { Eye, EyeOff } from 'lucide-vue-next';
 import { computed, ref, useAttrs } from 'vue';
 import InputError from '@/components/input-error.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 defineOptions({ inheritAttrs: false });
@@ -30,43 +33,41 @@ const fallthrough = computed(() => {
 
 const inputClass = computed(() =>
     cn(
-        'om-control w-full border border-zinc-200 bg-white py-0 pr-10 pl-3 text-zinc-900 outline-none placeholder:text-zinc-400',
-        'focus:border-[var(--om-navy)]',
-        props.error && 'border-red-400 focus:border-red-500',
+        'h-[var(--om-control-height)] pr-10 text-[13px] shadow-none',
         attrs.class as string,
     ),
 );
 </script>
 
 <template>
-    <div class="space-y-1.5">
-        <label :for="id" class="om-label">{{ label }}</label>
+    <div class="flex flex-col gap-1.5">
+        <Label :for="id">{{ label }}</Label>
         <div class="relative">
-            <input
+            <Input
                 :id="id"
-                :value="modelValue"
+                :model-value="modelValue"
                 :type="showPassword ? 'text' : 'password'"
                 v-bind="fallthrough"
                 :class="inputClass"
-                @input="
-                    emit(
-                        'update:modelValue',
-                        ($event.target as HTMLInputElement).value,
-                    )
+                :aria-invalid="Boolean(error) || undefined"
+                @update:model-value="
+                    emit('update:modelValue', String($event ?? ''))
                 "
             />
-            <button
+            <Button
                 type="button"
-                class="absolute inset-y-0 right-0 flex items-center px-3 text-[var(--om-navy)]"
+                variant="ghost"
+                size="icon-sm"
+                class="absolute inset-y-0 right-1 my-auto text-primary"
                 :aria-label="
                     showPassword ? 'Sembunyikan password' : 'Tampilkan password'
                 "
                 tabindex="-1"
                 @click="showPassword = !showPassword"
             >
-                <EyeOff v-if="showPassword" class="size-4" stroke-width="2" />
-                <Eye v-else class="size-4" stroke-width="2" />
-            </button>
+                <EyeOff v-if="showPassword" />
+                <Eye v-else />
+            </Button>
         </div>
         <InputError :message="error" />
     </div>

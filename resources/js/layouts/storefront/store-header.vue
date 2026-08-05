@@ -4,6 +4,9 @@ import { Search, ShoppingCart, Bell, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import BrandIcon from '@/components/shop/brand-icon.vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 import { useShop } from '@/composables/useShop';
 import { dashboard, home, login, register } from '@/routes';
 import { notifications as accountNotifications } from '@/routes/account';
@@ -66,34 +69,33 @@ function clearSearch(): void {
                             class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
                             aria-hidden="true"
                         />
-                        <input
+                        <Input
                             id="store-search-mobile"
                             v-model="searchQuery"
                             type="search"
                             :placeholder="searchPlaceholder"
-                            class="h-11 w-full border-0 bg-transparent pr-10 pl-10 text-[13px] text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                            class="h-11 border-0 bg-transparent pr-10 pl-10 text-[13px] shadow-none focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
                         />
-                        <button
+                        <Button
                             v-if="hasQuery"
                             type="button"
-                            class="absolute top-1/2 right-2.5 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                            variant="ghost"
+                            size="icon-sm"
+                            class="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground"
                             aria-label="Hapus pencarian"
                             @click="clearSearch"
                         >
-                            <X class="size-3.5" stroke-width="2.5" />
-                        </button>
+                            <X stroke-width="2.5" />
+                        </Button>
                     </div>
-                    <button
+                    <Button
                         type="submit"
-                        class="m-1 flex size-9 shrink-0 items-center justify-center rounded-md bg-[var(--om-navy)] text-white transition hover:bg-[var(--om-navy-hover)]"
+                        size="icon"
+                        class="m-1 shrink-0 bg-[var(--om-navy)] hover:bg-[var(--om-navy-hover)]"
                         aria-label="Cari"
                     >
-                        <Search
-                            class="size-4"
-                            stroke-width="2.25"
-                            aria-hidden="true"
-                        />
-                    </button>
+                        <Search stroke-width="2.25" />
+                    </Button>
                 </div>
             </form>
 
@@ -154,34 +156,33 @@ function clearSearch(): void {
                         class="flex items-center overflow-hidden rounded-md bg-card shadow-sm ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-primary-foreground/40"
                     >
                         <div class="relative min-w-0 flex-1">
-                            <input
+                            <Input
                                 id="store-search-desktop"
                                 v-model="searchQuery"
                                 type="search"
                                 :placeholder="searchPlaceholder"
-                                class="h-12 w-full border-0 bg-transparent pr-11 pl-5 text-sm text-foreground outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                                class="h-12 border-0 bg-transparent pr-11 pl-5 text-sm shadow-none focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
                             />
-                            <button
+                            <Button
                                 v-if="hasQuery"
                                 type="button"
-                                class="absolute top-1/2 right-2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                                variant="ghost"
+                                size="icon-sm"
+                                class="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground"
                                 aria-label="Hapus pencarian"
                                 @click="clearSearch"
                             >
-                                <X class="size-4" stroke-width="2.5" />
-                            </button>
+                                <X stroke-width="2.5" />
+                            </Button>
                         </div>
-                        <button
+                        <Button
                             type="submit"
-                            class="m-1.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-[var(--om-navy)] text-white transition hover:bg-[var(--om-navy-hover)]"
+                            size="icon"
+                            class="m-1.5 shrink-0 bg-[var(--om-navy)] hover:bg-[var(--om-navy-hover)]"
                             aria-label="Cari"
                         >
-                            <Search
-                                class="size-[18px]"
-                                stroke-width="2.25"
-                                aria-hidden="true"
-                            />
-                        </button>
+                            <Search class="size-[18px]" stroke-width="2.25" />
+                        </Button>
                     </div>
                 </form>
 
@@ -225,32 +226,34 @@ function clearSearch(): void {
                         </Badge>
                     </Link>
 
-                    <div
-                        class="h-7 w-px bg-primary-foreground/25"
-                        aria-hidden="true"
+                    <Separator
+                        orientation="vertical"
+                        class="h-7 bg-primary-foreground/25"
                     />
 
                     <template v-if="user">
-                        <Link
-                            :href="dashboard.url()"
-                            class="inline-flex h-10 items-center rounded-lg border border-primary-foreground/80 px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/10"
+                        <Button
+                            as-child
+                            variant="outline"
+                            class="h-10 border-primary-foreground/80 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
                         >
-                            Akun
-                        </Link>
+                            <Link :href="dashboard.url()">Akun</Link>
+                        </Button>
                     </template>
                     <template v-else>
-                        <Link
-                            :href="login.url()"
-                            class="inline-flex h-10 items-center rounded-lg border border-primary-foreground/80 px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/10"
+                        <Button
+                            as-child
+                            variant="outline"
+                            class="h-10 border-primary-foreground/80 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
                         >
-                            Masuk
-                        </Link>
-                        <Link
-                            :href="register.url()"
-                            class="inline-flex h-10 items-center rounded-lg bg-background px-4 text-sm font-semibold text-[var(--om-navy)] transition hover:bg-muted"
+                            <Link :href="login.url()">Masuk</Link>
+                        </Button>
+                        <Button
+                            as-child
+                            class="h-10 bg-background text-[var(--om-navy)] hover:bg-muted"
                         >
-                            Daftar
-                        </Link>
+                            <Link :href="register.url()">Daftar</Link>
+                        </Button>
                     </template>
                 </div>
             </div>

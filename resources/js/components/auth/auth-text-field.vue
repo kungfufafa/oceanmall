@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, useAttrs } from 'vue';
 import InputError from '@/components/input-error.vue';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 defineOptions({ inheritAttrs: false });
@@ -25,27 +27,23 @@ const fallthrough = computed(() => {
 
 const inputClass = computed(() =>
     cn(
-        'om-control w-full border border-zinc-200 bg-white px-3 text-zinc-900 outline-none placeholder:text-zinc-400',
-        'focus:border-[var(--om-navy)]',
-        props.error && 'border-red-400 focus:border-red-500',
+        'h-[var(--om-control-height)] text-[13px] shadow-none',
         attrs.class as string,
     ),
 );
 </script>
 
 <template>
-    <div class="space-y-1.5">
-        <label :for="id" class="om-label">{{ label }}</label>
-        <input
+    <div class="flex flex-col gap-1.5">
+        <Label :for="id">{{ label }}</Label>
+        <Input
             :id="id"
-            :value="modelValue"
+            :model-value="modelValue"
             v-bind="fallthrough"
             :class="inputClass"
-            @input="
-                emit(
-                    'update:modelValue',
-                    ($event.target as HTMLInputElement).value,
-                )
+            :aria-invalid="Boolean(error) || undefined"
+            @update:model-value="
+                emit('update:modelValue', String($event ?? ''))
             "
         />
         <InputError :message="error" />

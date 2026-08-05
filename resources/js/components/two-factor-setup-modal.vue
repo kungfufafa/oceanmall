@@ -14,11 +14,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import {
     InputOTP,
     InputOTPGroup,
     InputOTPSlot,
 } from '@/components/ui/input-otp';
+import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
 import { confirm } from '@/routes/two-factor';
@@ -112,11 +114,11 @@ watch(
 <template>
     <Dialog :open="isOpen" @update:open="isOpen = $event">
         <DialogContent class="sm:max-w-md">
-            <DialogHeader class="space-y-1.5 text-left">
-                <DialogTitle class="text-[15px] font-semibold text-zinc-900">
+            <DialogHeader class="flex flex-col gap-1.5 text-left">
+                <DialogTitle class="text-[15px] font-semibold text-foreground">
                     {{ modalConfig.title }}
                 </DialogTitle>
-                <DialogDescription class="om-meta text-left leading-5">
+                <DialogDescription class="text-left text-sm leading-5 text-muted-foreground">
                     {{ modalConfig.description }}
                 </DialogDescription>
             </DialogHeader>
@@ -126,7 +128,7 @@ watch(
                     <AlertError v-if="errors?.length" :errors="errors" />
                     <template v-else>
                         <div
-                            class="relative mx-auto aspect-square w-56 overflow-hidden rounded-md border border-zinc-200 bg-white"
+                            class="relative mx-auto aspect-square w-56 overflow-hidden rounded-md border border-border bg-background"
                         >
                             <div
                                 v-if="!qrCodeSvg"
@@ -152,43 +154,42 @@ watch(
                         </Button>
 
                         <div class="relative flex items-center justify-center">
-                            <div
-                                class="absolute inset-x-0 top-1/2 h-px bg-zinc-200"
-                            />
+                            <Separator class="absolute inset-x-0" />
                             <span
-                                class="relative bg-white px-2 text-[12px] text-zinc-500"
+                                class="relative bg-background px-2 text-[12px] text-muted-foreground"
                             >
                                 atau masukkan kode manual
                             </span>
                         </div>
 
                         <div
-                            class="flex overflow-hidden rounded-md border border-zinc-200"
+                            class="flex overflow-hidden rounded-md border border-border"
                         >
                             <div
                                 v-if="!manualSetupKey"
-                                class="flex h-11 w-full items-center justify-center bg-zinc-50"
+                                class="flex h-11 w-full items-center justify-center bg-muted"
                             >
                                 <Spinner class="size-4" />
                             </div>
                             <template v-else>
-                                <input
+                                <Input
                                     type="text"
                                     readonly
-                                    :value="manualSetupKey"
-                                    class="om-control h-11 min-w-0 flex-1 border-0 bg-white px-3 font-mono text-[13px] text-zinc-900 outline-none"
+                                    :model-value="manualSetupKey"
+                                    class="h-11 min-w-0 flex-1 rounded-none border-0 bg-background px-3 font-mono text-[13px] shadow-none focus-visible:ring-0"
                                 />
-                                <button
+                                <Button
                                     type="button"
-                                    class="inline-flex h-11 shrink-0 items-center border-l border-zinc-200 px-3 text-zinc-600 hover:bg-zinc-50"
+                                    variant="ghost"
+                                    class="h-11 shrink-0 rounded-none border-l border-border px-3"
                                     @click="copy(manualSetupKey || '')"
                                 >
                                     <Check
                                         v-if="copied"
-                                        class="size-4 text-green-600"
+                                        class="text-[var(--om-success)]"
                                     />
-                                    <Copy v-else class="size-4" />
-                                </button>
+                                    <Copy v-else />
+                                </Button>
                             </template>
                         </div>
                     </template>
