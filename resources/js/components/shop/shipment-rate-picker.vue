@@ -30,7 +30,8 @@ const emit = defineEmits<{
 
 const selected = computed<Record<number | string, string>>(() => props.modelValue);
 
-function selectRate(inventoryId: number, serviceCode: string): void {
+function selectRate(inventoryId: number, serviceCode: unknown): void {
+    if (typeof serviceCode !== 'string' || serviceCode === '') return;
     emit('update:modelValue', { ...selected.value, [inventoryId]: serviceCode });
 }
 
