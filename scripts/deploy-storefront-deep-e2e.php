@@ -589,6 +589,19 @@ foreach ($authGets as $name => [$path, $componentPrefix]) {
     if (in_array($name, ['auth_dashboard', 'auth_account_orders'], true)) {
         $auditShopProps($props, str_replace('auth_', '', $name), $name);
     }
+    if ($name === 'auth_dashboard') {
+        if (! array_key_exists('recentOrders', $props) || ! is_array($props['recentOrders'])) {
+            $weakness(
+                'medium',
+                'dashboard',
+                'Dashboard missing recentOrders prop',
+                'DashboardController should share last orders for retention UX',
+                $name,
+            );
+        } else {
+            $ok('dashboard_recent_orders', 'count='.count($props['recentOrders']));
+        }
+    }
     $ok($name, 'HTTP '.$res->status(), $ms);
 }
 

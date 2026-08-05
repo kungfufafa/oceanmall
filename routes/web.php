@@ -127,7 +127,7 @@ Route::middleware(['auth', 'verified'])
     });
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', \App\Http\Controllers\DashboardController::class)->name('dashboard');
 });
 
 require __DIR__.'/settings.php';

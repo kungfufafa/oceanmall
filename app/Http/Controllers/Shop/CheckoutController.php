@@ -276,6 +276,11 @@ final class CheckoutController extends Controller
             session()->put(CheckoutSession::SHIPPING_ADDRESS, $data);
         }
 
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Alamat pengiriman disimpan.',
+        ]);
+
         return redirect()->route('shop.checkout.index');
     }
 
@@ -324,6 +329,11 @@ final class CheckoutController extends Controller
             'carrier_code' => $selected['carrier_code'],
             'currency' => $selected['currency'],
             'estimated_days' => $selected['estimated_days'],
+        ]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Opsi pengiriman dipilih.',
         ]);
 
         return redirect()->route('shop.checkout.index');
@@ -406,6 +416,11 @@ final class CheckoutController extends Controller
             'carrier_code' => 'multi',
             'currency' => 'IDR',
             'estimated_days' => null,
+        ]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Opsi pengiriman dipilih.',
         ]);
 
         return redirect()->route('shop.checkout.index');
