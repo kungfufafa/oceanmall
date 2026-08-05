@@ -10,20 +10,22 @@ HTTP-level QA runner for the OceanMall customer storefront after deploy. Targets
 | In scope | Out of scope |
 |----------|--------------|
 | Public catalog (home, shop, sorts, category, collection, search, PDP) | cPanel / Shopper Livewire admin deep ops |
-| Guest + authenticated cart mutations | Browser visual regression |
-| Checkout steps 1–2 (zone, address, rates, payment methods) | Accessibility (axe/Playwright) — **not implemented yet** |
+| Guest + authenticated cart mutations | Visual snapshot SaaS (Percy) — screenshots on fail only |
+| Checkout steps 1–2 (zone, address, rates, payment methods) | Safari/WebKit matrix (Chromium + mobile Chrome covered) |
 | Account area (dashboard, orders, addresses, notifications, settings) | Stripe/Komerce live payment capture |
 | Auth (login, logout, wrong password, guest redirects) | Load/stress testing |
-| Security (CSRF, guest authz, unsigned webhook) | Mobile device matrix |
+| Security (CSRF, authz, unsigned webhook) | |
 | Optional unpaid order placement (`DEPLOY_QA_PLACE_ORDER=YES`) | End-to-end paid webhook (`deploy-e2e.php` full mode) |
 | Response-time flagging (>3s → S3 perf finding) | |
+| **Playwright browser E2E** (critical journeys + mobile viewport) | |
+| **axe-core a11y** (WCAG 2.1 A/AA critical + serious) | Moderate/minor a11y noise (tracked as polish) |
 
 ### Known gaps (honest)
 
-- **No Playwright / real browser automation.** All checks are HTTP + Inertia JSON. DOM rendering, JS errors, and visual regressions are not covered.
-- **No a11y audit** until Playwright + axe (or similar) is added.
+- Visual snapshot regression service not wired; Playwright keeps failure screenshots/traces.
 - **Shipping/rates** depend on Komerce/RajaOngkir config; empty rates on misconfigured env are reported as failures, not skipped silently.
 - **Place-order** is optional and off by default to avoid side effects on shared staging.
+- Paid settlement assertion remains sandbox-limited unless real pay / `DEPLOY_E2E_REQUIRE_PAID`.
 
 ## Environments & credentials
 
@@ -194,6 +196,57 @@ DEPLOY_QA_PLACE_ORDER=YES DEPLOY_QA_SUITE=regression php scripts/deploy-qa-store
 
 Secrets are never printed. Use CI secret stores for passwords and webhook keys.
 
+## Browser QA (Playwright) — QA Engineer UI layer
+
+| Artifact | Path |
+|----------|------|
+| Config | `playwright.config.ts` |
+| Specs | `e2e/*.spec.ts` |
+| Helpers | `e2e/helpers/qa.ts` (login, a11y axe) |
+
+### Browser suites
+
+```bash
+# Requires app on PLAYWRIGHT_BASE_URL (default http://127.0.0.1:8000) + built assets
+npm run test:e2e:smoke          # @smoke tagged chromium
+npm run test:e2e                # full chromium browser suite
+npm run test:e2e:a11y           # axe WCAG critical/serious sweep
+npm run test:e2e:mobile         # Pixel 7 viewport
+npm run test:e2e:all            # chromium + mobile
+npm run qa:full                 # Playwright chromium + HTTP regression
+```
+
+| ID | Title | Layer |
+|----|-------|-------|
+| TC-UI-CAT-001…005 | Guest home/shop/categories/search/PDP + a11y | Playwright |
+| TC-UI-AUTH-001…004 | Login a11y, wrong password, valid login, guest checkout gate | Playwright |
+| TC-UI-CART-001…002 | Empty cart, add-to-cart | Playwright |
+| TC-UI-CHK-001 | Checkout address/rates UI path | Playwright |
+| TC-UI-ACCT-001 | Account orders | Playwright |
+| TC-UI-A11Y-001…008 | axe-core WCAG 2.1 A/AA critical+serious | Playwright |
+
+Env: `PLAYWRIGHT_BASE_URL`, `PLAYWRIGHT_EMAIL`, `PLAYWRIGHT_PASSWORD` (fallback to `DEPLOY_QA_*`).
+
+### Remaining gaps (honest)
+
+- Visual snapshot regression (Percy/Chromatic) not wired yet — failure screenshots retained by Playwright.
+- Full paid QRIS capture still HTTP/sandbox-dependent (`deploy-e2e.php` full).
+- cPanel Livewire admin deep ops still out of storefront scope.
+- Cross-browser Safari/Firefox optional (Chromium + mobile Chrome covered).
+- Login throttle is **60/min on local/testing** (5/min in production) so browser E2E can exercise multiple auth journeys without 429 noise.
+
+## How to run (combined QA Engineer gate)
+
+```bash
+# 1) Clear cache if a prior run hit Fortify login throttle
+npm run qa:clear-throttle
+
+# 2) Browser + HTTP regression (QA Engineer default)
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:8000 \
+  DEPLOY_BASE_URL=http://127.0.0.1:8000 \
+  npm run qa:full
+```
+
 ## Negative test expectations (must not 5xx)
 
 | Case | Action | Expected |
@@ -209,6 +262,7 @@ Secrets are never printed. Use CI secret stores for passwords and webhook keys.
 
 ## Roadmap
 
-1. **Playwright** layer for visual smoke + critical UI flows (reuse TC IDs).
-2. **axe-core** a11y scan on home, shop, PDP, cart, checkout.
-3. Wire QA runner into deploy CI after `deploy-storefront-deep-e2e.php` audit.
+1. ~~**Playwright** layer for visual smoke + critical UI flows~~ ✅ (`e2e/`, `npm run test:e2e`)
+2. ~~**axe-core** a11y scan on primary pages~~ ✅ (`npm run test:e2e:a11y`)
+3. Wire `npm run qa:full` into deploy CI after HTTP `deploy-qa-storefront-e2e.php`.
+4. Optional: visual snapshot service + Firefox/WebKit projects.

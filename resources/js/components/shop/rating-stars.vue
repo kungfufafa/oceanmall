@@ -50,13 +50,14 @@ function select(n: number): void {
 <template>
     <div
         class="inline-flex items-center gap-0.5 text-primary"
-        role="img"
+        :role="interactive ? 'group' : 'img'"
         :aria-label="`${value} dari 5`"
     >
-        <button
+        <component
+            :is="interactive ? 'button' : 'span'"
             v-for="n in 5"
             :key="n"
-            type="button"
+            :type="interactive ? 'button' : undefined"
             class="relative inline-flex"
             :class="[
                 sizeClass,
@@ -64,18 +65,20 @@ function select(n: number): void {
                     ? 'cursor-pointer rounded-md hover:opacity-80'
                     : 'pointer-events-none',
             ]"
-            :tabindex="interactive ? 0 : -1"
             :aria-label="interactive ? `${n} bintang` : undefined"
+            :aria-hidden="interactive ? undefined : true"
             @click="select(n)"
         >
             <Star
                 class="absolute inset-0 size-full text-muted-foreground/40"
                 stroke-width="1.5"
+                aria-hidden="true"
             />
             <span
                 v-if="fill(n) !== 'empty'"
                 class="absolute inset-y-0 left-0 overflow-hidden text-primary"
                 :style="{ width: fill(n) === 'half' ? '50%' : '100%' }"
+                aria-hidden="true"
             >
                 <Star
                     class="block fill-current"
@@ -83,6 +86,6 @@ function select(n: number): void {
                     stroke-width="1.5"
                 />
             </span>
-        </button>
+        </component>
     </div>
 </template>

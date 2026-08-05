@@ -1218,11 +1218,12 @@ const steps = [
 
                     <Separator class="mt-4" />
 
-                    <dl class="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
+                    <div class="mt-4 flex flex-col gap-3 text-sm text-muted-foreground">
                         <div class="border-b border-border pb-3">
                             <CouponField :coupon-code="couponCode" />
                         </div>
 
+                        <dl class="flex flex-col gap-3">
                         <div
                             class="flex items-center justify-between border-b border-border pb-3"
                         >
@@ -1297,7 +1298,8 @@ const steps = [
                                 {{ formatMoney(total, currency) }}
                             </dd>
                         </div>
-                    </dl>
+                        </dl>
+                    </div>
                     </CardContent>
                 </Card>
             </div>
