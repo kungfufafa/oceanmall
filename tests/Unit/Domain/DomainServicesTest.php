@@ -103,4 +103,28 @@ class DomainServicesTest extends TestCase
         $this->assertEquals('REG', $rates->first()->serviceCode);
         $this->assertEquals(18000, $rates->first()->cost);
     }
+
+    public function test_payment_adapter_verifies_webhook_signature_correctly(): void
+    {
+        $secret = 'secret_key_123';
+        config(['komerce.webhook_secret' => $secret]);
+
+        $payload = [
+            'order_id' => 'INV/2026/001',
+            'payment_reference' => 'VA888123',
+            'status' => 'paid',
+            'paid_at' => '2026-08-06T14:00:00Z',
+        ];
+
+        $rawBody = json_encode($payload, JSON_UNESCAPED_SLASHES);
+        $signature = \App\Support\KomerceCallbackSignature::sign($rawBody, $secret);
+
+        $adapter = new KomercePaymentAdapter(new PaymentClient, new QrislyClient);
+        $result = $adapter->verifyWebhook($payload, $signature);
+
+        $this->assertTrue($result->isValid);
+        $this->assertEquals('paid', $result->status);
+        $this->assertEquals('INV/2026/001', $result->orderNumber);
+        $this->assertEquals('VA888123', $result->paymentRef);
+    }
 }

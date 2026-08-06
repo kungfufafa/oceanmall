@@ -96,7 +96,7 @@ class KomercePaymentAdapter implements PaymentDriverContract
         $secret = (string) config('komerce.webhook_secret', '');
         $rawContent = json_encode($payload, JSON_UNESCAPED_SLASHES);
 
-        $isValid = KomerceCallbackSignature::verify($rawContent, $signature, $secret);
+        $isValid = KomerceCallbackSignature::isValid($rawContent, $secret, $signature);
 
         $statusStr = strtolower((string) data_get($payload, 'status', data_get($payload, 'payment_status', '')));
         $mappedStatus = match ($statusStr) {

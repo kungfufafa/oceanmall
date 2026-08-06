@@ -150,7 +150,7 @@ final class WarehouseOpsE2ETest extends TestCase
             ->assertOk()
             ->assertSee('RajaOngkir / Komerce shipping', false)
             ->assertSee('RO-WH-1', false)
-            ->assertSee('Cetak label', false);
+            ->assertSee('Cetak Stiker Resi', false);
 
         $this->actingAs($admin)
             ->get(route('shopper.orders.fulfillment.print-label', $order))
