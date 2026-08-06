@@ -100,6 +100,20 @@ final class CarrierSeeder extends Seeder
                 'driver' => 'rajaongkir',
             ],
             [
+                'slug' => 'sap',
+                'name' => 'SAP Express',
+                'description' => 'Pengiriman via SAP Express (Komerce / RajaOngkir)',
+                'is_enabled' => true,
+                'driver' => 'rajaongkir',
+            ],
+            [
+                'slug' => 'gosend',
+                'name' => 'GoSend',
+                'description' => 'Pengiriman via GoSend (Komerce / RajaOngkir)',
+                'is_enabled' => true,
+                'driver' => 'rajaongkir',
+            ],
+            [
                 'slug' => 'manual',
                 'name' => 'Kurir Toko / Pengiriman Lokal',
                 'description' => 'Pengiriman manual oleh kurir toko',
@@ -117,6 +131,9 @@ final class CarrierSeeder extends Seeder
 
         // Cleanup legacy generic carrier if present
         Carrier::query()->where('slug', 'rajaongkir')->delete();
+
+        // Populate carrier logos and metadata
+        \Illuminate\Support\Facades\Artisan::call('komerce:sync-carriers');
 
         // Attach enabled carriers to existing zones
         $enabledIds = Carrier::query()->where('is_enabled', true)->pluck('id');
