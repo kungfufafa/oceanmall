@@ -7,7 +7,13 @@ import SettingsSubLayout from '@/layouts/settings-sub-layout.vue';
 import StorefrontLayout from '@/layouts/storefront-layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
+import { registerSW } from 'virtual:pwa-register';
+
 const appName = import.meta.env.VITE_APP_NAME || 'OceanMall';
+
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    registerSW({ immediate: true });
+}
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

@@ -42,17 +42,30 @@ export default defineConfig({
       manifest: {
         name: 'OceanMall',
         short_name: 'OceanMall',
+        id: '/',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        background_color: '#ffffff',
         theme_color: '#ffffff',
         icons: [
           {
             src: '/images/logo-icon-transparent.png',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
           },
           {
             src: '/images/logo-icon-transparent.png',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/png',
+            purpose: 'any'
+          },
+          {
+            src: '/images/logo-icon-transparent.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable'
           }
         ]
       },

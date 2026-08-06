@@ -29,9 +29,16 @@
             }
         </style>
 
+        <meta name="theme-color" content="#ffffff">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
+        <meta name="apple-mobile-web-app-title" content="OceanMall">
+
         <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('/images/logo-icon.png') }}" />
         <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('/images/logo-icon.png') }}" />
         <link rel="shortcut icon" href="{{ asset('/images/logo-icon.png') }}" />
+        <link rel="apple-touch-icon" href="{{ asset('/images/logo-icon.png') }}" />
         <link rel="manifest" href="{{ asset('build/manifest.webmanifest') }}" />
 
         @fonts

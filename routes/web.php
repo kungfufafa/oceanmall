@@ -32,6 +32,24 @@ use Illuminate\Support\Facades\Route;
 
 // Storefront
 Route::get('/', HomeController::class)->name('home');
+
+// PWA assets & fallback routes
+Route::get('manifest.json', function () {
+    return response()->file(public_path('build/manifest.webmanifest'), [
+        'Content-Type' => 'application/manifest+json',
+    ]);
+});
+Route::get('manifest.webmanifest', function () {
+    return response()->file(public_path('build/manifest.webmanifest'), [
+        'Content-Type' => 'application/manifest+json',
+    ]);
+});
+Route::get('sw.js', function () {
+    return response()->file(public_path('build/sw.js'), [
+        'Content-Type' => 'application/javascript',
+        'Service-Worker-Allowed' => '/',
+    ]);
+});
 Route::get('shop', [ProductController::class, 'index'])->name('shop.index');
 Route::get('shop/{product:slug}', [ProductController::class, 'show'])->name('shop.product');
 Route::post('shop/{product:slug}/reviews', [ProductReviewController::class, 'store'])
