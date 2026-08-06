@@ -11,8 +11,10 @@ use App\Domain\Shipping\Contracts\ShippingDriverContract;
 use App\Livewire\Shopper\KomerceOrderShipping;
 use App\Models\OrderShipment;
 use App\Models\User;
+use App\Observers\InventoryObserver;
 use App\Observers\OrderObserver;
 use App\Observers\OrderShipmentObserver;
+use Shopper\Core\Models\Inventory;
 use App\Payment\KomerceDriver;
 use App\Shipping\Drivers\KomerceShippingDriver;
 use App\Shipping\Drivers\RajaOngkirDriver;
@@ -53,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Order::observe(OrderObserver::class);
         OrderShipment::observe(OrderShipmentObserver::class);
+        Inventory::observe(InventoryObserver::class);
 
         $this->configureDefaults();
         $this->configureAuthorization();

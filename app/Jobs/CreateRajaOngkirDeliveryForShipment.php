@@ -129,6 +129,23 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             ],
         ]);
 
+        if ($awb === null) {
+            $awb = $this->firstScalar($pickupResponse, [
+                'data.0.awb',
+                'data.0.airway_bill',
+                'data.0.tracking_number',
+                'data.0.resi',
+                'data.awb',
+                'data.airway_bill',
+                'data.tracking_number',
+                'data.resi',
+            ]);
+        }
+
+        if ($trackingNumber === null) {
+            $trackingNumber = $awb;
+        }
+
         $shipment->forceFill([
             'awb' => $awb,
             'tracking_number' => $trackingNumber,
