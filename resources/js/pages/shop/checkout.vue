@@ -230,10 +230,14 @@ function selectDestination(result: DestinationResult): void {
     addressForm.rajaongkir_destination_label = result.label;
     destinationQuery.value = result.label;
     destinationResults.value = [];
-    addressForm.clearErrors('rajaongkir_destination_id', 'postal_code', 'city');
+    addressForm.clearErrors('rajaongkir_destination_id', 'postal_code', 'city', 'state');
 
     // Always sync city/zip from RajaOngkir so typed placeholders don't
     // leave the form looking filled while Inertia still posts blanks.
+    if (result.province_name) {
+        addressForm.state = result.province_name;
+    }
+
     if (result.city_name) {
         addressForm.city = result.city_name;
     }
@@ -248,6 +252,9 @@ function clearDestination(): void {
     addressForm.rajaongkir_destination_label = '';
     destinationQuery.value = '';
     destinationResults.value = [];
+    addressForm.state = '';
+    addressForm.city = '';
+    addressForm.postal_code = '';
 }
 
 const shippingForm = useForm<{ service_code: string }>({
