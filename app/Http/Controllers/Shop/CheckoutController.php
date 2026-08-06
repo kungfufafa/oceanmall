@@ -201,18 +201,18 @@ final class CheckoutController extends Controller
         }
 
         if (! komerce_enabled()) {
-            return __('Pengiriman Komerce/RajaOngkir belum dikonfigurasi. Hubungi admin toko.');
+            return __('Pengiriman Komerce/RajaOngkir belum dikonfigurasi (API key belum diisi di .env).');
         }
 
         if (blank(data_get($shippingAddress, 'rajaongkir_destination_id'))) {
-            return __('Pilih kecamatan/destinasi dari pencarian agar ongkir bisa dihitung.');
+            return __('Kecamatan tujuan pengiriman belum dipilih. Silakan kembali ke langkah Alamat dan pilih kecamatan dari hasil pencarian otomatis.');
         }
 
         if ($allocation === null || $allocation === []) {
-            return __('Tidak ada gudang dengan origin RajaOngkir yang bisa memenuhi stok keranjangmu. Hubungi admin toko.');
+            return __('Stok produk di keranjang tidak dapat dipenuhi oleh lokasi gudang toko saat ini.');
         }
 
-        return __('Tidak ada opsi kurir untuk destinasi ini. Coba ubah alamat atau hubungi admin toko.');
+        return __('Tidak ada opsi kurir yang tersedia untuk rute tujuan ini. Silakan periksa kembali kecamatan alamat pengiriman.');
     }
 
     public function saveShippingAddress(Request $request): RedirectResponse
