@@ -147,7 +147,9 @@ final class CheckoutController extends Controller
                 : [],
             'shippingAddress' => $shippingAddress,
             'deliveryOptions' => $deliveryOptions,
-            'selectedDeliveryOption' => $shippingOption['id'] ?? null,
+            'selectedDeliveryOption' => is_array($shippingOption)
+                ? ($shippingOption['id'] ?? $shippingOption[0]['id'] ?? null)
+                : null,
             'allocation' => $allocation,
             'deliveryOptionsByShipment' => $deliveryOptionsByShipment,
             'selectedRatesByShipment' => collect($selectedByShipment)->map(

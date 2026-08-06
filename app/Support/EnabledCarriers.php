@@ -28,13 +28,19 @@ final class EnabledCarriers
      */
     public static function rajaOngkirSlugs(?Zone $zone = null): array
     {
-        return self::baseQuery($zone)
+        $slugs = self::baseQuery($zone)
             ->where('driver', '!=', 'manual')
             ->pluck('slug')
             ->map(static fn (mixed $slug): string => strtolower(trim((string) $slug)))
             ->filter(static fn (string $slug): bool => $slug !== '')
             ->values()
             ->all();
+
+        if ($slugs === []) {
+            return (array) config('komerce.couriers', ['jne', 'jnt', 'sicepat', 'anteraja', 'pos', 'tiki']);
+        }
+
+        return $slugs;
     }
 
     /**
