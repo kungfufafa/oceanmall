@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Payment\Adapters\KomercePaymentAdapter;
+use App\Domain\Payment\Contracts\PaymentDriverContract;
+use App\Domain\Shipping\Adapters\RajaOngkirShippingAdapter;
+use App\Domain\Shipping\Contracts\ShippingDriverContract;
 use App\Livewire\Shopper\KomerceOrderShipping;
 use App\Models\OrderShipment;
 use App\Models\User;
@@ -38,6 +42,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(CheckoutAllocationContext::class);
         $this->app->bind(StockAllocator::class, AllocationPlanStockAllocator::class);
+        $this->app->bind(PaymentDriverContract::class, KomercePaymentAdapter::class);
+        $this->app->bind(ShippingDriverContract::class, RajaOngkirShippingAdapter::class);
     }
 
     /**
@@ -190,18 +196,33 @@ class AppServiceProvider extends ServiceProvider
     protected function configureShopperFulfillment(): void
     {
         Livewire::component('komerce-order-shipping', KomerceOrderShipping::class);
+        Livewire::component('shopper-order-summary', \App\Livewire\Shopper\OrderSummary::class);
+
+        $resolveOrder = static function (): ?Order {
+            $routeOrder = request()->route('order') ?? request()->route('id');
+
+            if (! $routeOrder && preg_match('#/orders/([^/]+)/detail#', request()->path(), $matches)) {
+                $routeOrder = urldecode($matches[1]);
+            }
+
+            if (! $routeOrder && request()->header('referer')) {
+                if (preg_match('#/orders/([^/]+)/detail#', (string) request()->header('referer'), $matches)) {
+                    $routeOrder = urldecode($matches[1]);
+                }
+            }
+
+            return match (true) {
+                $routeOrder instanceof Order => $routeOrder,
+                is_numeric($routeOrder) => Order::query()->find($routeOrder),
+                is_string($routeOrder) && $routeOrder !== '' => Order::query()->where('number', $routeOrder)->orWhere('id', $routeOrder)->first(),
+                default => null,
+            };
+        };
 
         shopper()->renderHook(
-            OrderRenderHook::DETAIL_MAIN_AFTER,
-            static function (): string {
-                $routeOrder = request()->route('order');
-
-                $order = match (true) {
-                    $routeOrder instanceof Order => $routeOrder,
-                    is_numeric($routeOrder) => Order::query()->find($routeOrder),
-                    is_string($routeOrder) && $routeOrder !== '' => Order::query()->where('number', $routeOrder)->orWhere('id', $routeOrder)->first(),
-                    default => null,
-                };
+            OrderRenderHook::DETAIL_MAIN_BEFORE,
+            static function () use ($resolveOrder): string {
+                $order = $resolveOrder();
 
                 if (! $order instanceof Order) {
                     return '';
