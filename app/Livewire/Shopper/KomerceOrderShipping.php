@@ -6,6 +6,7 @@ namespace App\Livewire\Shopper;
 
 use App\Actions\Warehouse\OverrideAllocation;
 use App\Jobs\CreateRajaOngkirDeliveryForShipment;
+use App\Models\OrderShipment;
 use App\Models\User;
 use App\Services\Komerce\ShippingDeliveryClient;
 use App\Support\OrderShipmentOpsPresenter;
@@ -31,11 +32,14 @@ final class KomerceOrderShipping extends Component
 
     public ?string $overrideError = null;
 
+    public ?string $successMessage = null;
+
     public function mount(Order $order): void
     {
         Gate::authorize('print-shipment-label', $order);
 
         $this->order = $order;
+        $this->ensureShipmentsExist();
         $this->seedOverrideDefaults();
     }
 
@@ -57,6 +61,7 @@ final class KomerceOrderShipping extends Component
     {
         Gate::authorize('override-allocation', $this->order);
         $this->overrideError = null;
+        $this->successMessage = null;
 
         $this->validate([
             'shipment_line_id' => ['required', 'integer'],
@@ -79,6 +84,7 @@ final class KomerceOrderShipping extends Component
                 'from_inventory_id' => $this->from_inventory_id,
                 'to_inventory_id' => $this->to_inventory_id,
             ]], $actor);
+            $this->successMessage = 'Stok berhasil dipindahkan ke gudang tujuan.';
         } catch (ValidationException $e) {
             $this->overrideError = collect($e->errors())->flatten()->first() ?? 'Could not move stock.';
 
@@ -95,53 +101,80 @@ final class KomerceOrderShipping extends Component
         $this->dispatch('order.updated');
     }
 
-    public function processDeliveryOrder(int $shipmentId): void
+    public function processDeliveryOrder(?int $shipmentId = null): void
     {
         Gate::authorize('print-shipment-label', $this->order);
         $this->overrideError = null;
+        $this->successMessage = null;
 
-        try {
-            (new CreateRajaOngkirDeliveryForShipment($shipmentId))
-                ->handle(resolve(ShippingDeliveryClient::class));
-        } catch (\Throwable $e) {
-            report($e);
-            $this->overrideError = 'Gagal membuat Delivery Order Komerce: '.$e->getMessage();
+        $shipments = $this->ensureShipmentsExist();
 
+        if ($shipmentId !== null) {
+            $targetShipments = $shipments->where('id', $shipmentId);
+        } else {
+            $targetShipments = $shipments;
+        }
+
+        if ($targetShipments->isEmpty()) {
+            $this->overrideError = 'Tidak ada shipment pengiriman yang dapat diproses.';
             return;
         }
 
-        $this->order->refresh();
-        $this->seedOverrideDefaults();
-        $this->dispatch('order.updated');
-    }
-
-    public function processAllDeliveryOrders(): void
-    {
-        Gate::authorize('print-shipment-label', $this->order);
-        $this->overrideError = null;
-
-        $presenter = resolve(OrderShipmentOpsPresenter::class);
         $deliveryClient = resolve(ShippingDeliveryClient::class);
+        $processedCount = 0;
+        $lastError = null;
 
-        foreach ($presenter->shipments($this->order) as $shipment) {
-            if (! $shipment['can_print_label']) {
-                try {
-                    (new CreateRajaOngkirDeliveryForShipment((int) $shipment['id']))
-                        ->handle($deliveryClient);
-                } catch (\Throwable $e) {
-                    report($e);
-                    $this->overrideError = 'Gagal membuat Delivery Order Komerce: '.$e->getMessage();
-                }
+        foreach ($targetShipments as $shipment) {
+            try {
+                (new CreateRajaOngkirDeliveryForShipment((int) $shipment->id))->handle($deliveryClient);
+                $processedCount++;
+            } catch (\Throwable $e) {
+                report($e);
+                $lastError = $e->getMessage();
             }
         }
 
         $this->order->refresh();
         $this->seedOverrideDefaults();
         $this->dispatch('order.updated');
+
+        if ($processedCount > 0) {
+            $this->successMessage = "Berhasil mendaftarkan Delivery Order Komerce untuk pesanan #{$this->order->number}.";
+        } elseif ($lastError !== null) {
+            $this->overrideError = 'Gagal membuat Delivery Order Komerce: '.$lastError;
+        }
+    }
+
+    public function processAllDeliveryOrders(): void
+    {
+        $this->processDeliveryOrder(null);
+    }
+
+    public function markPaidAndProcessDelivery(): void
+    {
+        Gate::authorize('print-shipment-label', $this->order);
+        $this->overrideError = null;
+        $this->successMessage = null;
+
+        try {
+            $updates = ['payment_status' => \Shopper\Core\Enum\PaymentStatus::Paid];
+            if ($this->order->status === \Shopper\Core\Enum\OrderStatus::New) {
+                $updates['status'] = \Shopper\Core\Enum\OrderStatus::Processing;
+            }
+            $this->order->update($updates);
+            $this->order->refresh();
+
+            $this->processDeliveryOrder(null);
+            $this->successMessage = "Pesanan #{$this->order->number} berhasil ditandai Lunas (Paid) dan didaftarkan ke Komerce!";
+        } catch (\Throwable $e) {
+            report($e);
+            $this->overrideError = 'Gagal menandai lunas & memproses Komerce: '.$e->getMessage();
+        }
     }
 
     public function render(): View
     {
+        $this->ensureShipmentsExist();
         $presenter = resolve(OrderShipmentOpsPresenter::class);
         $shipments = $presenter->shipments($this->order);
         $inventories = $presenter->inventories();
@@ -170,6 +203,49 @@ final class KomerceOrderShipping extends Component
                 )->all(),
             )->values()->all(),
         ]);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, OrderShipment>
+     */
+    private function ensureShipmentsExist(): \Illuminate\Support\Collection
+    {
+        $existing = OrderShipment::query()->where('order_id', $this->order->id)->get();
+        if ($existing->isNotEmpty()) {
+            return $existing;
+        }
+
+        $defaultInventory = \Shopper\Core\Models\Inventory::query()->where('is_default', true)->first()
+            ?? \Shopper\Core\Models\Inventory::query()->whereNotNull('rajaongkir_origin_id')->where('rajaongkir_origin_id', '!=', '')->first()
+            ?? \Shopper\Core\Models\Inventory::query()->first();
+
+        if (! $defaultInventory) {
+            return collect();
+        }
+
+        $this->order->loadMissing('items');
+
+        $shipment = OrderShipment::query()->create([
+            'order_id' => $this->order->id,
+            'inventory_id' => $defaultInventory->id,
+            'status' => 'pending',
+            'carrier_code' => 'jne',
+            'carrier_name' => 'JNE',
+            'service_code' => 'REG',
+            'service_name' => 'Reguler',
+            'cost' => 0,
+            'currency_code' => $this->order->currency_code ?? 'IDR',
+        ]);
+
+        foreach ($this->order->items as $item) {
+            $shipment->lines()->create([
+                'purchasable_type' => $item->product_type,
+                'purchasable_id' => $item->product_id,
+                'qty' => max(1, (int) $item->quantity),
+            ]);
+        }
+
+        return collect([$shipment]);
     }
 
     private function seedOverrideDefaults(): void

@@ -6,14 +6,10 @@ namespace App\Livewire\Shopper;
 
 use App\Models\OrderShipment;
 use Illuminate\Contracts\View\View;
+use Shopper\Core\Models\Contracts\TaxZone;
 use Shopper\Livewire\Components\Orders\OrderSummary as BaseOrderSummary;
 
-/**
- * Override Shopper's OrderSummary to read shipping cost from the custom
- * `order_shipments` table instead of `sh_carrier_options` (which is empty
- * for Komerce/RajaOngkir orders).
- */
-final class OrderSummary extends BaseOrderSummary
+class OrderSummary extends BaseOrderSummary
 {
     public function render(): View
     {
@@ -22,17 +18,11 @@ final class OrderSummary extends BaseOrderSummary
         $shippingOption = $this->order->shippingOption;
         $carrier = $shippingOption?->carrier;
         $paymentMethod = $this->order->paymentMethod;
-        $subtotal = $this->order->total();
+        $subtotal = (float) $this->order->total();
 
-        // Read shipping cost from our order_shipments table (Komerce/RajaOngkir).
-        // Fall back to Shopper's native shippingOption->price for non-Komerce orders.
-        $shippingPrice = (int) OrderShipment::query()
-            ->where('order_id', $this->order->id)
-            ->sum('cost');
-
-        if ($shippingPrice === 0 && $shippingOption) {
-            $shippingPrice = $shippingOption->price ?? 0;
-        }
+        $shipmentsCost = (float) OrderShipment::query()->where('order_id', $this->order->id)->sum('cost');
+        $shippingPrice = $shippingOption?->price 
+            ?? ($shipmentsCost > 0 ? $shipmentsCost : max(0, (float) ($this->order->price_amount - $subtotal)));
 
         $taxAmount = $this->order->tax_amount ?? 0;
         $isTaxInclusive = $this->resolveTaxInclusivity();
@@ -52,9 +42,7 @@ final class OrderSummary extends BaseOrderSummary
         ]);
     }
 
-    // ponytail: resolveTaxInclusivity is private in parent, redeclare here.
-    // Upgrade path: PR to Shopper to make it protected.
-    private function resolveTaxInclusivity(): bool
+    protected function resolveTaxInclusivity(): bool
     {
         $zone = $this->order->zone;
 
@@ -68,7 +56,7 @@ final class OrderSummary extends BaseOrderSummary
             return false;
         }
 
-        $taxZone = resolve(\Shopper\Core\Models\Contracts\TaxZone::class)::query()
+        $taxZone = resolve(TaxZone::class)::query()
             ->where('country_id', $country->id)
             ->first();
 
@@ -76,6 +64,6 @@ final class OrderSummary extends BaseOrderSummary
             return false;
         }
 
-        return $taxZone->is_tax_inclusive;
+        return (bool) $taxZone->is_tax_inclusive;
     }
 }

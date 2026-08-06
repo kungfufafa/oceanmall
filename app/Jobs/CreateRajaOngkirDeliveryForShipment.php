@@ -71,7 +71,18 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
 
         if ($deliveryOrderNo === null) {
             $payload = $this->storeOrderPayload($shipment);
-            $storeResponse = $delivery->storeOrder($payload);
+            try {
+                $storeResponse = $delivery->storeOrder($payload);
+            } catch (\Throwable $e) {
+                if (str_contains(strtolower($e->getMessage()), 'shipping service not available')) {
+                    $payload['shipping'] = 'JNT';
+                    $payload['shipping_type'] = 'EZ';
+                    $storeResponse = $delivery->storeOrder($payload);
+                } else {
+                    throw $e;
+                }
+            }
+
             $deliveryOrderNo = $this->firstScalar($storeResponse, [
                 'data.order_no',
                 'data.order_number',

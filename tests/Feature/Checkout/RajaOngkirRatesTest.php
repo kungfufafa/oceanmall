@@ -165,7 +165,7 @@ final class RajaOngkirRatesTest extends TestCase
             ->assertJsonPath('props.deliveryOptions.0.amount', 18000)
             ->assertJsonPath('props.deliveryOptions.0.currency', 'IDR')
             ->assertJsonPath('props.deliveryOptions.0.carrier_code', 'jne')
-            ->assertJsonPath('props.deliveryOptions.0.carrier_name', 'Jalur Nugraha Ekakurir (JNE)')
+            ->assertJsonPath('props.deliveryOptions.0.carrier_name', 'JNE Express')
             ->assertJsonPath('props.deliveryOptions.0.estimated_days', '2-3')
             ->assertJsonPath('props.deliveryOptions.1.service_code', 'jnt:EZ');
 
