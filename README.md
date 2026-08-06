@@ -9,7 +9,7 @@ E-commerce storefront starter berbasis [Laravel](https://laravel.com) + [Shopper
 - Inertia.js 3 + Vue 3 + TypeScript
 - Tailwind CSS 4 + Vite 8
 - Laravel Fortify (auth + 2FA)
-- SQLite by default (bisa diganti MySQL/PostgreSQL)
+- PostgreSQL (Production) / SQLite (Dev)
 
 ## Fitur bawaan
 
@@ -26,7 +26,59 @@ E-commerce storefront starter berbasis [Laravel](https://laravel.com) + [Shopper
 - Node.js 20+ / npm
 - Lisensi Shopper (paket private) — siapkan `auth.json` Composer di mesin lokal
 
-## Setup
+## Deployment (Production - 500 CCU Ready)
+
+Untuk menampung trafik tinggi (500 CCU+), aplikasi ini dikonfigurasi menggunakan **Laravel Octane (FrankenPHP)**, **PostgreSQL**, dan **Redis**.
+
+Pastikan server (Ubuntu/Debian) sudah terinstall:
+- PostgreSQL (`postgresql postgresql-contrib php8.4-pgsql`)
+- Redis Server (`redis-server`)
+- FrankenPHP / Octane (dari library `laravel/octane` + `predis/predis` yang sudah tersedia di codebase)
+
+### Konfigurasi `.env`
+Pastikan environment database, cache, session, dan queue menggunakan PostgreSQL dan Redis:
+
+```env
+OCTANE_SERVER=frankenphp
+OCTANE_PORT=8087
+
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=oceanmall
+DB_USERNAME=oceanmall
+DB_PASSWORD=oceanmall123
+
+SESSION_DRIVER=redis
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+
+QUEUE_CONNECTION=redis
+CACHE_STORE=redis
+REDIS_CLIENT=predis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+```
+
+### Menjalankan Server
+Build frontend assets, kemudian jalankan Laravel Octane:
+
+```bash
+# Clear configs
+php artisan config:clear
+php artisan route:cache
+
+# Build frontend
+npm run build
+
+# Start server dengan Octane di port 8087 (di-reverse proxy oleh Nginx)
+npm run start
+```
+
+Octane akan berjalan di port `8087`. Pastikan Nginx server Anda diatur sebagai _reverse proxy_ yang meneruskan trafik ke `127.0.0.1:8087`.
+
+## Setup Development (Lokal)
 
 ```bash
 git clone https://github.com/kungfufafa/oceanmall.git
