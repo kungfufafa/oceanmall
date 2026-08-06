@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,11 +21,13 @@ final class SearchController extends Controller
 
         $query = (string) $request->string('q', '');
 
+        $likeOperator = DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+
         $products = mb_strlen($query) < 2
             ? null
             : Product::query()
                 ->scopes('publish')
-                ->where('name', 'ilike', '%'.str_replace(['%', '_'], ['\%', '\_'], $query).'%')
+                ->where('name', $likeOperator, '%'.str_replace(['%', '_'], ['\%', '\_'], $query).'%')
                 ->with(['media', 'brand'])
                 ->withCurrentPrices()
                 ->paginate(12)
