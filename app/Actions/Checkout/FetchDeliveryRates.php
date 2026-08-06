@@ -86,7 +86,12 @@ final class FetchDeliveryRates
         }
 
         $countryId = isset($shippingAddress['country_id']) ? (int) $shippingAddress['country_id'] : null;
-        $courierSlugs = $this->couriers($countryId > 0 ? $countryId : null);
+        $allSlugs = $this->couriers($countryId > 0 ? $countryId : null);
+        $validKomerceCouriers = ['jne', 'sicepat', 'ide', 'sap', 'jnt', 'ninja', 'tiki', 'lion', 'anteraja', 'pos', 'ncs', 'rex', 'rpx', 'wahana'];
+        $courierSlugs = array_values(array_filter(
+            $allSlugs,
+            static fn (string $slug): bool => in_array(strtolower($slug), $validKomerceCouriers, true),
+        ));
 
         if ($courierSlugs === []) {
             return [];
