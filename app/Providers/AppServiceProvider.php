@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Livewire\Shopper\KomerceOrderShipping;
+use App\Models\OrderShipment;
 use App\Models\User;
+use App\Observers\OrderObserver;
+use App\Observers\OrderShipmentObserver;
 use App\Payment\KomerceDriver;
 use App\Shipping\Drivers\KomerceShippingDriver;
 use App\Shipping\Drivers\RajaOngkirDriver;
@@ -42,6 +45,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Order::observe(OrderObserver::class);
+        OrderShipment::observe(OrderShipmentObserver::class);
+
         $this->configureDefaults();
         $this->configureAuthorization();
         $this->configureShopperPayment();
@@ -77,12 +83,12 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::define(
             'override-allocation',
-            static fn (User $user, ?Order $order = null): bool => $user->isAdmin(),
+            static fn (User $user, ?Order $order = null): bool => $user->isAdmin() || $user->isManager() || $user->hasPermissionTo('browse_orders'),
         );
 
         Gate::define(
             'print-shipment-label',
-            static fn (User $user, ?Order $order = null): bool => $user->isAdmin(),
+            static fn (User $user, ?Order $order = null): bool => $user->isAdmin() || $user->isManager() || $user->hasPermissionTo('browse_orders'),
         );
     }
 
