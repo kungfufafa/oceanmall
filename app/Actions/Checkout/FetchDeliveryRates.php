@@ -213,7 +213,7 @@ final class FetchDeliveryRates
                     'estimated_days' => $this->estimatedDays($costRow),
                     'description' => $costRow['description'] ?? null,
                     'carrier_name' => $carrierName,
-                    'carrier_logo' => null,
+                    'carrier_logo' => \App\Support\KomerceCourierAssets::logoUrl($carrierCode),
                 ];
             }
         }

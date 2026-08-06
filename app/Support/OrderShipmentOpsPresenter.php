@@ -67,6 +67,7 @@ final class OrderShipmentOpsPresenter
                     'tracking_number' => $shipment->tracking_number,
                     'carrier' => $shipment->carrier_name ?? $shipment->carrier_code,
                     'service' => $shipment->service_name ?? $shipment->service_code,
+                    'carrier_logo' => \App\Support\KomerceCourierAssets::logoUrl($shipment->carrier_code),
                     'cost' => (int) $shipment->cost,
                     'currency' => $shipment->currency_code,
                     'delivery_order_no' => $deliveryOrderNo,

@@ -520,12 +520,20 @@ function syncPayment(): void {
                                 · {{ shipment.inventory_name }}
                             </span>
                         </p>
-                        <p class="mt-1 text-sm text-muted-foreground">
-                            {{
-                                shipmentCarrierService(shipment) ??
-                                'Kurir menunggu'
-                            }}
-                        </p>
+                        <div class="mt-1 flex items-center gap-2">
+                            <img
+                                v-if="shipment.carrier_logo"
+                                :src="shipment.carrier_logo"
+                                :alt="shipment.carrier"
+                                class="h-5 w-auto object-contain"
+                            />
+                            <p class="text-sm text-muted-foreground">
+                                {{
+                                    shipmentCarrierService(shipment) ??
+                                    'Kurir menunggu'
+                                }}
+                            </p>
+                        </div>
                     </div>
                     <p class="text-sm font-medium text-[var(--om-navy)]">
                         {{ formatShipmentStatus(shipment.status) }}
