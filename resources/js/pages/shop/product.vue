@@ -14,10 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card as UiCard,
-    CardContent,
-} from '@/components/ui/card';
+import { Card as UiCard, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
@@ -119,16 +116,13 @@ function authorInitials(name: string): string {
 }
 
 function submitReview(): void {
-    reviewForm.post(
-        productReviews.store.url({ product: props.product.slug }),
-        {
-            preserveScroll: true,
-            onSuccess: () => {
-                reviewForm.reset('title', 'content');
-                reviewForm.rating = 5;
-            },
+    reviewForm.post(productReviews.store.url({ product: props.product.slug }), {
+        preserveScroll: true,
+        onSuccess: () => {
+            reviewForm.reset('title', 'content');
+            reviewForm.rating = 5;
         },
-    );
+    });
 }
 
 function formatReviewDate(value: string | null): string {
@@ -151,7 +145,9 @@ const gallery = computed<string[]>(() => {
     const urls = [
         props.product.thumbnail,
         ...(props.product.images ?? []).map((image) => image.url),
-    ].filter((url): url is string => Boolean(url) && !url!.includes('placeholder'));
+    ].filter(
+        (url): url is string => Boolean(url) && !url!.includes('placeholder'),
+    );
 
     return [...new Set(urls)];
 });
@@ -214,6 +210,23 @@ const outOfStock = computed<boolean>(() => {
     }
     const stock = (props.product as { stock?: number }).stock ?? 0;
     return stock <= 0 && !props.product.allow_backorder;
+});
+
+const maxQuantity = computed<number>(() => {
+    let maxAllowed = 10;
+    
+    if (hasVariants.value && selectedVariant.value) {
+        if (!selectedVariant.value.allow_backorder) {
+            maxAllowed = Math.min(maxAllowed, selectedVariant.value.stock);
+        }
+    } else if (!hasVariants.value) {
+        const stock = (props.product as { stock?: number }).stock ?? 0;
+        if (!props.product.allow_backorder) {
+            maxAllowed = Math.min(maxAllowed, stock);
+        }
+    }
+    
+    return Math.max(1, maxAllowed);
 });
 
 const canAdd = computed(
@@ -281,178 +294,177 @@ function addToCart(): void {
             Detail produk
         </h1>
 
-            <div class="lg:grid lg:grid-cols-2 lg:gap-x-10">
-                <div>
-                    <div
-                        class="relative aspect-square overflow-hidden rounded-md bg-muted"
+        <div class="lg:grid lg:grid-cols-2 lg:gap-x-10">
+            <div>
+                <div
+                    class="relative aspect-square overflow-hidden rounded-md bg-muted"
+                >
+                    <img
+                        v-if="activeImage"
+                        :src="activeImage"
+                        :alt="product.name"
+                        class="size-full object-contain object-center p-3"
+                    />
+                    <Badge
+                        v-if="salePercentage"
+                        variant="sale"
+                        class="absolute top-2 left-2 px-2 py-0.5 text-[11px] font-bold"
+                    >
+                        -{{ salePercentage }}%
+                    </Badge>
+                </div>
+
+                <ToggleGroup
+                    v-if="gallery.length > 1"
+                    type="single"
+                    :model-value="activeImage ?? undefined"
+                    variant="outline"
+                    :spacing="2"
+                    class="mt-2.5 grid w-full grid-cols-4"
+                    @update:model-value="
+                        (value) => {
+                            if (typeof value === 'string') activeImage = value;
+                        }
+                    "
+                >
+                    <ToggleGroupItem
+                        v-for="url in gallery"
+                        :key="url"
+                        :value="url"
+                        class="aspect-square h-auto min-w-0 overflow-hidden rounded-md bg-muted p-0 data-[state=on]:ring-2 data-[state=on]:ring-primary"
+                        :aria-label="`Gambar produk`"
                     >
                         <img
-                            v-if="activeImage"
-                            :src="activeImage"
-                            :alt="product.name"
-                            class="size-full object-contain object-center p-3"
+                            :src="url"
+                            alt=""
+                            class="size-full object-contain object-center p-1"
                         />
-                        <Badge
-                            v-if="salePercentage"
-                            variant="sale"
-                            class="absolute top-2 left-2 px-2 py-0.5 text-[11px] font-bold"
-                        >
-                            -{{ salePercentage }}%
-                        </Badge>
-                    </div>
-
-                    <ToggleGroup
-                        v-if="gallery.length > 1"
-                        type="single"
-                        :model-value="activeImage ?? undefined"
-                        variant="outline"
-                        :spacing="2"
-                        class="mt-2.5 grid w-full grid-cols-4"
-                        @update:model-value="
-                            (value) => {
-                                if (typeof value === 'string') activeImage = value;
-                            }
-                        "
-                    >
-                        <ToggleGroupItem
-                            v-for="url in gallery"
-                            :key="url"
-                            :value="url"
-                            class="aspect-square h-auto min-w-0 overflow-hidden rounded-md bg-muted p-0 data-[state=on]:ring-2 data-[state=on]:ring-primary"
-                            :aria-label="`Gambar produk`"
-                        >
-                            <img
-                                :src="url"
-                                alt=""
-                                class="size-full object-contain object-center p-1"
-                            />
-                        </ToggleGroupItem>
-                    </ToggleGroup>
-                </div>
-
-                <div class="mt-4 lg:mt-0">
-                    <p
-                        v-if="product.brand"
-                        class="mb-1 text-[11px] tracking-wide text-muted-foreground uppercase"
-                    >
-                        {{ product.brand.name }}
-                    </p>
-                    <h1
-                        class="text-[17px] leading-snug font-semibold tracking-tight text-foreground"
-                    >
-                        {{ product.name }}
-                    </h1>
-
-                    <Badge
-                        v-if="outOfStock"
-                        variant="warning"
-                        class="mt-2 rounded-md text-[11px] font-semibold"
-                    >
-                        Stok habis
-                    </Badge>
-
-                    <div class="mt-3">
-                        <PriceDisplay :price="displayPrice ?? null" size="md" />
-                    </div>
-
-                    <div
-                        v-if="hasVariants && variantOptions"
-                        class="mt-5 flex flex-col gap-4"
-                    >
-                        <div
-                            v-for="option in variantOptions.productOptions"
-                            :key="option.id"
-                            class="flex flex-col gap-2"
-                        >
-                            <Label>{{ option.name }}</Label>
-                            <ToggleGroup
-                                type="single"
-                                :model-value="optionModel(option.id) || undefined"
-                                :variant="
-                                    option.type === 'colorpicker'
-                                        ? 'default'
-                                        : 'outline'
-                                "
-                                :spacing="2"
-                                class="flex flex-wrap"
-                                @update:model-value="
-                                    (value) => onOptionToggle(option.id, value)
-                                "
-                            >
-                                <ToggleGroupItem
-                                    v-for="value in option.values"
-                                    :key="value.id"
-                                    :value="String(value.id)"
-                                    :disabled="
-                                        !isOptionAvailable(option.id, value.id)
-                                    "
-                                    :title="value.value"
-                                    :class="
-                                        option.type === 'colorpicker'
-                                            ? 'size-8 min-w-8 rounded-full border-2 border-border p-0 data-[state=on]:border-primary data-[state=on]:ring-2 data-[state=on]:ring-primary/30'
-                                            : 'h-9 px-3 text-[13px] font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground'
-                                    "
-                                    :style="
-                                        option.type === 'colorpicker' && value.key
-                                            ? { backgroundColor: value.key }
-                                            : undefined
-                                    "
-                                >
-                                    <span
-                                        v-if="option.type === 'colorpicker'"
-                                        class="sr-only"
-                                        >{{ value.value }}</span
-                                    >
-                                    <template v-else>{{ value.value }}</template>
-                                </ToggleGroupItem>
-                            </ToggleGroup>
-                        </div>
-                    </div>
-
-                    <div class="mt-5 hidden items-center gap-3 lg:flex">
-                        <QtyStepper v-model="quantity" :min="1" :max="10" />
-
-                        <Button
-                            type="button"
-                            size="xl"
-                            class="flex-1"
-                            :disabled="!canAdd"
-                            @click="addToCart"
-                        >
-                            {{ ctaLabel }}
-                        </Button>
-                    </div>
-
-                    <div
-                        v-if="product.description"
-                        class="mt-6"
-                    >
-                        <Separator class="mb-4" />
-                        <h3 class="mb-2 text-sm font-medium text-foreground">
-                            Deskripsi
-                        </h3>
-                        <div
-                            class="prose prose-sm max-w-none text-[13px] leading-relaxed text-muted-foreground"
-                            v-html="product.description"
-                        />
-                    </div>
-                </div>
+                    </ToggleGroupItem>
+                </ToggleGroup>
             </div>
 
-            <section class="mt-8">
-                <Separator class="mb-5" />
-                <h2 class="text-base font-semibold tracking-tight text-foreground">
-                    Ulasan pembeli
-                </h2>
-
-                <UiCard
-                    v-if="reviews.totalCount > 0"
-                    class="mt-3 gap-0 py-0 shadow-none"
+            <div class="mt-4 lg:mt-0">
+                <p
+                    v-if="product.brand"
+                    class="mb-1 text-[11px] tracking-wide text-muted-foreground uppercase"
                 >
-                    <CardContent
-                        class="grid gap-4 bg-muted/70 p-3.5 sm:grid-cols-[7.5rem_1fr] sm:gap-5 sm:p-4"
+                    {{ product.brand.name }}
+                </p>
+                <h1
+                    class="text-[17px] leading-snug font-semibold tracking-tight text-foreground"
+                >
+                    {{ product.name }}
+                </h1>
+
+                <Badge
+                    v-if="outOfStock"
+                    variant="warning"
+                    class="mt-2 rounded-md text-[11px] font-semibold"
+                >
+                    Stok habis
+                </Badge>
+
+                <div class="mt-3">
+                    <PriceDisplay :price="displayPrice ?? null" size="md" />
+                </div>
+
+                <div
+                    v-if="hasVariants && variantOptions"
+                    class="mt-5 flex flex-col gap-4"
+                >
+                    <div
+                        v-for="option in variantOptions.productOptions"
+                        :key="option.id"
+                        class="flex flex-col gap-2"
                     >
-                    <div class="flex flex-col items-center justify-center text-center">
+                        <Label>{{ option.name }}</Label>
+                        <ToggleGroup
+                            type="single"
+                            :model-value="optionModel(option.id) || undefined"
+                            :variant="
+                                option.type === 'colorpicker'
+                                    ? 'default'
+                                    : 'outline'
+                            "
+                            :spacing="2"
+                            class="flex flex-wrap"
+                            @update:model-value="
+                                (value) => onOptionToggle(option.id, value)
+                            "
+                        >
+                            <ToggleGroupItem
+                                v-for="value in option.values"
+                                :key="value.id"
+                                :value="String(value.id)"
+                                :disabled="
+                                    !isOptionAvailable(option.id, value.id)
+                                "
+                                :title="value.value"
+                                :class="
+                                    option.type === 'colorpicker'
+                                        ? 'size-8 min-w-8 rounded-full border-2 border-border p-0 data-[state=on]:border-primary data-[state=on]:ring-2 data-[state=on]:ring-primary/30'
+                                        : 'h-9 px-3 text-[13px] font-medium data-[state=on]:bg-primary data-[state=on]:text-primary-foreground'
+                                "
+                                :style="
+                                    option.type === 'colorpicker' && value.key
+                                        ? { backgroundColor: value.key }
+                                        : undefined
+                                "
+                            >
+                                <span
+                                    v-if="option.type === 'colorpicker'"
+                                    class="sr-only"
+                                    >{{ value.value }}</span
+                                >
+                                <template v-else>{{ value.value }}</template>
+                            </ToggleGroupItem>
+                        </ToggleGroup>
+                    </div>
+                </div>
+
+                <div class="mt-5 hidden items-center gap-3 lg:flex">
+                    <QtyStepper v-model="quantity" :min="1" :max="maxQuantity" />
+
+                    <Button
+                        type="button"
+                        size="xl"
+                        class="flex-1"
+                        :disabled="!canAdd"
+                        @click="addToCart"
+                    >
+                        {{ ctaLabel }}
+                    </Button>
+                </div>
+
+                <div v-if="product.description" class="mt-6">
+                    <Separator class="mb-4" />
+                    <h3 class="mb-2 text-sm font-medium text-foreground">
+                        Deskripsi
+                    </h3>
+                    <div
+                        class="prose prose-sm max-w-none text-[13px] leading-relaxed text-muted-foreground"
+                        v-html="product.description"
+                    />
+                </div>
+            </div>
+        </div>
+
+        <section class="mt-8">
+            <Separator class="mb-5" />
+            <h2 class="text-base font-semibold tracking-tight text-foreground">
+                Ulasan pembeli
+            </h2>
+
+            <UiCard
+                v-if="reviews.totalCount > 0"
+                class="mt-3 gap-0 py-0 shadow-none"
+            >
+                <CardContent
+                    class="grid gap-4 bg-muted/70 p-3.5 sm:grid-cols-[7.5rem_1fr] sm:gap-5 sm:p-4"
+                >
+                    <div
+                        class="flex flex-col items-center justify-center text-center"
+                    >
                         <p
                             class="text-[2rem] leading-none font-bold tracking-tight text-primary"
                         >
@@ -490,246 +502,237 @@ function addToCart(): void {
                                 />
                             </div>
                             <span
-                                class="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground"
+                                class="w-8 shrink-0 text-right text-[11px] text-muted-foreground tabular-nums"
                             >
                                 {{ reviews.breakdown?.[level] ?? 0 }}
                             </span>
                         </div>
                     </div>
-                    </CardContent>
-                </UiCard>
+                </CardContent>
+            </UiCard>
 
-                <p v-else class="mt-2 text-sm text-muted-foreground">
-                    Belum ada ulasan yang disetujui
-                </p>
+            <p v-else class="mt-2 text-sm text-muted-foreground">
+                Belum ada ulasan yang disetujui
+            </p>
 
-                <template v-if="reviews.items.length">
-                    <Separator class="mt-4" />
-                    <div class="mt-3 flex items-center justify-between gap-3">
-                        <p class="text-[12px] font-semibold text-foreground">
-                            Semua ulasan
-                        </p>
-                        <ToggleGroup
-                            type="single"
-                            :model-value="reviewSort"
-                            variant="outline"
-                            :spacing="1"
-                            size="sm"
-                            @update:model-value="
-                                (value) => {
-                                    if (
-                                        value === 'highest' ||
-                                        value === 'newest' ||
-                                        value === 'lowest'
-                                    ) {
-                                        reviewSort = value;
-                                    }
+            <template v-if="reviews.items.length">
+                <Separator class="mt-4" />
+                <div class="mt-3 flex items-center justify-between gap-3">
+                    <p class="text-[12px] font-semibold text-foreground">
+                        Semua ulasan
+                    </p>
+                    <ToggleGroup
+                        type="single"
+                        :model-value="reviewSort"
+                        variant="outline"
+                        :spacing="1"
+                        size="sm"
+                        @update:model-value="
+                            (value) => {
+                                if (
+                                    value === 'highest' ||
+                                    value === 'newest' ||
+                                    value === 'lowest'
+                                ) {
+                                    reviewSort = value;
                                 }
-                            "
-                        >
-                            <ToggleGroupItem
-                                v-for="option in reviewSortOptions"
-                                :key="option.value"
-                                :value="option.value"
-                                class="h-7 px-2 text-[11px] font-semibold data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-                            >
-                                {{ option.label }}
-                            </ToggleGroupItem>
-                        </ToggleGroup>
-                    </div>
-                </template>
-
-                <ul
-                    v-if="sortedReviews.length"
-                    role="list"
-                    class="mt-1 divide-y divide-border"
-                >
-                    <li
-                        v-for="review in sortedReviews"
-                        :key="review.id"
-                        class="py-4"
+                            }
+                        "
                     >
-                        <div class="flex gap-3">
-                            <Avatar class="size-9 rounded-md">
-                                <AvatarFallback
-                                    class="rounded-md bg-accent text-[11px] font-bold text-foreground"
-                                >
-                                    {{ authorInitials(review.author_name) }}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div class="min-w-0 flex-1">
-                                <div
-                                    class="flex flex-wrap items-center gap-x-2 gap-y-1"
-                                >
-                                    <p
-                                        class="text-[13px] font-semibold text-foreground"
-                                    >
-                                        {{ review.author_name }}
-                                    </p>
-                                    <span
-                                        v-if="review.is_recommended"
-                                        class="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-700"
-                                    >
-                                        <BadgeCheck
-                                            class="size-3"
-                                            aria-hidden="true"
-                                        />
-                                        Direkomendasikan
-                                    </span>
-                                </div>
-                                <div
-                                    class="mt-1 flex flex-wrap items-center gap-2"
-                                >
-                                    <RatingStars :value="review.rating" />
-                                    <span class="text-[11px] text-muted-foreground">
-                                        {{
-                                            formatReviewDate(review.created_at)
-                                        }}
-                                    </span>
-                                </div>
+                        <ToggleGroupItem
+                            v-for="option in reviewSortOptions"
+                            :key="option.value"
+                            :value="option.value"
+                            class="h-7 px-2 text-[11px] font-semibold data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                        >
+                            {{ option.label }}
+                        </ToggleGroupItem>
+                    </ToggleGroup>
+                </div>
+            </template>
+
+            <ul
+                v-if="sortedReviews.length"
+                role="list"
+                class="mt-1 divide-y divide-border"
+            >
+                <li
+                    v-for="review in sortedReviews"
+                    :key="review.id"
+                    class="py-4"
+                >
+                    <div class="flex gap-3">
+                        <Avatar class="size-9 rounded-md">
+                            <AvatarFallback
+                                class="rounded-md bg-accent text-[11px] font-bold text-foreground"
+                            >
+                                {{ authorInitials(review.author_name) }}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div class="min-w-0 flex-1">
+                            <div
+                                class="flex flex-wrap items-center gap-x-2 gap-y-1"
+                            >
                                 <p
-                                    v-if="review.title"
-                                    class="mt-2 text-[13px] font-medium text-foreground"
+                                    class="text-[13px] font-semibold text-foreground"
                                 >
-                                    {{ review.title }}
+                                    {{ review.author_name }}
                                 </p>
-                                <p
-                                    v-if="review.content"
-                                    class="mt-1 text-[13px] leading-relaxed text-muted-foreground"
+                                <span
+                                    v-if="review.is_recommended"
+                                    class="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-700"
                                 >
-                                    {{ review.content }}
-                                </p>
+                                    <BadgeCheck
+                                        class="size-3"
+                                        aria-hidden="true"
+                                    />
+                                    Direkomendasikan
+                                </span>
                             </div>
-                        </div>
-                    </li>
-                </ul>
-
-                <p
-                    v-if="reviews.totalCount > reviews.items.length"
-                    class="mt-2 text-center text-[11px] text-muted-foreground"
-                >
-                    Menampilkan {{ reviews.items.length }} dari
-                    {{ reviews.totalCount }} ulasan
-                </p>
-
-                <Card
-                    v-if="canReview"
-                    class="mt-5"
-                    :padded="false"
-                    content-class="p-4"
-                >
-                    <form
-                        class="flex flex-col gap-3"
-                        @submit.prevent="submitReview"
-                    >
-                        <h3 class="text-sm font-semibold text-foreground">
-                            Tulis ulasan
-                        </h3>
-                        <Alert
-                            v-if="reviewError"
-                            variant="destructive"
-                            class="py-2 text-[12px]"
-                        >
-                            <AlertTitle class="text-[13px]">
-                                Ulasan belum terkirim
-                            </AlertTitle>
-                            <AlertDescription class="text-[12px]">
-                                {{ reviewError }}
-                            </AlertDescription>
-                        </Alert>
-                        <div>
-                            <Label class="mb-1.5">Rating</Label>
-                            <RatingStars
-                                :value="reviewForm.rating"
-                                size="lg"
-                                interactive
-                                @change="reviewForm.rating = $event"
-                            />
-                        </div>
-                        <AuthTextField
-                            id="review-title"
-                            v-model="reviewForm.title"
-                            label="Judul (opsional)"
-                            :error="reviewForm.errors.title"
-                        />
-                        <div>
-                            <Label for="review-content">Ulasan</Label>
-                            <Textarea
-                                id="review-content"
-                                v-model="reviewForm.content"
-                                rows="3"
-                                class="mt-1.5 text-[13px]"
-                                placeholder="Bagaimana pengalamanmu dengan produk ini?"
-                                :aria-invalid="
-                                    Boolean(reviewForm.errors.content) ||
-                                    undefined
-                                "
-                            />
+                            <div class="mt-1 flex flex-wrap items-center gap-2">
+                                <RatingStars :value="review.rating" />
+                                <span class="text-[11px] text-muted-foreground">
+                                    {{ formatReviewDate(review.created_at) }}
+                                </span>
+                            </div>
                             <p
-                                v-if="reviewForm.errors.content"
-                                class="mt-1 text-[12px] text-destructive"
+                                v-if="review.title"
+                                class="mt-2 text-[13px] font-medium text-foreground"
                             >
-                                {{ reviewForm.errors.content }}
+                                {{ review.title }}
+                            </p>
+                            <p
+                                v-if="review.content"
+                                class="mt-1 text-[13px] leading-relaxed text-muted-foreground"
+                            >
+                                {{ review.content }}
                             </p>
                         </div>
-                        <Button
-                            type="submit"
-                            size="xl"
-                            class="self-start"
-                            :disabled="reviewForm.processing"
-                        >
-                            Kirim ulasan
-                        </Button>
-                    </form>
-                </Card>
-            </section>
+                    </div>
+                </li>
+            </ul>
 
-            <section
-                v-if="product.related_products?.length"
-                class="mt-8"
+            <p
+                v-if="reviews.totalCount > reviews.items.length"
+                class="mt-2 text-center text-[11px] text-muted-foreground"
             >
-                <Separator class="mb-5" />
-                <h2
-                    class="mb-3 text-base font-semibold tracking-tight text-foreground"
-                >
-                    Produk terkait
-                </h2>
-                <div
-                    class="grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-                >
-                    <ProductCard
-                        v-for="related in product.related_products"
-                        :key="related.id"
-                        :product="related"
-                    />
-                </div>
-            </section>
-        </Container>
-        <div
-            class="fixed inset-x-0 z-40 border-t border-border bg-card px-4 py-2.5 sm:px-6 lg:hidden"
-            style="
-                bottom: calc(
-                    var(--om-bottom-nav-height) +
-                        env(safe-area-inset-bottom, 0px)
-                )
-            "
-        >
-            <div class="mx-auto flex max-w-7xl items-center gap-2.5">
-                <QtyStepper v-model="quantity" :min="1" :max="10" />
-                <Button
-                    type="button"
-                    size="xl"
-                    class="min-w-0 flex-1 px-3"
-                    :disabled="!canAdd"
-                    @click="addToCart"
-                >
-                    {{ ctaLabel }}
-                </Button>
-            </div>
-        </div>
+                Menampilkan {{ reviews.items.length }} dari
+                {{ reviews.totalCount }} ulasan
+            </p>
 
-        <div
-            class="h-[calc(var(--om-control-height)+1.25rem)] lg:hidden"
-            aria-hidden="true"
-        />
+            <Card
+                v-if="canReview"
+                class="mt-5"
+                :padded="false"
+                content-class="p-4"
+            >
+                <form
+                    class="flex flex-col gap-3"
+                    @submit.prevent="submitReview"
+                >
+                    <h3 class="text-sm font-semibold text-foreground">
+                        Tulis ulasan
+                    </h3>
+                    <Alert
+                        v-if="reviewError"
+                        variant="destructive"
+                        class="py-2 text-[12px]"
+                    >
+                        <AlertTitle class="text-[13px]">
+                            Ulasan belum terkirim
+                        </AlertTitle>
+                        <AlertDescription class="text-[12px]">
+                            {{ reviewError }}
+                        </AlertDescription>
+                    </Alert>
+                    <div>
+                        <Label class="mb-1.5">Rating</Label>
+                        <RatingStars
+                            :value="reviewForm.rating"
+                            size="lg"
+                            interactive
+                            @change="reviewForm.rating = $event"
+                        />
+                    </div>
+                    <AuthTextField
+                        id="review-title"
+                        v-model="reviewForm.title"
+                        label="Judul (opsional)"
+                        :error="reviewForm.errors.title"
+                    />
+                    <div>
+                        <Label for="review-content">Ulasan</Label>
+                        <Textarea
+                            id="review-content"
+                            v-model="reviewForm.content"
+                            rows="3"
+                            class="mt-1.5 text-[13px]"
+                            placeholder="Bagaimana pengalamanmu dengan produk ini?"
+                            :aria-invalid="
+                                Boolean(reviewForm.errors.content) || undefined
+                            "
+                        />
+                        <p
+                            v-if="reviewForm.errors.content"
+                            class="mt-1 text-[12px] text-destructive"
+                        >
+                            {{ reviewForm.errors.content }}
+                        </p>
+                    </div>
+                    <Button
+                        type="submit"
+                        size="xl"
+                        class="self-start"
+                        :disabled="reviewForm.processing"
+                    >
+                        Kirim ulasan
+                    </Button>
+                </form>
+            </Card>
+        </section>
+
+        <section v-if="product.related_products?.length" class="mt-8">
+            <Separator class="mb-5" />
+            <h2
+                class="mb-3 text-base font-semibold tracking-tight text-foreground"
+            >
+                Produk terkait
+            </h2>
+            <div
+                class="grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+            >
+                <ProductCard
+                    v-for="related in product.related_products"
+                    :key="related.id"
+                    :product="related"
+                />
+            </div>
+        </section>
+    </Container>
+    <div
+        class="fixed inset-x-0 z-40 border-t border-border bg-card px-4 py-2.5 sm:px-6 lg:hidden"
+        style="
+            bottom: calc(
+                var(--om-bottom-nav-height) + env(safe-area-inset-bottom, 0px)
+            );
+        "
+    >
+        <div class="mx-auto flex max-w-7xl items-center gap-2.5">
+            <QtyStepper v-model="quantity" :min="1" :max="maxQuantity" />
+            <Button
+                type="button"
+                size="xl"
+                class="min-w-0 flex-1 px-3"
+                :disabled="!canAdd"
+                @click="addToCart"
+            >
+                {{ ctaLabel }}
+            </Button>
+        </div>
+    </div>
+
+    <div
+        class="h-[calc(var(--om-control-height)+1.25rem)] lg:hidden"
+        aria-hidden="true"
+    />
 </template>
