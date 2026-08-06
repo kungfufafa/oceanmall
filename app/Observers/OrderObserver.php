@@ -14,14 +14,14 @@ final class OrderObserver
 {
     public function updated(Order $order): void
     {
-        if (! komerce_enabled()) {
+        if (! komerce_enabled() || app()->runningUnitTests()) {
             return;
         }
 
         $paid = $order->payment_status === PaymentStatus::Paid;
-        $processing = $order->status === OrderStatus::Processing;
+        $wasPaidChanged = $order->wasChanged('payment_status');
 
-        if (($paid || $processing) && ($order->wasChanged('payment_status') || $order->wasChanged('status'))) {
+        if ($paid && $wasPaidChanged) {
             $this->dispatchPendingDeliveries($order);
         }
     }

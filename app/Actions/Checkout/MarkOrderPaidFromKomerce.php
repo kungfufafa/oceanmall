@@ -132,6 +132,8 @@ final class MarkOrderPaidFromKomerce
             $this->notifyOrderCustomer->handle($order->refresh(), OrderNotificationType::Paid);
         }
 
+        $this->dispatchPendingDeliveries($order);
+
         return 'handled';
     }
 

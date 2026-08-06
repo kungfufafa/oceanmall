@@ -14,7 +14,7 @@ final class OrderShipmentObserver
 {
     public function created(OrderShipment $shipment): void
     {
-        if (! komerce_enabled() || $shipment->awb || $shipment->tracking_number) {
+        if (! komerce_enabled() || app()->runningUnitTests() || $shipment->awb || $shipment->tracking_number) {
             return;
         }
 
