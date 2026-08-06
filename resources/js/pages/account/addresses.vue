@@ -14,12 +14,7 @@ import AuthTextField from '@/components/auth/auth-text-field.vue';
 import EmptyState from '@/components/shop/empty-state.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
     DropdownMenu,
@@ -162,23 +157,29 @@ function setDefaultBilling(address: Address): void {
     <Head title="Alamat" />
 
     <div class="flex items-center justify-between gap-3">
-        <p class="text-sm text-muted-foreground">Alamat pengiriman & penagihan</p>
-        <Button type="button" variant="link" class="h-auto p-0 om-action-primary" @click="startCreate">
+        <p class="text-sm text-muted-foreground">
+            Alamat pengiriman & penagihan
+        </p>
+        <Button
+            type="button"
+            variant="link"
+            class="om-action-primary h-auto p-0"
+            @click="startCreate"
+        >
             Tambah
         </Button>
     </div>
 
     <div class="mt-4 flex flex-col gap-3">
-        <div
-            v-if="addresses.length"
-            class="flex flex-col gap-3"
-        >
+        <div v-if="addresses.length" class="flex flex-col gap-3">
             <Card
                 v-for="address in addresses"
                 :key="address.id"
                 class="gap-0 overflow-hidden py-0 shadow-none"
             >
-                <div class="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-3.5 py-2.5">
+                <div
+                    class="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-3.5 py-2.5"
+                >
                     <h3 class="text-sm font-semibold text-foreground">
                         {{ address.first_name }} {{ address.last_name }}
                     </h3>
@@ -192,7 +193,9 @@ function setDefaultBilling(address: Address): void {
                 </div>
 
                 <CardContent class="p-3.5 pt-3">
-                    <address class="text-sm not-italic leading-5 text-muted-foreground">
+                    <address
+                        class="text-sm leading-5 text-muted-foreground not-italic"
+                    >
                         <span class="block">
                             {{ address.street_address
                             }}<span v-if="address.street_address_plus"
@@ -245,7 +248,8 @@ function setDefaultBilling(address: Address): void {
                         </Button>
                         <DropdownMenu
                             v-if="
-                                !address.shipping_default || !address.billing_default
+                                !address.shipping_default ||
+                                !address.billing_default
                             "
                         >
                             <DropdownMenuTrigger as-child>

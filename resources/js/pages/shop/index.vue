@@ -176,7 +176,7 @@ function clearFilters(): void {
             "
         >
             <TabsList
-                class="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-border bg-transparent p-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                class="h-auto w-full [scrollbar-width:none] justify-start gap-1 overflow-x-auto rounded-none border-b border-border bg-transparent p-0 [&::-webkit-scrollbar]:hidden"
                 aria-label="Kategori"
             >
                 <TabsTrigger

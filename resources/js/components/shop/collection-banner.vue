@@ -29,7 +29,9 @@ defineProps<{ collection: Collection }>();
             />
 
             <!-- Leave room on the right for carousel indicator -->
-            <div class="absolute inset-x-0 bottom-0 p-3.5 pr-24 sm:p-5 sm:pr-28">
+            <div
+                class="absolute inset-x-0 bottom-0 p-3.5 pr-24 sm:p-5 sm:pr-28"
+            >
                 <p
                     class="truncate text-[15px] font-bold tracking-tight text-white sm:text-lg"
                 >

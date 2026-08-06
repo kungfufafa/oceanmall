@@ -162,7 +162,9 @@ watch(
                     </Card>
                 </div>
 
-                <ol class="flex flex-col gap-2 text-[13px] text-muted-foreground">
+                <ol
+                    class="flex flex-col gap-2 text-[13px] text-muted-foreground"
+                >
                     <li class="flex gap-2">
                         <span
                             class="flex size-5 shrink-0 items-center justify-center rounded-md bg-[var(--om-navy)] text-[10px] font-bold text-white"
@@ -187,7 +189,12 @@ watch(
                 </ol>
 
                 <div v-if="payment.payment_url" class="mt-1">
-                    <Button as-child variant="outline" size="sm" class="w-full h-9 text-xs">
+                    <Button
+                        as-child
+                        variant="outline"
+                        size="sm"
+                        class="h-9 w-full text-xs"
+                    >
                         <a
                             :href="payment.payment_url"
                             target="_blank"
@@ -203,9 +210,7 @@ watch(
                 <Card
                     class="gap-0 rounded-md border-border bg-muted py-0 shadow-none"
                 >
-                    <CardContent
-                        class="flex flex-col items-center gap-3 p-4"
-                    >
+                    <CardContent class="flex flex-col items-center gap-3 p-4">
                         <img
                             v-if="qrDataUrl"
                             :src="qrDataUrl"
@@ -223,8 +228,11 @@ watch(
                         <p v-else class="text-[12px] text-muted-foreground">
                             Menyiapkan QR…
                         </p>
-                        <p class="text-center text-[12px] text-muted-foreground">
-                            Scan pakai GoPay, OVO, Dana, ShopeePay, atau m-banking
+                        <p
+                            class="text-center text-[12px] text-muted-foreground"
+                        >
+                            Scan pakai GoPay, OVO, Dana, ShopeePay, atau
+                            m-banking
                         </p>
                         <Button
                             type="button"
@@ -245,7 +253,8 @@ watch(
             >
                 <CardContent class="flex flex-col gap-3 p-4">
                     <p class="text-[13px] text-foreground">
-                        Instruksi lengkap tersedia di halaman pembayaran Komerce.
+                        Instruksi lengkap tersedia di halaman pembayaran
+                        Komerce.
                     </p>
                     <Button as-child size="xl">
                         <a
@@ -259,11 +268,7 @@ watch(
                 </CardContent>
             </Card>
 
-            <Alert
-                v-else
-                variant="warning"
-                class="py-2"
-            >
+            <Alert v-else variant="warning" class="py-2">
                 <AlertDescription class="text-[12px] text-current">
                     Instruksi pembayaran belum lengkap. Coba buat ulang dari
                     halaman pesanan.

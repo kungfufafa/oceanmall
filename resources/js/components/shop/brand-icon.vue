@@ -8,7 +8,6 @@ defineProps<{
     <img
         src="/images/logo-icon-transparent.png"
         alt="OceanMall Logo"
-        :class="['object-contain shrink-0 aspect-square', $props.class]"
+        :class="['aspect-square shrink-0 object-contain', $props.class]"
     />
 </template>
-

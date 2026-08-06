@@ -72,7 +72,9 @@ function confirmDelete(): void {
 <template>
     <Head title="Profil" />
 
-    <p class="mb-4 text-sm text-muted-foreground">Perbarui nama dan email akunmu.</p>
+    <p class="mb-4 text-sm text-muted-foreground">
+        Perbarui nama dan email akunmu.
+    </p>
 
     <form class="flex flex-col gap-3.5" @submit.prevent="submit">
         <div class="grid grid-cols-2 gap-2.5">
@@ -148,7 +150,10 @@ function confirmDelete(): void {
                 :enabled="canSubmit"
                 :processing="form.processing"
             />
-            <p v-if="form.recentlySuccessful" class="text-sm text-muted-foreground">
+            <p
+                v-if="form.recentlySuccessful"
+                class="text-sm text-muted-foreground"
+            >
                 Tersimpan.
             </p>
         </div>
@@ -175,7 +180,10 @@ function confirmDelete(): void {
                 Setelah dihapus, semua data tidak bisa dikembalikan. Masukkan
                 password untuk konfirmasi.
             </p>
-            <form class="mt-5 flex flex-col gap-3.5" @submit.prevent="confirmDelete">
+            <form
+                class="mt-5 flex flex-col gap-3.5"
+                @submit.prevent="confirmDelete"
+            >
                 <AuthPasswordField
                     id="delete_password"
                     v-model="deleteForm.password"

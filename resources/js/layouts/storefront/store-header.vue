@@ -19,8 +19,8 @@ const { cartCount } = useShop();
 const searchQuery = ref<string>('');
 
 const user = computed(() => page.props.auth.user);
-const unreadCount = computed(
-    () => Number(page.props.notificationsUnreadCount ?? 0),
+const unreadCount = computed(() =>
+    Number(page.props.notificationsUnreadCount ?? 0),
 );
 
 const navCategories = computed<NavCategory[]>(
@@ -143,7 +143,9 @@ function clearSearch(): void {
                     class="inline-flex shrink-0 items-center gap-2.5 text-primary-foreground"
                 >
                     <BrandIcon class="h-9 w-auto" />
-                    <span class="text-[1.35rem] font-extrabold tracking-tight flex items-center">
+                    <span
+                        class="flex items-center text-[1.35rem] font-extrabold tracking-tight"
+                    >
                         <span class="text-[#38BDF8]">OCEAN</span>
                         <span class="text-white">MALL</span>
                     </span>

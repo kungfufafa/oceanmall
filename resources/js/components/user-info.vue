@@ -29,7 +29,10 @@ const avatarSrc = computed<string | null>(() => {
     }
 
     if (avatar && typeof avatar === 'object') {
-        const value = avatar as { url?: string | null; default?: string | null };
+        const value = avatar as {
+            url?: string | null;
+            default?: string | null;
+        };
 
         return value.url || value.default || null;
     }

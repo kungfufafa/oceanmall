@@ -55,7 +55,9 @@ async function pay(): Promise<void> {
                     {{ submitting ? 'Memproses…' : 'Bayar sekarang' }}
                 </Button>
             </div>
-            <p class="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <p
+                class="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+            >
                 <Lock class="size-3" aria-hidden="true" />
                 Aman &amp; terenkripsi
             </p>

@@ -56,7 +56,11 @@ function markRead(item: NotificationItem): void {
 }
 
 function markAllRead(): void {
-    router.post(accountNotifications.readAll.url(), {}, { preserveScroll: true });
+    router.post(
+        accountNotifications.readAll.url(),
+        {},
+        { preserveScroll: true },
+    );
 }
 </script>
 
@@ -64,14 +68,16 @@ function markAllRead(): void {
     <Head title="Notifikasi" />
 
     <div class="flex items-center justify-between gap-3 lg:hidden">
-        <h1 class="text-lg font-semibold tracking-tight text-foreground lg:hidden">
+        <h1
+            class="text-lg font-semibold tracking-tight text-foreground lg:hidden"
+        >
             Notifikasi
         </h1>
         <Button
             v-if="notifications.data.some((n) => !n.read_at)"
             type="button"
             variant="ghost"
-            class="h-auto p-0 om-action-muted !text-[12px]"
+            class="om-action-muted h-auto p-0 !text-[12px]"
             @click="markAllRead"
         >
             Tandai semua dibaca
@@ -85,7 +91,7 @@ function markAllRead(): void {
         <Button
             type="button"
             variant="ghost"
-            class="h-auto p-0 om-action-muted !text-[12px]"
+            class="om-action-muted h-auto p-0 !text-[12px]"
             @click="markAllRead"
         >
             Tandai semua dibaca
@@ -105,27 +111,24 @@ function markAllRead(): void {
         </template>
     </EmptyState>
 
-    <Card
-        v-else
-        class="mt-2 gap-0 overflow-hidden py-0 shadow-none lg:mt-0"
-    >
+    <Card v-else class="mt-2 gap-0 overflow-hidden py-0 shadow-none lg:mt-0">
         <CardContent class="flex flex-col gap-0 p-0">
             <Button
                 v-for="item in notifications.data"
                 :key="item.id"
                 type="button"
                 variant="ghost"
-                :class="cn(
-                    'h-auto w-full justify-start gap-3 rounded-none px-3.5 py-3.5 text-left font-normal hover:bg-muted',
-                    !item.read_at && 'bg-accent/60',
-                )"
+                :class="
+                    cn(
+                        'h-auto w-full justify-start gap-3 rounded-none px-3.5 py-3.5 text-left font-normal hover:bg-muted',
+                        !item.read_at && 'bg-accent/60',
+                    )
+                "
                 @click="markRead(item)"
             >
                 <span
                     class="mt-1.5 size-2 shrink-0 rounded-full"
-                    :class="
-                        item.read_at ? 'bg-transparent' : 'bg-primary'
-                    "
+                    :class="item.read_at ? 'bg-transparent' : 'bg-primary'"
                     aria-hidden="true"
                 />
                 <div class="min-w-0 flex-1">
@@ -140,7 +143,9 @@ function markAllRead(): void {
                             {{ formatDate(item.created_at) }}
                         </time>
                     </div>
-                    <p class="mt-0.5 text-[13px] leading-snug text-muted-foreground">
+                    <p
+                        class="mt-0.5 text-[13px] leading-snug text-muted-foreground"
+                    >
                         {{ item.body }}
                     </p>
                     <p

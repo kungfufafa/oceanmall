@@ -73,7 +73,7 @@ watch(
     <section v-if="collections.length" class="relative mt-4">
         <div
             ref="track"
-            class="flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] snap-x snap-mandatory sm:gap-4 sm:px-6 lg:mx-auto lg:max-w-7xl [&::-webkit-scrollbar]:hidden"
+            class="flex snap-x snap-mandatory [scrollbar-width:none] gap-3 overflow-x-auto px-4 pb-1 sm:gap-4 sm:px-6 lg:mx-auto lg:max-w-7xl [&::-webkit-scrollbar]:hidden"
         >
             <div
                 v-for="collection in collections"

@@ -27,7 +27,11 @@ defineProps<{
         Link verifikasi baru sudah dikirim ke emailmu.
     </div>
 
-    <Form v-bind="send.form()" v-slot="{ processing }" class="flex flex-col gap-4">
+    <Form
+        v-bind="send.form()"
+        v-slot="{ processing }"
+        class="flex flex-col gap-4"
+    >
         <AuthSubmitButton
             label="Kirim ulang email verifikasi"
             :enabled="true"

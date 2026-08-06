@@ -32,9 +32,15 @@ withDefaults(
             )
         "
     >
-        <CardHeader v-if="$slots.header || $slots.title || $slots.description" class="gap-1 p-4 pb-0">
+        <CardHeader
+            v-if="$slots.header || $slots.title || $slots.description"
+            class="gap-1 p-4 pb-0"
+        >
             <slot name="header">
-                <CardTitle v-if="$slots.title" class="text-[15px] font-semibold">
+                <CardTitle
+                    v-if="$slots.title"
+                    class="text-[15px] font-semibold"
+                >
                     <slot name="title" />
                 </CardTitle>
                 <CardDescription v-if="$slots.description">
@@ -42,14 +48,7 @@ withDefaults(
                 </CardDescription>
             </slot>
         </CardHeader>
-        <CardContent
-            :class="
-                cn(
-                    padded ? 'p-4' : 'p-0',
-                    $props.contentClass,
-                )
-            "
-        >
+        <CardContent :class="cn(padded ? 'p-4' : 'p-0', $props.contentClass)">
             <slot />
         </CardContent>
         <CardFooter v-if="$slots.footer" class="p-4 pt-0">

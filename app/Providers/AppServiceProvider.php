@@ -197,10 +197,6 @@ class AppServiceProvider extends ServiceProvider
                     return '';
                 }
 
-                if (! auth()->user()?->isAdmin()) {
-                    return '';
-                }
-
                 return view('shopper.partials.komerce-order-shipping-hook', [
                     'order' => $order,
                 ])->render();

@@ -118,7 +118,9 @@ watch(
                 <DialogTitle class="text-[15px] font-semibold text-foreground">
                     {{ modalConfig.title }}
                 </DialogTitle>
-                <DialogDescription class="text-left text-sm leading-5 text-muted-foreground">
+                <DialogDescription
+                    class="text-left text-sm leading-5 text-muted-foreground"
+                >
                     {{ modalConfig.description }}
                 </DialogDescription>
             </DialogHeader>

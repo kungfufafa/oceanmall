@@ -16,8 +16,7 @@ const authConfigContent = computed<TwoFactorConfigContent>(() => {
     if (showRecoveryInput.value) {
         return {
             title: 'Kode pemulihan',
-            description:
-                'Masukkan salah satu kode pemulihan darurat akunmu.',
+            description: 'Masukkan salah satu kode pemulihan darurat akunmu.',
             buttonText: 'pakai kode autentikator',
         };
     }

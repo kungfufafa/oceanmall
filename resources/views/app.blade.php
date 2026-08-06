@@ -29,7 +29,10 @@
             }
         </style>
 
-        <x-shopper::favicons />
+        <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('/images/logo-icon.png') }}" />
+        <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('/images/logo-icon.png') }}" />
+        <link rel="shortcut icon" href="{{ asset('/images/logo-icon.png') }}" />
+        <link rel="manifest" href="{{ asset('build/manifest.webmanifest') }}" />
 
         @fonts
 

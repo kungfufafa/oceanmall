@@ -9,8 +9,8 @@ import { loadStripe, type Stripe } from '@stripe/stripe-js';
 const cache = new Map<string, Promise<Stripe | null>>();
 
 export function stripe(publishableKey: string): Promise<Stripe | null> {
-  if (!cache.has(publishableKey)) {
-    cache.set(publishableKey, loadStripe(publishableKey));
-  }
-  return cache.get(publishableKey)!;
+    if (!cache.has(publishableKey)) {
+        cache.set(publishableKey, loadStripe(publishableKey));
+    }
+    return cache.get(publishableKey)!;
 }

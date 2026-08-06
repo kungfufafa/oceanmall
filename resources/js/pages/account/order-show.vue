@@ -104,22 +104,21 @@ const paymentError = computed(
 );
 const retryingPayment = ref(false);
 const checkingPayment = ref(false);
-const shippingPrice = props.shipments.length > 0
-    ? props.shipments.reduce((sum, s) => sum + s.cost, 0)
-    : (props.order.shipping_option?.price ?? 0);
+const shippingPrice =
+    props.shipments.length > 0
+        ? props.shipments.reduce((sum, s) => sum + s.cost, 0)
+        : (props.order.shipping_option?.price ?? 0);
 const itemsTotal =
     props.order.price_amount - (props.order.tax_amount ?? 0) - shippingPrice;
 
 const flashInfo = computed(() => {
     const flash = page.props.flash as
-        | { info?: string; success?: string }
-        | undefined;
+        { info?: string; success?: string } | undefined;
     return flash?.info ?? null;
 });
 const flashSuccess = computed(() => {
     const flash = page.props.flash as
-        | { info?: string; success?: string }
-        | undefined;
+        { info?: string; success?: string } | undefined;
     return flash?.success ?? null;
 });
 
@@ -142,7 +141,9 @@ function formatShipmentStatus(value: string): string {
 }
 
 function shipmentCarrierService(shipment: Shipment): string | null {
-    return [shipment.carrier, shipment.service].filter(Boolean).join(' / ') || null;
+    return (
+        [shipment.carrier, shipment.service].filter(Boolean).join(' / ') || null
+    );
 }
 
 const trackingShipmentId = ref<number | null>(null);
@@ -154,7 +155,9 @@ const canConfirmReceived =
     props.order.status !== 'cancelled' &&
     props.order.status !== 'completed' &&
     props.order.payment_status === 'paid' &&
-    props.shipments.some((shipment) => Boolean(shipment.awb || shipment.tracking_number));
+    props.shipments.some((shipment) =>
+        Boolean(shipment.awb || shipment.tracking_number),
+    );
 
 function trackShipment(shipment: Shipment): void {
     trackingShipmentId.value = shipment.id;
@@ -201,22 +204,30 @@ function confirmReceived(): void {
 
 function retryPayment(): void {
     retryingPayment.value = true;
-    router.post(`/account/orders/${props.order.id}/retry-payment`, {}, {
-        preserveScroll: true,
-        onFinish: () => {
-            retryingPayment.value = false;
+    router.post(
+        `/account/orders/${props.order.id}/retry-payment`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                retryingPayment.value = false;
+            },
         },
-    });
+    );
 }
 
 function syncPayment(): void {
     checkingPayment.value = true;
-    router.post(`/account/orders/${props.order.id}/sync-payment`, {}, {
-        preserveScroll: true,
-        onFinish: () => {
-            checkingPayment.value = false;
+    router.post(
+        `/account/orders/${props.order.id}/sync-payment`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                checkingPayment.value = false;
+            },
         },
-    });
+    );
 }
 </script>
 
@@ -276,7 +287,9 @@ function syncPayment(): void {
         v-if="komercePayment || canRetryPayment"
         class="mt-5 gap-0 overflow-hidden py-0 shadow-none"
     >
-        <div class="border-b border-[var(--om-warning)]/20 bg-[var(--om-warning-soft)] px-4 py-3">
+        <div
+            class="border-b border-[var(--om-warning)]/20 bg-[var(--om-warning-soft)] px-4 py-3"
+        >
             <h3 class="text-[13px] font-semibold text-[var(--om-warning)]">
                 Menunggu pembayaran
             </h3>
@@ -285,7 +298,11 @@ function syncPayment(): void {
             </p>
         </div>
         <CardContent class="flex flex-col gap-3 p-3.5">
-            <Alert v-if="paymentError" variant="destructive" class="py-2 text-[12px]">
+            <Alert
+                v-if="paymentError"
+                variant="destructive"
+                class="py-2 text-[12px]"
+            >
                 <AlertDescription>{{ paymentError }}</AlertDescription>
             </Alert>
             <Alert
@@ -373,17 +390,12 @@ function syncPayment(): void {
     <Separator class="mt-8" />
 
     <div class="mt-8 grid gap-6 lg:grid-cols-3">
-        <Card
-            v-if="order.shipping_address"
-            class="gap-0 py-0 shadow-none"
-        >
+        <Card v-if="order.shipping_address" class="gap-0 py-0 shadow-none">
             <CardHeader class="p-4 pb-0">
-                <CardTitle class="text-sm">
-                    Alamat pengiriman
-                </CardTitle>
+                <CardTitle class="text-sm"> Alamat pengiriman </CardTitle>
             </CardHeader>
             <CardContent class="p-4 pt-3">
-                <address class="text-sm not-italic text-muted-foreground">
+                <address class="text-sm text-muted-foreground not-italic">
                     <p class="font-medium text-[var(--om-navy)]">
                         {{
                             order.shipping_address.full_name ??
@@ -415,9 +427,7 @@ function syncPayment(): void {
 
         <Card class="gap-0 py-0 shadow-none lg:col-span-2">
             <CardHeader class="p-4 pb-0">
-                <CardTitle class="text-sm">
-                    Ringkasan pesanan
-                </CardTitle>
+                <CardTitle class="text-sm"> Ringkasan pesanan </CardTitle>
             </CardHeader>
             <CardContent class="p-4 pt-3">
                 <dl class="flex flex-col gap-2 text-sm">
@@ -465,7 +475,9 @@ function syncPayment(): void {
                     </div>
                     <Separator />
                     <div class="flex justify-between pt-2">
-                        <dt class="font-semibold text-[var(--om-navy)]">Total</dt>
+                        <dt class="font-semibold text-[var(--om-navy)]">
+                            Total
+                        </dt>
                         <dd class="font-semibold text-[var(--om-navy)]">
                             {{
                                 formatMoney(
@@ -487,9 +499,7 @@ function syncPayment(): void {
         class="mt-8 gap-0 overflow-hidden py-0 shadow-none"
     >
         <CardHeader class="border-b border-border px-5 py-4">
-            <CardTitle class="text-sm">
-                Pengiriman / Paket
-            </CardTitle>
+            <CardTitle class="text-sm"> Pengiriman / Paket </CardTitle>
             <CardDescription>
                 Lacak setiap paket dalam pesanan ini.
             </CardDescription>
@@ -542,12 +552,7 @@ function syncPayment(): void {
                     <div>
                         <dt class="text-muted-foreground">Biaya ongkir</dt>
                         <dd class="mt-1 text-[var(--om-navy)]">
-                            {{
-                                formatMoney(
-                                    shipment.cost,
-                                    shipment.currency,
-                                )
-                            }}
+                            {{ formatMoney(shipment.cost, shipment.currency) }}
                         </dd>
                     </div>
                 </dl>
@@ -580,12 +585,14 @@ function syncPayment(): void {
                         class="mt-4 flex flex-col gap-3 border-l border-border pl-4"
                     >
                         <li
-                            v-for="(event, eventIndex) in shipment.tracking_history"
+                            v-for="(
+                                event, eventIndex
+                            ) in shipment.tracking_history"
                             :key="eventIndex"
                             class="relative"
                         >
                             <span
-                                class="absolute -left-[21px] top-1 size-2 rounded-full bg-muted-foreground/50"
+                                class="absolute top-1 -left-[21px] size-2 rounded-full bg-muted-foreground/50"
                             />
                             <p class="text-sm text-[var(--om-navy)]">
                                 {{ event.description }}
@@ -597,9 +604,7 @@ function syncPayment(): void {
                                 <span v-if="event.datetime">{{
                                     event.datetime
                                 }}</span>
-                                <span
-                                    v-if="event.datetime && event.location"
-                                >
+                                <span v-if="event.datetime && event.location">
                                     ·
                                 </span>
                                 <span v-if="event.location">{{
@@ -636,9 +641,7 @@ function syncPayment(): void {
                 <div class="min-w-0 flex-1">
                     <Link
                         v-if="item.product?.slug"
-                        :href="
-                            shop.product.url({ product: item.product.slug })
-                        "
+                        :href="shop.product.url({ product: item.product.slug })"
                         class="line-clamp-2 text-sm font-medium text-[var(--om-navy)] hover:underline"
                     >
                         {{ item.name }}
@@ -649,7 +652,10 @@ function syncPayment(): void {
                     >
                         {{ item.name }}
                     </p>
-                    <p v-if="item.sku" class="mt-0.5 text-xs text-muted-foreground">
+                    <p
+                        v-if="item.sku"
+                        class="mt-0.5 text-xs text-muted-foreground"
+                    >
                         SKU: {{ item.sku }}
                     </p>
                     <p class="mt-1 text-sm text-muted-foreground">

@@ -58,20 +58,24 @@ const trustPoints = [
                         :href="home.url()"
                         class="inline-flex items-center gap-2.5"
                     >
-                        <BrandIcon
-                            class="h-10 w-auto"
-                        />
+                        <BrandIcon class="h-10 w-auto" />
                         <div class="flex flex-col">
-                            <span class="text-xl font-extrabold tracking-tight leading-none">
+                            <span
+                                class="text-xl leading-none font-extrabold tracking-tight"
+                            >
                                 <span class="text-[#0066FF]">OCEAN</span>
                                 <span class="text-[var(--om-navy)]">MALL</span>
                             </span>
-                            <span class="text-[10px] tracking-wider text-muted-foreground uppercase font-semibold mt-1">
+                            <span
+                                class="mt-1 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+                            >
                                 Belanja Lebih Luas
                             </span>
                         </div>
                     </Link>
-                    <p class="mt-4 max-w-xs text-sm leading-6 text-muted-foreground">
+                    <p
+                        class="mt-4 max-w-xs text-sm leading-6 text-muted-foreground"
+                    >
                         Belanja gadget & lifestyle terpercaya. Produk original,
                         pengiriman ke seluruh Indonesia, pembayaran aman.
                     </p>

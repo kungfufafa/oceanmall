@@ -5,6 +5,7 @@ import vue from '@vitejs/plugin-vue';
 import laravel from 'laravel-vite-plugin';
 import { bunny } from 'laravel-vite-plugin/fonts';
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   plugins: [
@@ -32,6 +33,33 @@ export default defineConfig({
     }),
     wayfinder({
       formVariants: true,
+    }),
+    VitePWA({
+      registerType: 'autoUpdate',
+      outDir: 'public/build',
+      buildBase: '/build/',
+      injectRegister: 'inline',
+      manifest: {
+        name: 'OceanMall',
+        short_name: 'OceanMall',
+        theme_color: '#ffffff',
+        icons: [
+          {
+            src: '/images/logo-icon-transparent.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: '/images/logo-icon-transparent.png',
+            sizes: '512x512',
+            type: 'image/png'
+          }
+        ]
+      },
+      workbox: {
+        navigateFallback: '/',
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+      }
     }),
   ],
   // @shopperlabs/shopper-types ships ESM with extensionless relative imports

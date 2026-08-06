@@ -82,10 +82,7 @@ function formatDate(value: string | null): string {
         >. Kelola pesanan dan akunmu di sini.
     </p>
 
-    <div
-        v-if="unreadNotifications > 0"
-        class="mt-3"
-    >
+    <div v-if="unreadNotifications > 0" class="mt-3">
         <Button as-child variant="outline" size="sm" class="h-8 gap-1.5">
             <Link :href="accountNotifications.url()">
                 <Bell class="size-3.5" aria-hidden="true" />
@@ -99,12 +96,19 @@ function formatDate(value: string | null): string {
             class="flex items-center justify-between gap-3 border-b border-border px-4 py-3.5"
         >
             <div>
-                <h3 class="text-sm font-semibold text-foreground">Pesanan terbaru</h3>
+                <h3 class="text-sm font-semibold text-foreground">
+                    Pesanan terbaru
+                </h3>
                 <p class="text-xs text-muted-foreground">
                     Lanjutkan pantau status atau belanja lagi
                 </p>
             </div>
-            <Button as-child variant="ghost" size="sm" class="h-8 shrink-0 text-xs font-medium">
+            <Button
+                as-child
+                variant="ghost"
+                size="sm"
+                class="h-8 shrink-0 text-xs font-medium"
+            >
                 <Link :href="accountOrders.url()">Semua</Link>
             </Button>
         </div>
@@ -125,7 +129,9 @@ function formatDate(value: string | null): string {
                                 :status="order.payment_status || order.status"
                             />
                         </span>
-                        <span class="mt-0.5 block text-[12px] text-muted-foreground">
+                        <span
+                            class="mt-0.5 block text-[12px] text-muted-foreground"
+                        >
                             {{ formatDate(order.created_at) }}
                             ·
                             {{
@@ -172,9 +178,10 @@ function formatDate(value: string | null): string {
                     />
                 </span>
                 <span class="min-w-0 flex-1">
-                    <span class="block text-[13px] font-semibold text-foreground">{{
-                        item.label
-                    }}</span>
+                    <span
+                        class="block text-[13px] font-semibold text-foreground"
+                        >{{ item.label }}</span
+                    >
                     <span class="mt-0.5 block text-sm text-muted-foreground">{{
                         item.hint
                     }}</span>

@@ -6,11 +6,7 @@ import OrderStatusBadge from '@/components/account/order-status-badge.vue';
 import EmptyState from '@/components/shop/empty-state.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/format';
 import { orders as accountOrders } from '@/routes/account';
@@ -117,7 +113,7 @@ function shippingLabel(order: Order): string {
     <Head title="Pesanan" />
 
     <div
-        class="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        class="flex [scrollbar-width:none] gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
     >
         <Badge
             v-for="tab in tabs"
@@ -125,10 +121,13 @@ function shippingLabel(order: Order): string {
             as="button"
             type="button"
             :variant="activeTab === tab.value ? 'default' : 'secondary'"
-            :class="cn(
-                'shrink-0 cursor-pointer px-3 py-1.5 text-[12px] font-semibold',
-                activeTab !== tab.value && 'bg-muted text-muted-foreground hover:bg-muted/80',
-            )"
+            :class="
+                cn(
+                    'shrink-0 cursor-pointer px-3 py-1.5 text-[12px] font-semibold',
+                    activeTab !== tab.value &&
+                        'bg-muted text-muted-foreground hover:bg-muted/80',
+                )
+            "
             @click="changeTab(tab.value)"
         >
             {{ tab.label }}
@@ -162,7 +161,10 @@ function shippingLabel(order: Order): string {
                         <p class="mt-0.5 text-xs text-muted-foreground">
                             {{ formatDate(order.created_at) }} ·
                             {{
-                                formatMoney(order.price_amount, order.currency_code)
+                                formatMoney(
+                                    order.price_amount,
+                                    order.currency_code,
+                                )
                             }}
                         </p>
                     </div>
@@ -258,13 +260,15 @@ function shippingLabel(order: Order): string {
             v-for="link in orders.links"
             :key="link.label"
             :href="link.url ?? '#'"
-            :class="cn(
-                'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2.5 text-[13px]',
-                link.active
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground',
-                link.url === null && 'pointer-events-none opacity-40',
-            )"
+            :class="
+                cn(
+                    'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2.5 text-[13px]',
+                    link.active
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground',
+                    link.url === null && 'pointer-events-none opacity-40',
+                )
+            "
             v-html="link.label"
         />
     </nav>

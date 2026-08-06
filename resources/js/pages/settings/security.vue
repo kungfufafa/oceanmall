@@ -129,10 +129,7 @@ onUnmounted(() => clearTwoFactorAuthData());
         </Form>
     </div>
 
-    <div
-        v-if="canManageTwoFactor"
-        class="mt-10 flex flex-col gap-4"
-    >
+    <div v-if="canManageTwoFactor" class="mt-10 flex flex-col gap-4">
         <Separator />
 
         <div>

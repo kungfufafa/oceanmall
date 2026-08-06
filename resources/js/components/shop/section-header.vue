@@ -19,16 +19,17 @@ withDefaults(
 </script>
 
 <template>
-    <div
-        :class="
-            cn('flex items-end justify-between gap-3', $props.class)
-        "
-    >
+    <div :class="cn('flex items-end justify-between gap-3', $props.class)">
         <div class="min-w-0">
-            <h2 class="truncate text-base font-semibold tracking-tight text-foreground">
+            <h2
+                class="truncate text-base font-semibold tracking-tight text-foreground"
+            >
                 {{ title }}
             </h2>
-            <p v-if="$slots.description" class="mt-0.5 text-sm text-muted-foreground">
+            <p
+                v-if="$slots.description"
+                class="mt-0.5 text-sm text-muted-foreground"
+            >
                 <slot name="description" />
             </p>
         </div>

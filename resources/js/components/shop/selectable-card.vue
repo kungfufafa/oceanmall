@@ -29,7 +29,12 @@ withDefaults(
             )
         "
     >
-        <RadioGroupItem :id="id" :value="value" :disabled="disabled" class="mt-0.5" />
+        <RadioGroupItem
+            :id="id"
+            :value="value"
+            :disabled="disabled"
+            class="mt-0.5"
+        />
         <div class="min-w-0 flex-1">
             <slot />
         </div>

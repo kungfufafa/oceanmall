@@ -146,7 +146,7 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
      *
      * @return array<string, mixed>
      */
-    private function storeOrderPayload(OrderShipment $shipment): array
+    public function storeOrderPayload(OrderShipment $shipment): array
     {
         /** @var Order|null $order */
         $order = $shipment->order;
@@ -198,28 +198,41 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             $shipment->service_name,
         ], static fn (mixed $v): bool => is_scalar($v) && trim((string) $v) !== ''));
 
-        $carrierName = 'JNT';
-        if (preg_match('#\b(jnt|jne|sicepat|ide|anteraja|pos|tiki|lion|ninja|wahana|rpx|ncs)\b#i', $rawCarrier, $m)) {
-            $carrierName = strtoupper($m[1]);
+        $carrierName = 'JNE';
+        if (preg_match('#\b(jnt|j\&t|jne|sicepat|ide|anteraja|pos|tiki|lion|ninja|wahana|rpx|ncs|sap|idexpress)\b#i', $rawCarrier, $m)) {
+            $matched = strtoupper($m[1]);
+            $carrierName = match($matched) {
+                'POS' => 'POS',
+                'TIKI', 'WAHANA', 'LION', 'RPX', 'NCS' => 'JNE',
+                'ANTERAJA' => 'JNE',
+                'SICEPAT' => 'SICEPAT',
+                'JNT', 'J&T' => 'JNT',
+                'IDE' => 'IDEXPRESS',
+                'SAP' => 'SAP',
+                'NINJA' => 'NINJA',
+                default => strtoupper($matched),
+            };
         }
 
-        $serviceName = (string) ($shipment->service_name ?: $shipment->carrier_name ?: $shipment->service_code);
-        if (str_contains($serviceName, ':')) {
-            $parts = explode(':', $serviceName);
-            $serviceName = end($parts);
+        // Prefer service_code (e.g. "REG", "EZ") over service_name (human label) — the API wants the code.
+        $rawServiceCode = (string) ($shipment->service_code ?: $shipment->service_name ?: $shipment->carrier_code);
+        if (str_contains($rawServiceCode, ':')) {
+            $parts = explode(':', $rawServiceCode);
+            $rawServiceCode = end($parts);
         }
-        $shippingType = trim($serviceName);
+        $shippingType = strtoupper(trim($rawServiceCode)) ?: 'REG';
+
+        $carrierName = strtoupper($carrierName);
+        if ($carrierName === 'J&T') {
+            $carrierName = 'JNT';
+        }
 
         $totalWeightGrams = 0;
         foreach ($shipment->lines as $line) {
             $purchasable = $line->purchasable;
             $weightInGrams = 1000;
             if ($purchasable instanceof Model) {
-                $w = $purchasable->getAttribute('weight_value');
-                $unit = $purchasable->getAttribute('weight_unit');
-                if (is_numeric($w) && (float) $w > 0) {
-                    $weightInGrams = (int) round(Weight::from($unit ?? 'g')->toGrams((float) $w));
-                }
+                $weightInGrams = $this->weightGrams($purchasable);
             }
             $totalWeightGrams += $weightInGrams * (int) $line->qty;
         }
@@ -266,10 +279,10 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             'shipper_destination_id' => (int) $originId,
             'shipper_address' => $shipperAddress,
             'shipper_email' => (string) ($inventory?->email ?: shopper_setting('email') ?: ''),
-            'receiver_name' => $this->receiverName($shippingAddress),
+            'receiver_name' => $this->receiverName($shippingAddress, $order),
             'receiver_phone' => (string) data_get($shippingAddress, 'phone_number', ''),
             'receiver_destination_id' => (int) $destinationId,
-            'receiver_address' => (string) data_get($shippingAddress, 'street_address', ''),
+            'receiver_address' => (string) (data_get($shippingAddress, 'street_address') ?: 'Alamat tidak tersedia'),
             'receiver_email' => (string) ($order->customer?->email ?? ''),
             'shipping' => $carrierName,
             'shipping_type' => $shippingType,
@@ -300,13 +313,13 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
         }
 
         $shippingAddress = [
-            'first_name' => $address?->first_name ?? '',
-            'last_name' => $address?->last_name ?? '',
-            'street_address' => $address?->street_address ?? '',
-            'street_address_plus' => $address?->street_address_plus,
-            'postal_code' => $address?->postal_code ?? '',
-            'city' => $address?->city ?? '',
-            'state' => $address?->getAttribute('state'),
+            'first_name' => $address?->first_name ?? data_get($metadataAddress, 'first_name', ''),
+            'last_name' => $address?->last_name ?? data_get($metadataAddress, 'last_name', ''),
+            'street_address' => $address?->street_address ?? data_get($metadataAddress, 'street_address', 'Alamat tidak tersedia'),
+            'street_address_plus' => $address?->street_address_plus ?? data_get($metadataAddress, 'street_address_plus'),
+            'postal_code' => $address?->postal_code ?? data_get($metadataAddress, 'postal_code', ''),
+            'city' => $address?->city ?? data_get($metadataAddress, 'city', ''),
+            'state' => $address?->getAttribute('state') ?? data_get($metadataAddress, 'state'),
             'phone_number' => (string) ($address?->phone_number ?? $address?->phone ?? data_get($metadataAddress, 'phone_number') ?? data_get($metadata, 'phone_number') ?? '081234567890'),
             'country_name' => $address?->country_name,
         ];
@@ -413,12 +426,25 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
         };
     }
 
-    private function receiverName(array $shippingAddress): string
+    private function receiverName(array $shippingAddress, Order $order): string
     {
-        return trim(implode(' ', array_filter([
+        $name = trim(implode(' ', array_filter([
             data_get($shippingAddress, 'first_name'),
             data_get($shippingAddress, 'last_name'),
         ], static fn (mixed $part): bool => is_scalar($part) && trim((string) $part) !== '')));
+
+        if ($name === '') {
+            $name = trim(implode(' ', array_filter([
+                $order->customer?->first_name,
+                $order->customer?->last_name,
+            ], static fn (mixed $part): bool => is_scalar($part) && trim((string) $part) !== '')));
+        }
+
+        if ($name === '') {
+            $name = 'Pelanggan';
+        }
+
+        return $name;
     }
 
     /**

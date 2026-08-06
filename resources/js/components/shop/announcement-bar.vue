@@ -12,10 +12,7 @@ const dismissed = ref<boolean>(false);
 </script>
 
 <template>
-    <div
-        v-if="message && !dismissed"
-        class="relative bg-[var(--om-navy)]"
-    >
+    <div v-if="message && !dismissed" class="relative bg-[var(--om-navy)]">
         <Container>
             <div class="flex items-center justify-center py-2 pr-8">
                 <p

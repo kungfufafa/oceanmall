@@ -110,6 +110,15 @@ final class CreateOrder
             $metadataAddress['rajaongkir_destination_id'] = trim((string) $destinationId);
         }
 
+        // Persist full address fields so delivery jobs can populate receiver_name /
+        // receiver_address even when the sh_order_addresses row has null columns.
+        foreach (['first_name', 'last_name', 'street_address', 'street_address_plus', 'postal_code', 'city', 'state', 'phone_number'] as $field) {
+            $value = data_get($shippingAddress, $field);
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                $metadataAddress[$field] = trim((string) $value);
+            }
+        }
+
         if ($metadataAddress === []) {
             return;
         }

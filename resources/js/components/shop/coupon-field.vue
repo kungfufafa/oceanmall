@@ -27,14 +27,12 @@ const codeError = computed(
 );
 
 function applyCoupon(): void {
-    form
-        .transform((data) => ({
-            code: data.code.trim().toUpperCase(),
-        }))
-        .post(cartCoupon.store.url(), {
-            preserveScroll: true,
-            onSuccess: () => form.reset(),
-        });
+    form.transform((data) => ({
+        code: data.code.trim().toUpperCase(),
+    })).post(cartCoupon.store.url(), {
+        preserveScroll: true,
+        onSuccess: () => form.reset(),
+    });
 }
 
 function removeCoupon(): void {
@@ -46,11 +44,20 @@ function removeCoupon(): void {
     <div class="flex flex-col gap-2">
         <Label for="coupon-code">Kode kupon</Label>
 
-        <Alert v-if="appliedCode" variant="success" class="flex items-center justify-between gap-3 px-3.5 py-2.5">
-            <div class="flex items-center gap-2.5 min-w-0">
-                <Ticket class="size-4 shrink-0 text-emerald-600 translate-y-0" />
+        <Alert
+            v-if="appliedCode"
+            variant="success"
+            class="flex items-center justify-between gap-3 px-3.5 py-2.5"
+        >
+            <div class="flex min-w-0 items-center gap-2.5">
+                <Ticket
+                    class="size-4 shrink-0 translate-y-0 text-emerald-600"
+                />
                 <div class="min-w-0">
-                    <AlertTitle class="text-[13px] font-semibold leading-snug">{{ appliedCode }}</AlertTitle>
+                    <AlertTitle
+                        class="text-[13px] leading-snug font-semibold"
+                        >{{ appliedCode }}</AlertTitle
+                    >
                     <AlertDescription class="text-[12px] leading-tight">
                         Kupon diterapkan
                     </AlertDescription>
@@ -60,7 +67,7 @@ function removeCoupon(): void {
                 type="button"
                 variant="ghost"
                 size="sm"
-                class="shrink-0 h-7 px-2 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive"
+                class="h-7 shrink-0 px-2 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive"
                 @click="removeCoupon"
             >
                 Hapus

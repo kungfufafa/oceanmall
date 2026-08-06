@@ -11,8 +11,7 @@ import { request } from '@/routes/password';
 defineOptions({
     layout: {
         title: 'Masuk',
-        description:
-            'Masuk dengan email yang sudah diverifikasi, ya.',
+        description: 'Masuk dengan email yang sudah diverifikasi, ya.',
         actionLabel: 'Daftar',
         actionHref: register.url(),
     },

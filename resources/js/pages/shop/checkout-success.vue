@@ -39,20 +39,17 @@ const props = defineProps<{
 const page = usePage();
 const flashError = computed(() => {
     const flash = page.props.flash as
-        | { error?: string; info?: string; success?: string }
-        | undefined;
+        { error?: string; info?: string; success?: string } | undefined;
     return flash?.error ?? null;
 });
 const flashInfo = computed(() => {
     const flash = page.props.flash as
-        | { error?: string; info?: string; success?: string }
-        | undefined;
+        { error?: string; info?: string; success?: string } | undefined;
     return flash?.info ?? null;
 });
 const flashSuccess = computed(() => {
     const flash = page.props.flash as
-        | { error?: string; info?: string; success?: string }
-        | undefined;
+        { error?: string; info?: string; success?: string } | undefined;
     return flash?.success ?? null;
 });
 const paymentError = computed(
@@ -181,11 +178,7 @@ onBeforeUnmount(() => {
                         {{ flashError || paymentError }}
                     </AlertDescription>
                 </Alert>
-                <Alert
-                    v-else-if="flashInfo"
-                    variant="info"
-                    class="mt-4"
-                >
+                <Alert v-else-if="flashInfo" variant="info" class="mt-4">
                     <AlertDescription class="text-[13px] text-current">
                         {{ flashInfo }}
                     </AlertDescription>
@@ -225,12 +218,7 @@ onBeforeUnmount(() => {
                 </p>
 
                 <div class="mt-6 flex flex-col gap-2 sm:flex-row">
-                    <Button
-                        as-child
-                        variant="outline"
-                        size="xl"
-                        class="flex-1"
-                    >
+                    <Button as-child variant="outline" size="xl" class="flex-1">
                         <Link :href="ordersShow.url(order.id)">
                             Lihat pesanan
                         </Link>
@@ -306,10 +294,7 @@ onBeforeUnmount(() => {
                     </CardHeader>
 
                     <CardContent class="flex flex-col gap-4 p-4 pt-0">
-                        <Alert
-                            v-if="flashSuccess"
-                            variant="success"
-                        >
+                        <Alert v-if="flashSuccess" variant="success">
                             <AlertDescription class="text-[13px] text-current">
                                 {{ flashSuccess }}
                             </AlertDescription>
@@ -356,11 +341,7 @@ onBeforeUnmount(() => {
                                     Lihat pesanan
                                 </Link>
                             </Button>
-                            <Button
-                                as-child
-                                variant="outline"
-                                size="xl"
-                            >
+                            <Button as-child variant="outline" size="xl">
                                 <Link :href="shop.index.url()">
                                     Lanjut belanja
                                 </Link>

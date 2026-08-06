@@ -1,15 +1,15 @@
 import type {
-  Stripe,
-  StripeElements,
-  StripePaymentElement,
+    Stripe,
+    StripeElements,
+    StripePaymentElement,
 } from '@stripe/stripe-js';
 import { onMounted, onUnmounted, ref } from 'vue';
 import { stripe } from '@/lib/stripe';
 
 type Options = {
-  publishableKey: string;
-  clientSecret: string;
-  appearance?: 'stripe' | 'night' | 'flat' | 'auto';
+    publishableKey: string;
+    clientSecret: string;
+    appearance?: 'stripe' | 'night' | 'flat' | 'auto';
 };
 
 /**
@@ -20,67 +20,69 @@ type Options = {
  * render the right UI.
  */
 export function useStripeElements(
-  options: Options,
-  mountTarget: () => HTMLElement | null,
+    options: Options,
+    mountTarget: () => HTMLElement | null,
 ) {
-  const ready = ref<boolean>(false);
-  const submitting = ref<boolean>(false);
-  const error = ref<string | null>(null);
+    const ready = ref<boolean>(false);
+    const submitting = ref<boolean>(false);
+    const error = ref<string | null>(null);
 
-  let stripeInstance: Stripe | null = null;
-  let elements: StripeElements | null = null;
-  let paymentElement: StripePaymentElement | null = null;
+    let stripeInstance: Stripe | null = null;
+    let elements: StripeElements | null = null;
+    let paymentElement: StripePaymentElement | null = null;
 
-  onMounted(async () => {
-    stripeInstance = await stripe(options.publishableKey);
-    if (!stripeInstance) {
-      error.value = 'Unable to load Stripe.';
-      return;
-    }
+    onMounted(async () => {
+        stripeInstance = await stripe(options.publishableKey);
+        if (!stripeInstance) {
+            error.value = 'Unable to load Stripe.';
+            return;
+        }
 
-    const theme =
-      options.appearance === 'auto' ? undefined : (options.appearance ?? 'stripe');
+        const theme =
+            options.appearance === 'auto'
+                ? undefined
+                : (options.appearance ?? 'stripe');
 
-    elements = stripeInstance.elements({
-      clientSecret: options.clientSecret,
-      appearance: { theme },
+        elements = stripeInstance.elements({
+            clientSecret: options.clientSecret,
+            appearance: { theme },
+        });
+
+        const node = mountTarget();
+        if (!node) {
+            error.value = 'Stripe mount target not found.';
+            return;
+        }
+
+        paymentElement = elements.create('payment');
+        paymentElement.mount(node);
+        paymentElement.on('ready', () => (ready.value = true));
     });
 
-    const node = mountTarget();
-    if (!node) {
-      error.value = 'Stripe mount target not found.';
-      return;
-    }
-
-    paymentElement = elements.create('payment');
-    paymentElement.mount(node);
-    paymentElement.on('ready', () => (ready.value = true));
-  });
-
-  onUnmounted(() => {
-    paymentElement?.unmount();
-    paymentElement?.destroy();
-  });
-
-  async function confirm(returnUrl: string): Promise<void> {
-    if (!stripeInstance || !elements) {
-      error.value = 'Stripe is not ready.';
-      return;
-    }
-    submitting.value = true;
-    error.value = null;
-
-    const result = await stripeInstance.confirmPayment({
-      elements,
-      confirmParams: { return_url: returnUrl },
+    onUnmounted(() => {
+        paymentElement?.unmount();
+        paymentElement?.destroy();
     });
 
-    submitting.value = false;
+    async function confirm(returnUrl: string): Promise<void> {
+        if (!stripeInstance || !elements) {
+            error.value = 'Stripe is not ready.';
+            return;
+        }
+        submitting.value = true;
+        error.value = null;
 
-    if (result.error) {
-      error.value = result.error.message ?? 'Payment failed.';
+        const result = await stripeInstance.confirmPayment({
+            elements,
+            confirmParams: { return_url: returnUrl },
+        });
+
+        submitting.value = false;
+
+        if (result.error) {
+            error.value = result.error.message ?? 'Payment failed.';
+        }
     }
-  }
 
-  return { ready, submitting, error, confirm };
+    return { ready, submitting, error, confirm };
 }

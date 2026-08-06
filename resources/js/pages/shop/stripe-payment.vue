@@ -58,7 +58,9 @@ async function pay(): Promise<void> {
                     </CardTitle>
                     <CardDescription>
                         Pesanan
-                        <span class="font-mono text-foreground">{{ order.number }}</span>
+                        <span class="font-mono text-foreground">{{
+                            order.number
+                        }}</span>
                     </CardDescription>
                 </CardHeader>
 
@@ -66,7 +68,9 @@ async function pay(): Promise<void> {
                     <form class="flex flex-col gap-4" @submit.prevent="pay">
                         <div ref="paymentElementRef" />
 
-                        <p v-if="error" class="text-[13px] text-red-600">{{ error }}</p>
+                        <p v-if="error" class="text-[13px] text-red-600">
+                            {{ error }}
+                        </p>
 
                         <Button
                             type="submit"

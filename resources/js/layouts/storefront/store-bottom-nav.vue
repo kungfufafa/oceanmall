@@ -75,7 +75,7 @@ function itemClass(key: string): string {
             <Link :href="home.url()" :class="itemClass('home')">
                 <Home class="size-6" stroke-width="1.75" aria-hidden="true" />
                 <span
-                    class="font-semibold leading-none"
+                    class="leading-none font-semibold"
                     :style="{ fontSize: 'var(--om-text-nav)' }"
                     >Beranda</span
                 >
@@ -88,7 +88,7 @@ function itemClass(key: string): string {
                     aria-hidden="true"
                 />
                 <span
-                    class="font-semibold leading-none"
+                    class="leading-none font-semibold"
                     :style="{ fontSize: 'var(--om-text-nav)' }"
                     >Kategori</span
                 >
@@ -101,7 +101,7 @@ function itemClass(key: string): string {
                     aria-hidden="true"
                 />
                 <span
-                    class="font-semibold leading-none"
+                    class="leading-none font-semibold"
                     :style="{ fontSize: 'var(--om-text-nav)' }"
                     >Belanja</span
                 >
@@ -123,7 +123,7 @@ function itemClass(key: string): string {
                     </Badge>
                 </span>
                 <span
-                    class="font-semibold leading-none"
+                    class="leading-none font-semibold"
                     :style="{ fontSize: 'var(--om-text-nav)' }"
                     >Keranjang</span
                 >
@@ -136,7 +136,7 @@ function itemClass(key: string): string {
                     aria-hidden="true"
                 />
                 <span
-                    class="font-semibold leading-none"
+                    class="leading-none font-semibold"
                     :style="{ fontSize: 'var(--om-text-nav)' }"
                     >Akun</span
                 >

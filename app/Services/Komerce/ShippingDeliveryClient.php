@@ -28,8 +28,12 @@ final class ShippingDeliveryClient
 
     public const DEFAULT_LABEL_PAGE = 'page_5';
 
+    public function getExpeditionsRaw(): array
+    {
+        return $this->deliveryHttp()->get('/v1/expedition')->json() ?: [];
+    }
+
     /**
-     * Store a RajaOngkir delivery order.
      *
      * Assumed payload follows the official store-order schema:
      * order_date, brand_name, shipper_*, receiver_*, shipping, shipping_type,

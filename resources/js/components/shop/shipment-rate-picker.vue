@@ -35,11 +35,16 @@ const emit = defineEmits<{
     'update:modelValue': [value: Record<number | string, string>];
 }>();
 
-const selected = computed<Record<number | string, string>>(() => props.modelValue);
+const selected = computed<Record<number | string, string>>(
+    () => props.modelValue,
+);
 
 function selectRate(inventoryId: number, serviceCode: unknown): void {
     if (typeof serviceCode !== 'string' || serviceCode === '') return;
-    emit('update:modelValue', { ...selected.value, [inventoryId]: serviceCode });
+    emit('update:modelValue', {
+        ...selected.value,
+        [inventoryId]: serviceCode,
+    });
 }
 
 function selectedRateFor(inventoryId: number): string {
@@ -82,7 +87,9 @@ const allSelected = computed<boolean>(() =>
 );
 
 function formatCourierTitle(option: DeliveryOption): string {
-    const carrier = option.carrier_name || (option.carrier_code ? option.carrier_code.toUpperCase() : '');
+    const carrier =
+        option.carrier_name ||
+        (option.carrier_code ? option.carrier_code.toUpperCase() : '');
     if (!carrier) return option.service_name;
     if (option.service_name.toLowerCase().includes(carrier.toLowerCase())) {
         return option.service_name;
@@ -142,7 +149,9 @@ function formatCourierTitle(option: DeliveryOption): string {
                                     class="mt-0.5 size-5 rounded-full object-cover"
                                 />
                                 <div class="flex flex-col">
-                                    <span class="text-sm font-medium text-foreground">
+                                    <span
+                                        class="text-sm font-medium text-foreground"
+                                    >
                                         {{ formatCourierTitle(option) }}
                                     </span>
                                     <span
@@ -159,8 +168,12 @@ function formatCourierTitle(option: DeliveryOption): string {
                                     </span>
                                 </div>
                             </div>
-                            <span class="shrink-0 text-sm font-medium text-foreground">
-                                {{ formatMoney(option.amount, option.currency) }}
+                            <span
+                                class="shrink-0 text-sm font-medium text-foreground"
+                            >
+                                {{
+                                    formatMoney(option.amount, option.currency)
+                                }}
                             </span>
                         </div>
                     </SelectableCard>

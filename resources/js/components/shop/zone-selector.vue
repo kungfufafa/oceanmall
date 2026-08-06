@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
     Dialog,
     DialogContent,
@@ -81,9 +77,7 @@ function select(country: CountryByZoneData): void {
                         zone.country_name
                     }}</span>
                 </template>
-                <template v-else>
-                    Pilih lokasi pengiriman
-                </template>
+                <template v-else> Pilih lokasi pengiriman </template>
             </span>
         </button>
 
@@ -114,7 +108,7 @@ function select(country: CountryByZoneData): void {
                     class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none"
                 >
                     <CardHeader class="gap-2 p-4 pb-0">
-                        <DialogTitle class="text-lg font-semibold leading-none">
+                        <DialogTitle class="text-lg leading-none font-semibold">
                             Pilih negara
                         </DialogTitle>
 
@@ -128,7 +122,9 @@ function select(country: CountryByZoneData): void {
                             }}</span>
                         </DialogDescription>
 
-                        <DialogDescription class="text-sm text-muted-foreground">
+                        <DialogDescription
+                            class="text-sm text-muted-foreground"
+                        >
                             Mengganti negara dapat mengubah harga dan mata uang.
                         </DialogDescription>
                     </CardHeader>
@@ -147,7 +143,10 @@ function select(country: CountryByZoneData): void {
                                 >
                                     {{ zoneName }}
                                 </h4>
-                                <ul role="listbox" class="mt-2 flex flex-col gap-1">
+                                <ul
+                                    role="listbox"
+                                    class="mt-2 flex flex-col gap-1"
+                                >
                                     <li
                                         v-for="country in countries"
                                         :key="country.countryId"

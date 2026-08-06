@@ -16,7 +16,7 @@ defineProps<Props>();
     <img
         src="/images/logo-icon-transparent.png"
         alt="OceanMall Logo"
-        :class="['object-contain shrink-0 aspect-square', className]"
+        :class="['aspect-square shrink-0 object-contain', className]"
         v-bind="$attrs"
     />
 </template>

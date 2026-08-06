@@ -24,9 +24,7 @@ const isGuest = computed(() => !page.props.auth.user);
 
 const firstName = computed(() => {
     const user = page.props.auth.user as
-        | { first_name?: string; name?: string }
-        | null
-        | undefined;
+        { first_name?: string; name?: string } | null | undefined;
     return user?.first_name ?? user?.name?.split(' ')[0] ?? '';
 });
 
@@ -80,7 +78,7 @@ function brandShopUrl(brandId: number): string {
         <section v-if="categories.length" class="mt-4">
             <Container>
                 <div
-                    class="flex gap-3 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    class="flex [scrollbar-width:none] gap-3 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden"
                 >
                     <Link
                         v-for="category in categories"
@@ -119,7 +117,7 @@ function brandShopUrl(brandId: number): string {
         <section v-if="brands.length" class="mt-4">
             <Container>
                 <div
-                    class="flex gap-3 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    class="flex [scrollbar-width:none] gap-3 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden"
                 >
                     <Link
                         v-for="brand in brands"

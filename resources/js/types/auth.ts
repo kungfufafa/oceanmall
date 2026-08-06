@@ -5,17 +5,17 @@ import type { Customer } from '@shopperlabs/shopper-types';
  * fields and the `full_name` accessor appended server-side.
  */
 export type User = Customer & {
-  full_name?: string | null;
-  two_factor_enabled?: boolean;
-  [key: string]: unknown;
+    full_name?: string | null;
+    two_factor_enabled?: boolean;
+    [key: string]: unknown;
 };
 
 export type Auth = {
-  user: User;
+    user: User;
 };
 
 export type TwoFactorConfigContent = {
-  title: string;
-  description: string;
-  buttonText: string;
+    title: string;
+    description: string;
+    buttonText: string;
 };

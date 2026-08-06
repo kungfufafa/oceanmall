@@ -51,7 +51,9 @@ watch(search, (value) => {
     />
 
     <Container class="py-6 sm:py-10">
-        <h1 class="hidden text-lg font-semibold tracking-tight text-foreground lg:block">
+        <h1
+            class="hidden text-lg font-semibold tracking-tight text-foreground lg:block"
+        >
             Cari
         </h1>
         <label class="sr-only" for="shop-search">Cari</label>

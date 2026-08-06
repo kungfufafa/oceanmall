@@ -29,7 +29,9 @@ function productLabel(count: number): string {
     />
 
     <Container class="pt-4 pb-8 lg:pt-6">
-        <h1 class="mb-1 hidden text-lg font-semibold tracking-tight text-foreground lg:block">
+        <h1
+            class="mb-1 hidden text-lg font-semibold tracking-tight text-foreground lg:block"
+        >
             Kategori
         </h1>
         <p class="mb-4 text-sm text-muted-foreground">
@@ -50,7 +52,7 @@ function productLabel(count: number): string {
                 v-for="category in categories"
                 :key="category.id"
                 :href="shop.category.url({ category: category.slug })"
-                class="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                class="group block focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
             >
                 <ShopCard
                     :padded="false"

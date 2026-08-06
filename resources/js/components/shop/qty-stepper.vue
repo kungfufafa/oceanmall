@@ -63,7 +63,7 @@ function inc(): void {
         <span
             :class="
                 cn(
-                    'min-w-8 text-center font-semibold tabular-nums text-foreground',
+                    'min-w-8 text-center font-semibold text-foreground tabular-nums',
                     size === 'sm' ? 'text-xs' : 'text-sm',
                 )
             "
@@ -75,9 +75,7 @@ function inc(): void {
             variant="ghost"
             :size="size === 'sm' ? 'icon-sm' : 'icon'"
             class="rounded-none"
-            :disabled="
-                disabled || (max !== null && modelValue >= max)
-            "
+            :disabled="disabled || (max !== null && modelValue >= max)"
             aria-label="Tambah"
             @click="inc"
         >

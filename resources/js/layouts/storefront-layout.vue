@@ -44,7 +44,9 @@ onUnmounted(() => {
         class="storefront flex min-h-dvh flex-col bg-white font-sans text-foreground antialiased"
         style="color-scheme: light"
     >
-        <StoreHeader :class="useAppPageChrome ? 'hidden lg:block' : undefined" />
+        <StoreHeader
+            :class="useAppPageChrome ? 'hidden lg:block' : undefined"
+        />
 
         <main
             class="flex-1 pb-[calc(var(--om-bottom-nav-height)+env(safe-area-inset-bottom,0px))] lg:pb-0"

@@ -21,10 +21,7 @@ withDefaults(
 <template>
     <section
         v-if="products.length"
-        :class="[
-            'mt-5',
-            tone === 'soft' && 'bg-muted/50 py-4',
-        ]"
+        :class="['mt-5', tone === 'soft' && 'bg-muted/50 py-4']"
     >
         <div class="mx-auto max-w-7xl px-4 sm:px-6">
             <SectionHeader
@@ -35,7 +32,7 @@ withDefaults(
             />
 
             <div
-                class="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] snap-x snap-mandatory sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden"
+                class="-mx-4 flex snap-x snap-mandatory [scrollbar-width:none] gap-3 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden"
             >
                 <div
                     v-for="product in products"

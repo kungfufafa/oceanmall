@@ -56,9 +56,7 @@ onMounted(async () => {
                     size="xl"
                     @click="toggleRecoveryCodesVisibility"
                 >
-                    <component
-                        :is="isRecoveryCodesVisible ? EyeOff : Eye"
-                    />
+                    <component :is="isRecoveryCodesVisible ? EyeOff : Eye" />
                     {{
                         isRecoveryCodesVisible
                             ? 'Sembunyikan kode'
@@ -120,8 +118,11 @@ onMounted(async () => {
                             {{ code }}
                         </div>
                     </div>
-                    <p class="select-none text-sm leading-5 text-muted-foreground">
-                        Tiap kode hanya bisa dipakai sekali. Butuh yang baru? Klik
+                    <p
+                        class="text-sm leading-5 text-muted-foreground select-none"
+                    >
+                        Tiap kode hanya bisa dipakai sekali. Butuh yang baru?
+                        Klik
                         <span class="font-semibold text-foreground"
                             >Buat ulang kode</span
                         >.

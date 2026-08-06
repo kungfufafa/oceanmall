@@ -8,12 +8,7 @@ import CouponField from '@/components/shop/coupon-field.vue';
 import EmptyState from '@/components/shop/empty-state.vue';
 import QtyStepper from '@/components/shop/qty-stepper.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/composables/useCart';
 import { useShop } from '@/composables/useShop';
@@ -122,10 +117,7 @@ function confirmClear(): void {
             </template>
         </EmptyState>
 
-        <div
-            v-else
-            class="lg:mt-6 lg:grid lg:grid-cols-12 lg:gap-x-12"
-        >
+        <div v-else class="lg:mt-6 lg:grid lg:grid-cols-12 lg:gap-x-12">
             <Card
                 class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none lg:col-span-7"
             >
@@ -148,13 +140,19 @@ function confirmClear(): void {
                             </div>
 
                             <div class="min-w-0 flex-1">
-                                <div class="flex items-start justify-between gap-2">
+                                <div
+                                    class="flex items-start justify-between gap-2"
+                                >
                                     <div class="min-w-0">
                                         <h3
                                             class="line-clamp-2 text-[13px] leading-snug font-medium text-foreground"
                                         >
                                             <Link
-                                                v-if="productSlug(line.purchasable)"
+                                                v-if="
+                                                    productSlug(
+                                                        line.purchasable,
+                                                    )
+                                                "
                                                 :href="
                                                     shop.product.url({
                                                         product: productSlug(
@@ -169,7 +167,9 @@ function confirmClear(): void {
                                                 {{ lineName(line.purchasable) }}
                                             </template>
                                         </h3>
-                                        <p class="mt-0.5 text-[12px] text-muted-foreground">
+                                        <p
+                                            class="mt-0.5 text-[12px] text-muted-foreground"
+                                        >
                                             {{
                                                 formatMoney(
                                                     line.unit_price_amount,
@@ -187,11 +187,16 @@ function confirmClear(): void {
                                         aria-label="Hapus"
                                         @click="cartActions.remove(line.id)"
                                     >
-                                        <Trash2 class="size-4" stroke-width="1.75" />
+                                        <Trash2
+                                            class="size-4"
+                                            stroke-width="1.75"
+                                        />
                                     </Button>
                                 </div>
 
-                                <div class="mt-2.5 flex items-center justify-between gap-3">
+                                <div
+                                    class="mt-2.5 flex items-center justify-between gap-3"
+                                >
                                     <QtyStepper
                                         :model-value="line.quantity"
                                         :min="1"
@@ -206,7 +211,8 @@ function confirmClear(): void {
                                     >
                                         {{
                                             formatMoney(
-                                                line.unit_price_amount * line.quantity,
+                                                line.unit_price_amount *
+                                                    line.quantity,
                                                 currency,
                                             )
                                         }}
@@ -228,7 +234,9 @@ function confirmClear(): void {
                     <CardContent class="flex flex-col gap-3 p-4">
                         <CouponField :coupon-code="couponCode" />
                         <dl class="flex flex-col gap-2 text-[13px]">
-                            <div class="flex justify-between text-muted-foreground">
+                            <div
+                                class="flex justify-between text-muted-foreground"
+                            >
                                 <dt>Subtotal {{ taxLabel }}</dt>
                                 <dd class="font-medium text-foreground">
                                     {{
@@ -240,7 +248,9 @@ function confirmClear(): void {
                                 </dd>
                             </div>
                             <div
-                                v-if="cartContext && cartContext.discountTotal > 0"
+                                v-if="
+                                    cartContext && cartContext.discountTotal > 0
+                                "
                                 class="flex justify-between text-muted-foreground"
                             >
                                 <dt>Diskon</dt>
@@ -253,7 +263,9 @@ function confirmClear(): void {
                                     }}
                                 </dd>
                             </div>
-                            <div class="flex justify-between text-muted-foreground">
+                            <div
+                                class="flex justify-between text-muted-foreground"
+                            >
                                 <dt>Ongkir</dt>
                                 <dd>Di checkout</dd>
                             </div>
@@ -263,7 +275,9 @@ function confirmClear(): void {
                             <span class="text-[13px] font-bold text-foreground"
                                 >Total</span
                             >
-                            <span class="text-lg font-semibold tracking-tight text-foreground">
+                            <span
+                                class="text-lg font-semibold tracking-tight text-foreground"
+                            >
                                 {{ formatMoney(totalAmount, currency) }}
                             </span>
                         </div>
@@ -286,7 +300,9 @@ function confirmClear(): void {
                             size="sm"
                             class="hidden h-auto px-0 text-[12px] font-bold lg:inline-flex"
                         >
-                            <Link :href="shop.index.url()"> Lanjut belanja </Link>
+                            <Link :href="shop.index.url()">
+                                Lanjut belanja
+                            </Link>
                         </Button>
                     </CardContent>
                 </Card>
@@ -301,7 +317,7 @@ function confirmClear(): void {
         style="
             bottom: calc(
                 var(--om-bottom-nav-height) + env(safe-area-inset-bottom, 0px)
-            )
+            );
         "
     >
         <Container class="flex items-center gap-3">
@@ -316,11 +332,7 @@ function confirmClear(): void {
                     {{ formatMoney(totalAmount, currency) }}
                 </p>
             </div>
-            <Button
-                as-child
-                size="xl"
-                class="inline-flex shrink-0 px-5"
-            >
+            <Button as-child size="xl" class="inline-flex shrink-0 px-5">
                 <Link :href="checkout.index.url()">
                     {{ page.props.auth.user ? 'Bayar' : 'Masuk & bayar' }}
                 </Link>

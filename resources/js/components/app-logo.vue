@@ -9,8 +9,11 @@ import AppLogoIcon from '@/components/app-logo-icon.vue';
         <AppLogoIcon class="size-8" />
     </div>
     <div class="ml-1.5 grid flex-1 text-left text-sm">
-        <span class="mb-0.5 truncate leading-tight font-extrabold tracking-tight">
-            <span class="text-[#0066FF]">OCEAN</span><span class="text-foreground">MALL</span>
+        <span
+            class="mb-0.5 truncate leading-tight font-extrabold tracking-tight"
+        >
+            <span class="text-[#0066FF]">OCEAN</span
+            ><span class="text-foreground">MALL</span>
         </span>
     </div>
 </template>

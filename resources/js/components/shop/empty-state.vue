@@ -33,10 +33,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-    <Empty
-        :class="cn('border-0 py-16', $props.class)"
-        role="status"
-    >
+    <Empty :class="cn('border-0 py-16', $props.class)" role="status">
         <EmptyHeader>
             <EmptyMedia v-if="icon" variant="icon">
                 <component :is="icon" aria-hidden="true" />
