@@ -6,28 +6,26 @@ namespace App\Support;
 
 final class KomerceCourierAssets
 {
-    private const CDN_BASE = 'https://storage.googleapis.com/komship-bucket/shipment';
-
     /**
      * Official Komerce / Komship CDN logos for all supported expeditions.
      *
      * @var array<string, string>
      */
     private const LOGOS = [
-        'jne' => self::CDN_BASE.'/jne-logo.png',
-        'jnt' => self::CDN_BASE.'/jnt-logo.png',
-        'j&t' => self::CDN_BASE.'/jnt-logo.png',
-        'sicepat' => self::CDN_BASE.'/sicepat-logo.png',
-        'idexpress' => self::CDN_BASE.'/idexpress-logo.png',
-        'ide' => self::CDN_BASE.'/idexpress-logo.png',
-        'sap' => self::CDN_BASE.'/sap-express-logo.png',
-        'ninja' => self::CDN_BASE.'/ninja-express-logo.png',
-        'anteraja' => self::CDN_BASE.'/anteraja-logo.png',
-        'pos' => self::CDN_BASE.'/pos-logo.png',
-        'tiki' => self::CDN_BASE.'/tiki-logo.png',
-        'lion' => self::CDN_BASE.'/lion-logo.png',
-        'wahana' => self::CDN_BASE.'/wahana-logo.png',
-        'gosend' => self::CDN_BASE.'/gosend-logo.png',
+        'jne' => 'https://storage.googleapis.com/komship-bucket/shipment/jne-logo.png',
+        'jnt' => 'https://storage.googleapis.com/komerce/assets/illustration/JNT.png',
+        'j&t' => 'https://storage.googleapis.com/komerce/assets/illustration/JNT.png',
+        'sicepat' => 'https://storage.googleapis.com/komship-bucket/shipment/sicepat-logo.png',
+        'idexpress' => 'https://storage.googleapis.com/komship-bucket/shipment/idexpress-logo.png',
+        'ide' => 'https://storage.googleapis.com/komship-bucket/shipment/idexpress-logo.png',
+        'sap' => 'https://storage.googleapis.com/komship-bucket/shipment/sap-express-logo.png',
+        'ninja' => 'https://storage.googleapis.com/komerce/assets/illustration/NINJA.png',
+        'anteraja' => 'https://storage.googleapis.com/komship-bucket/shipment/anteraja-logo.png',
+        'pos' => 'https://storage.googleapis.com/komship-bucket/shipment/pos-logo.png',
+        'tiki' => 'https://storage.googleapis.com/komship-bucket/shipment/tiki-logo.png',
+        'lion' => 'https://storage.googleapis.com/komerce/assets/logo/lion-parcel.svg',
+        'wahana' => 'https://storage.googleapis.com/komship-bucket/shipment/wahana-logo.png',
+        'gosend' => 'https://storage.googleapis.com/komerce/assets/illustration/gosend.svg',
     ];
 
     public static function logoUrl(?string $carrierCode): ?string
