@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8087",
     "build": "vite build",
     "build:ssr": "vite build && vite build --ssr",
     "dev": "vite",
