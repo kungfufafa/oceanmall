@@ -38,6 +38,8 @@ final class SyncKomerceCarriers extends Command
             );
         }
 
+        $activatedSlugs = ['jne', 'jnt', 'sicepat', 'ide', 'sap', 'ninja', 'gosend', 'lion', 'manual'];
+
         $carriers = Carrier::query()->get();
         $updated = 0;
 
@@ -47,17 +49,19 @@ final class SyncKomerceCarriers extends Command
                 $logoUrl = KomerceCourierAssets::logoUrl('idexpress');
             }
 
+            $isActive = in_array(strtolower((string) $carrier->slug), $activatedSlugs, true);
+
+            $metadata = is_array($carrier->metadata) ? $carrier->metadata : [];
             if ($logoUrl !== null) {
-                $metadata = is_array($carrier->metadata) ? $carrier->metadata : [];
                 $metadata['logo_url'] = $logoUrl;
-
-                $carrier->forceFill([
-                    'metadata' => $metadata,
-                    'is_enabled' => true,
-                ])->save();
-
-                $updated++;
             }
+
+            $carrier->forceFill([
+                'metadata' => $metadata,
+                'is_enabled' => $isActive,
+            ])->save();
+
+            $updated++;
         }
 
         $this->info("Successfully synced all activated Komerce expeditions ({$updated} logos updated) in database.");
