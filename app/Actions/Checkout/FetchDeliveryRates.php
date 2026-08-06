@@ -175,6 +175,7 @@ final class FetchDeliveryRates
         }
 
         $allowed = array_fill_keys(array_map('strtolower', $enabledCouriers), true);
+        $dbCarriers = Carrier::query()->get()->keyBy(fn (Carrier $c): string => strtolower((string) $c->slug));
         $rates = [];
 
         foreach ($data as $carrierRow) {
@@ -188,6 +189,11 @@ final class FetchDeliveryRates
                 continue;
             }
             $carrierName = (string) ($carrierRow['name'] ?? $carrierCode);
+            $dbCarrier = $dbCarriers->get($carrierCode) ?? $dbCarriers->get($carrierCode === 'idexpress' ? 'ide' : ($carrierCode === 'ide' ? 'idexpress' : $carrierCode));
+            $logoUrl = data_get($dbCarrier?->metadata, 'logo_url')
+                ?? $dbCarrier?->logo()
+                ?? \App\Support\KomerceCourierAssets::logoUrl($carrierCode);
+
             $costRows = isset($carrierRow['costs']) && is_array($carrierRow['costs'])
                 ? $carrierRow['costs']
                 : [$carrierRow];
@@ -212,8 +218,8 @@ final class FetchDeliveryRates
                     'carrier_code' => $carrierCode,
                     'estimated_days' => $this->estimatedDays($costRow),
                     'description' => $costRow['description'] ?? null,
-                    'carrier_name' => $carrierName,
-                    'carrier_logo' => \App\Support\KomerceCourierAssets::logoUrl($carrierCode),
+                    'carrier_name' => $dbCarrier?->name ?? $carrierName,
+                    'carrier_logo' => $logoUrl,
                 ];
             }
         }

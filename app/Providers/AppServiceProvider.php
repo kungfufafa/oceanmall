@@ -131,12 +131,16 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->bind('shopper.carrier.logo', static function () use ($komerceIllustrationBase, $carrierLogoMap): \Closure {
             return static function (Carrier $carrier) use ($komerceIllustrationBase, $carrierLogoMap): ?string {
-                $logo = data_get($carrier->metadata, 'logo');
-                if (is_string($logo) && $logo !== '') {
-                    return asset($logo);
+                $dbLogo = data_get($carrier->metadata, 'logo_url') ?? data_get($carrier->metadata, 'logo');
+                if (is_string($dbLogo) && $dbLogo !== '') {
+                    return \Illuminate\Support\Str::startsWith($dbLogo, ['http://', 'https://']) ? $dbLogo : asset($dbLogo);
                 }
 
                 $slug = strtolower((string) $carrier->slug);
+                $cdnLogo = \App\Support\KomerceCourierAssets::logoUrl($slug);
+                if ($cdnLogo !== null) {
+                    return $cdnLogo;
+                }
 
                 // Prefer Komerce assets/illustration PNG (exact, verified URLs)
                 if (array_key_exists($slug, $carrierLogoMap) && $carrierLogoMap[$slug] !== null) {
