@@ -24,7 +24,7 @@ final class SearchController extends Controller
             ? null
             : Product::query()
                 ->scopes('publish')
-                ->where('name', 'like', '%'.str_replace(['%', '_'], ['\%', '\_'], $query).'%')
+                ->where('name', 'ilike', '%'.str_replace(['%', '_'], ['\%', '\_'], $query).'%')
                 ->with(['media', 'brand'])
                 ->withCurrentPrices()
                 ->paginate(12)
