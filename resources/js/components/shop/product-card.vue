@@ -12,7 +12,19 @@ const thumbnail = computed<string | null>(
     () => props.product.thumbnail ?? props.product.images?.[0]?.url ?? null,
 );
 
-const price = computed(() => props.product.prices?.[0] ?? null);
+const price = computed(() => {
+    let basePrices = props.product.prices ?? [];
+    let variantPrices = props.product.variants?.flatMap((v: any) => v.prices ?? []) ?? [];
+    
+    let allPrices = [...basePrices, ...variantPrices].filter(p => p && p.amount != null);
+    
+    if (allPrices.length === 0) return null;
+    
+    // Sort by cheapest amount first
+    allPrices.sort((a, b) => a.amount - b.amount);
+    
+    return allPrices[0];
+});
 
 const percentage = computed<number | null>(() => {
     if (
@@ -58,7 +70,10 @@ const percentage = computed<number | null>(() => {
             </Link>
         </h3>
 
-        <p v-if="product.brand" class="mt-0.5 text-[10px] text-muted-foreground">
+        <p
+            v-if="product.brand"
+            class="mt-0.5 text-[10px] text-muted-foreground"
+        >
             {{ product.brand.name }}
         </p>
 
