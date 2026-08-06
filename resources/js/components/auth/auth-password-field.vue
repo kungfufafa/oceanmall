@@ -14,6 +14,7 @@ const props = defineProps<{
     label: string;
     modelValue?: string;
     error?: string;
+    required?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -24,10 +25,11 @@ const attrs = useAttrs();
 const showPassword = ref(false);
 
 const fallthrough = computed(() => {
-    const { class: _class, type: _type, ...rest } = attrs as Record<
-        string,
-        unknown
-    >;
+    const {
+        class: _class,
+        type: _type,
+        ...rest
+    } = attrs as Record<string, unknown>;
     return rest;
 });
 
@@ -41,7 +43,10 @@ const inputClass = computed(() =>
 
 <template>
     <div class="flex flex-col gap-1.5">
-        <Label :for="id">{{ label }}</Label>
+        <Label :for="id">
+            {{ label }}
+            <span v-if="required" class="text-red-500">*</span>
+        </Label>
         <div class="relative">
             <Input
                 :id="id"

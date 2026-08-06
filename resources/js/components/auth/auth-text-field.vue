@@ -12,6 +12,7 @@ const props = defineProps<{
     label: string;
     modelValue?: string;
     error?: string;
+    required?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -35,7 +36,10 @@ const inputClass = computed(() =>
 
 <template>
     <div class="flex flex-col gap-1.5">
-        <Label :for="id">{{ label }}</Label>
+        <Label :for="id">
+            {{ label }}
+            <span v-if="required" class="text-red-500">*</span>
+        </Label>
         <Input
             :id="id"
             :model-value="modelValue"

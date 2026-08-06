@@ -665,6 +665,7 @@ const steps = [
                                 label="Nama depan"
                                 placeholder="Nama depan"
                                 :error="addressForm.errors.first_name"
+                                required
                             />
                             <AuthTextField
                                 id="last_name"
@@ -672,6 +673,7 @@ const steps = [
                                 label="Nama belakang"
                                 placeholder="Nama belakang"
                                 :error="addressForm.errors.last_name"
+                                required
                             />
                         </div>
 
@@ -681,6 +683,7 @@ const steps = [
                             label="Alamat"
                             placeholder="Jl. contoh no. 1"
                             :error="addressForm.errors.street_address"
+                            required
                         />
 
                         <AuthTextField
@@ -701,11 +704,7 @@ const steps = [
                         <div class="flex flex-col gap-1.5">
                             <Label for="destination_search">
                                 Kecamatan pengiriman
-                                <span
-                                    v-if="komerceEnabled"
-                                    class="text-destructive"
-                                    >*</span
-                                >
+                                <span class="text-red-500">*</span>
                             </Label>
                             <p
                                 class="text-[11px] leading-snug text-muted-foreground"
@@ -816,7 +815,7 @@ const steps = [
                                 placeholder="Pilih dari kecamatan"
                                 :error="addressForm.errors.state"
                                 readonly
-                                disabled
+                                required
                             />
                             <AuthTextField
                                 id="city"
@@ -825,7 +824,7 @@ const steps = [
                                 placeholder="Pilih dari kecamatan"
                                 :error="addressForm.errors.city"
                                 readonly
-                                disabled
+                                required
                             />
                             <AuthTextField
                                 id="postal_code"
@@ -834,7 +833,7 @@ const steps = [
                                 placeholder="Pilih dari kecamatan"
                                 :error="addressForm.errors.postal_code"
                                 readonly
-                                disabled
+                                required
                             />
                         </div>
 

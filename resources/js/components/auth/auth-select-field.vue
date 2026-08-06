@@ -20,6 +20,7 @@ const props = defineProps<{
     placeholder?: string;
     options: Array<{ value: string; label: string }>;
     class?: string;
+    required?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -36,8 +37,14 @@ function onUpdate(value: unknown): void {
 
 <template>
     <div class="flex flex-col gap-1.5">
-        <Label :for="id">{{ label }}</Label>
-        <Select :model-value="selected || undefined" @update:model-value="onUpdate">
+        <Label :for="id">
+            {{ label }}
+            <span v-if="required" class="text-red-500">*</span>
+        </Label>
+        <Select
+            :model-value="selected || undefined"
+            @update:model-value="onUpdate"
+        >
             <SelectTrigger
                 :id="id"
                 :class="
