@@ -63,11 +63,15 @@ final class ShippingCostClient
                 'search' => $query,
                 'limit' => max(1, min($limit, 50)),
                 'offset' => max(0, $offset),
-            ])
-            ->throw()
-            ->json();
+            ]);
 
-        $rows = data_get($response, 'data', []);
+        if ($response->status() === 404) {
+            return [];
+        }
+
+        $json = $response->throw()->json();
+
+        $rows = data_get($json, 'data', []);
 
         if (! is_array($rows)) {
             return [];
