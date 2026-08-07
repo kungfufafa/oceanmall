@@ -57,6 +57,18 @@ final class OrderShipmentOpsPresenter
 
                 $receiverPhone = (string) ($shippingAddress?->phone_number ?? $shippingAddress?->phone ?? '-');
 
+                $carrier = (string) ($shipment->carrier_name ?: $shipment->carrier_code);
+                $service = (string) ($shipment->service_name ?: $shipment->service_code);
+
+                if (str_contains($service, ':')) {
+                    $parts = explode(':', $service);
+                    $service = end($parts);
+                }
+
+                if ($carrier === $service || in_array(strtoupper($carrier), ['STD', 'EZ', 'REG', 'EXPRESS', 'SIUNT'], true)) {
+                    $carrier = strtoupper((string) ($shipment->carrier_code ?: $carrier));
+                }
+
                 return [
                     'id' => $shipment->id,
                     'inventory_id' => $shipment->inventory_id,
@@ -65,8 +77,8 @@ final class OrderShipmentOpsPresenter
                     'status_label' => $this->statusLabel(is_string($shipment->status) ? $shipment->status : null),
                     'awb' => $shipment->awb,
                     'tracking_number' => $shipment->tracking_number,
-                    'carrier' => $shipment->carrier_name ?? $shipment->carrier_code,
-                    'service' => $shipment->service_name ?? $shipment->service_code,
+                    'carrier' => $carrier,
+                    'service' => strtoupper($service),
                     'carrier_logo' => \App\Support\KomerceCourierAssets::logoUrl($shipment->carrier_code),
                     'cost' => (int) $shipment->cost,
                     'currency' => $shipment->currency_code,
