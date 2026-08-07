@@ -86,6 +86,7 @@ type Shipment = {
     tracking_number: string | null;
     carrier: string | null;
     service: string | null;
+    carrier_logo?: string | null;
     cost: number;
     currency: string;
     tracking_history: TrackingEvent[];
@@ -114,11 +115,13 @@ const itemsTotal =
 const flashInfo = computed(() => {
     const flash = page.props.flash as
         { info?: string; success?: string } | undefined;
+
     return flash?.info ?? null;
 });
 const flashSuccess = computed(() => {
     const flash = page.props.flash as
         { info?: string; success?: string } | undefined;
+
     return flash?.success ?? null;
 });
 
@@ -524,7 +527,7 @@ function syncPayment(): void {
                             <img
                                 v-if="shipment.carrier_logo"
                                 :src="shipment.carrier_logo"
-                                :alt="shipment.carrier"
+                                :alt="shipment.carrier ?? undefined"
                                 class="h-5 w-auto object-contain"
                             />
                             <p class="text-sm text-muted-foreground">
