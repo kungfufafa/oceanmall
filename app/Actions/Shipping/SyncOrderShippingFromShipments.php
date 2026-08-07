@@ -17,9 +17,19 @@ final class SyncOrderShippingFromShipments
 
     public function handle(Order $order): Order
     {
-        $statuses = OrderShipment::query()
+        $shipments = OrderShipment::query()
             ->where('order_id', $order->id)
-            ->pluck('status')
+            ->get();
+
+        if ($shipments->isEmpty()) {
+            return $order;
+        }
+
+        foreach ($shipments as $shipment) {
+            $this->syncShopperOrderShipping($order, $shipment);
+        }
+
+        $statuses = $shipments->pluck('status')
             ->map(static fn (mixed $status): string => strtolower(trim((string) $status)))
             ->filter()
             ->values()
@@ -93,5 +103,39 @@ final class SyncOrderShippingFromShipments
         }
 
         return ShippingStatus::Unfulfilled;
+    }
+
+    private function syncShopperOrderShipping(Order $order, OrderShipment $shipment): void
+    {
+        $awb = $shipment->awb ?? $shipment->tracking_number;
+        if (! $awb) {
+            return;
+        }
+
+        $carrierCode = strtolower((string) ($shipment->carrier_code ?: $shipment->carrier_name));
+        $carrierId = \Shopper\Core\Models\Carrier::query()
+            ->where('slug', $carrierCode)
+            ->orWhere('name', 'like', "%{$carrierCode}%")
+            ->value('id') ?? \Shopper\Core\Models\Carrier::query()->where('is_enabled', true)->value('id');
+
+        $status = match (strtolower((string) $shipment->status)) {
+            'delivered' => \Shopper\Core\Enum\ShipmentStatus::Delivered,
+            'picked_up', 'in_transit', 'labeled' => \Shopper\Core\Enum\ShipmentStatus::InTransit,
+            'failed' => \Shopper\Core\Enum\ShipmentStatus::DeliveryFailed,
+            default => \Shopper\Core\Enum\ShipmentStatus::Pending,
+        };
+
+        \Shopper\Core\Models\OrderShipping::query()->updateOrCreate(
+            [
+                'order_id' => $order->id,
+                'tracking_number' => $awb,
+            ],
+            [
+                'carrier_id' => $carrierId,
+                'status' => $status,
+                'tracking_url' => url("/account/orders/{$order->id}/track"),
+                'shipped_at' => now(),
+            ],
+        );
     }
 }
