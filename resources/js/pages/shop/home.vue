@@ -25,6 +25,7 @@ const isGuest = computed(() => !page.props.auth.user);
 const firstName = computed(() => {
     const user = page.props.auth.user as
         { first_name?: string; name?: string } | null | undefined;
+
     return user?.first_name ?? user?.name?.split(' ')[0] ?? '';
 });
 

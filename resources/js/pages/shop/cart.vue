@@ -45,12 +45,14 @@ function productSlug(
     if ('slug' in purchasable && typeof purchasable.slug === 'string') {
         return purchasable.slug;
     }
+
     if (
         'product' in purchasable &&
         typeof (purchasable as { product?: Product }).product?.slug === 'string'
     ) {
         return (purchasable as { product: Product }).product.slug;
     }
+
     return null;
 }
 

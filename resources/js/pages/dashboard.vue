@@ -65,7 +65,10 @@ const shortcuts = [
 ] as const;
 
 function formatDate(value: string | null): string {
-    if (!value) return '';
+    if (!value) {
+return '';
+}
+
     return new Date(value).toLocaleDateString('id-ID', {
         day: 'numeric',
         month: 'short',

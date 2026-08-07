@@ -36,6 +36,7 @@ const grouped = computed<Record<string, CountryByZoneData[]>>(() => {
         (acc, country) => {
             const key = country.zoneName;
             (acc[key] ??= []).push(country);
+
             return acc;
         },
         {},

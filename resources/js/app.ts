@@ -1,4 +1,5 @@
 import { createInertiaApp } from '@inertiajs/vue3';
+import { registerSW } from 'virtual:pwa-register';
 import { initializeTheme } from '@/composables/useAppearance';
 import AccountLayout from '@/layouts/account-layout.vue';
 import AppLayout from '@/layouts/app-layout.vue';
@@ -7,7 +8,6 @@ import SettingsSubLayout from '@/layouts/settings-sub-layout.vue';
 import StorefrontLayout from '@/layouts/storefront-layout.vue';
 import { initializeFlashToast } from '@/lib/flashToast';
 
-import { registerSW } from 'virtual:pwa-register';
 
 const appName = import.meta.env.VITE_APP_NAME || 'OceanMall';
 

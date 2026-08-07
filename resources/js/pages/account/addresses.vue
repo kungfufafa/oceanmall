@@ -8,6 +8,7 @@ import {
     Truck,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import AddressController from '@/actions/App/Http/Controllers/Account/AddressController';
 import AuthSelectField from '@/components/auth/auth-select-field.vue';
 import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
 import AuthTextField from '@/components/auth/auth-text-field.vue';
@@ -24,8 +25,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import AddressController from '@/actions/App/Http/Controllers/Account/AddressController';
-import { AddressType, type Address } from '@/types/shop';
+import { AddressType  } from '@/types/shop';
+import type {Address} from '@/types/shop';
 
 type CountryOption = { id: number; name: string; cca2: string };
 
@@ -130,7 +131,10 @@ function submit(): void {
 }
 
 function destroy(address: Address): void {
-    if (!window.confirm('Yakin ingin menghapus alamat ini?')) return;
+    if (!window.confirm('Yakin ingin menghapus alamat ini?')) {
+return;
+}
+
     router.delete(AddressController.destroy.url(address.id), {
         preserveScroll: true,
     });

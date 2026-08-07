@@ -30,6 +30,7 @@ const fallthrough = computed(() => {
         type: _type,
         ...rest
     } = attrs as Record<string, unknown>;
+
     return rest;
 });
 

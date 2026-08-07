@@ -23,6 +23,7 @@ export function setForceLightMode(enabled: boolean): void {
     if (enabled) {
         document.documentElement.classList.remove('dark');
         document.documentElement.style.colorScheme = 'light';
+
         return;
     }
 
@@ -38,6 +39,7 @@ export function updateTheme(value: Appearance): void {
     if (forceLightMode) {
         document.documentElement.classList.remove('dark');
         document.documentElement.style.colorScheme = 'light';
+
         return;
     }
 
@@ -94,6 +96,7 @@ const handleSystemThemeChange = () => {
     if (forceLightMode) {
         document.documentElement.classList.remove('dark');
         document.documentElement.style.colorScheme = 'light';
+
         return;
     }
 

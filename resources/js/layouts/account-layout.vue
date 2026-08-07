@@ -28,11 +28,26 @@ const path = computed(() => (page.url ?? '').split('?')[0] || '/');
 const isSettings = computed(() => path.value.startsWith('/settings'));
 
 const headerTitle = computed(() => {
-    if (path.value.startsWith('/account/notifications')) return 'Notifikasi';
-    if (path.value.startsWith('/account/orders')) return 'Pesanan';
-    if (path.value.startsWith('/account/addresses')) return 'Alamat';
-    if (path.value.startsWith('/settings/security')) return 'Keamanan';
-    if (path.value.startsWith('/settings')) return 'Profil';
+    if (path.value.startsWith('/account/notifications')) {
+return 'Notifikasi';
+}
+
+    if (path.value.startsWith('/account/orders')) {
+return 'Pesanan';
+}
+
+    if (path.value.startsWith('/account/addresses')) {
+return 'Alamat';
+}
+
+    if (path.value.startsWith('/settings/security')) {
+return 'Keamanan';
+}
+
+    if (path.value.startsWith('/settings')) {
+return 'Profil';
+}
+
     return 'Akun';
 });
 

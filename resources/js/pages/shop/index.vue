@@ -89,20 +89,33 @@ watch(
 );
 
 watch(sort, (value) => {
-    if (value === props.filters.sort) return;
+    if (value === props.filters.sort) {
+return;
+}
+
     applyFilters({ sort: value });
 });
 
 watch(brand, (value) => {
     const next = value === '' ? null : Number(value);
-    if (next === props.filters.brand) return;
+
+    if (next === props.filters.brand) {
+return;
+}
+
     applyFilters({ brand: next });
 });
 
 watch(search, (value) => {
-    if (searchTimer) clearTimeout(searchTimer);
+    if (searchTimer) {
+clearTimeout(searchTimer);
+}
+
     searchTimer = setTimeout(() => {
-        if (value === props.filters.search) return;
+        if (value === props.filters.search) {
+return;
+}
+
         applyFilters({ search: value });
     }, 300);
 });

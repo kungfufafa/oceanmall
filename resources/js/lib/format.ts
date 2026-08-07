@@ -4,6 +4,7 @@ export function isNoDivisionCurrency(currency: string): boolean {
     if (!currency || currency.toUpperCase() === 'IDR') {
         return true;
     }
+
     return shopperIsNoDivisionCurrency(currency);
 }
 
@@ -30,7 +31,10 @@ export function formatPercentage(value: number, locale = 'id-ID'): string {
 }
 
 export function stripHtml(html: string | null | undefined): string {
-    if (!html) return '';
+    if (!html) {
+return '';
+}
+
     return html
         .replace(/<[^>]*>/g, '')
         .replace(/\s+/g, ' ')

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import AppContent from '@/components/app-content.vue';
 import AppShell from '@/components/app-shell.vue';
-import AppSidebar from '@/components/app-sidebar.vue';
 import AppSidebarHeader from '@/components/app-sidebar-header.vue';
+import AppSidebar from '@/components/app-sidebar.vue';
 import { Toaster } from '@/components/ui/sonner';
 import type { BreadcrumbItem } from '@/types';
 

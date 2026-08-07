@@ -29,6 +29,7 @@ const navCategories = computed<NavCategory[]>(
 
 const searchPlaceholder = computed<string>(() => {
     const first = navCategories.value[0]?.name;
+
     return first
         ? `Cari brand, produk, atau ${first}…`
         : 'Cari brand, produk, atau kategori…';

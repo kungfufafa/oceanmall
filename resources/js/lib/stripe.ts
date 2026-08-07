@@ -1,4 +1,5 @@
-import { loadStripe, type Stripe } from '@stripe/stripe-js';
+import { loadStripe  } from '@stripe/stripe-js';
+import type {Stripe} from '@stripe/stripe-js';
 
 /**
  * Lazy Stripe.js loader.
@@ -12,5 +13,6 @@ export function stripe(publishableKey: string): Promise<Stripe | null> {
     if (!cache.has(publishableKey)) {
         cache.set(publishableKey, loadStripe(publishableKey));
     }
+
     return cache.get(publishableKey)!;
 }

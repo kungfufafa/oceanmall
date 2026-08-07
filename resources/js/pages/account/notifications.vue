@@ -32,7 +32,10 @@ const props = defineProps<{
 }>();
 
 function formatDate(value: string | null): string {
-    if (!value) return '';
+    if (!value) {
+return '';
+}
+
     return new Date(value).toLocaleString('id-ID', {
         day: 'numeric',
         month: 'short',
@@ -50,6 +53,7 @@ function markRead(item: NotificationItem): void {
             { preserveScroll: true },
         );
     }
+
     if (item.url) {
         router.visit(item.url);
     }

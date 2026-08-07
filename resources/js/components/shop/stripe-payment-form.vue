@@ -2,8 +2,8 @@
 import { Lock } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { Button } from '@/components/ui/button';
-import { useStripeElements } from '@/composables/useStripeElements';
 import { useShop } from '@/composables/useShop';
+import { useStripeElements } from '@/composables/useStripeElements';
 import { formatMoney } from '@/lib/format';
 
 const props = defineProps<{

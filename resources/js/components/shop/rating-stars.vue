@@ -19,8 +19,14 @@ const emit = defineEmits<{
 }>();
 
 const sizeClass = computed(() => {
-    if (props.size === 'lg') return 'size-5';
-    if (props.size === 'md') return 'size-4';
+    if (props.size === 'lg') {
+return 'size-5';
+}
+
+    if (props.size === 'md') {
+return 'size-4';
+}
+
     return 'size-3.5';
 });
 

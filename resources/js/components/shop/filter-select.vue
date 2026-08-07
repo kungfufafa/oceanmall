@@ -50,7 +50,10 @@ const items = computed(() =>
 );
 
 function onUpdate(value: unknown): void {
-    if (typeof value !== 'string') return;
+    if (typeof value !== 'string') {
+return;
+}
+
     emit('update:modelValue', value === EMPTY ? '' : value);
 }
 </script>

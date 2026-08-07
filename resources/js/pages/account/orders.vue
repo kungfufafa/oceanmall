@@ -7,8 +7,8 @@ import EmptyState from '@/components/shop/empty-state.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { orders as accountOrders } from '@/routes/account';
 import { show as ordersShow } from '@/routes/account/orders';
 import * as shop from '@/routes/shop';
@@ -90,21 +90,32 @@ function itemThumbnail(item: OrderItem): string | null {
 }
 
 function shippingLabel(order: Order): string {
-    if (order.shipping_status === 'delivered') return 'Terkirim';
+    if (order.shipping_status === 'delivered') {
+return 'Terkirim';
+}
+
     if (
         order.shipping_status === 'shipped' ||
         order.shipping_status === 'partially_shipped'
     ) {
         return 'Dalam pengiriman';
     }
+
     if (
         order.shipping_status === 'returned' ||
         order.shipping_status === 'partially_returned'
     ) {
         return 'Dikembalikan';
     }
-    if (order.status === 'cancelled') return 'Dibatalkan';
-    if (order.status === 'completed') return 'Selesai';
+
+    if (order.status === 'cancelled') {
+return 'Dibatalkan';
+}
+
+    if (order.status === 'completed') {
+return 'Selesai';
+}
+
     return 'Diproses';
 }
 </script>

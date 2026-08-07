@@ -26,13 +26,22 @@ const emit = defineEmits<{
 }>();
 
 function dec(): void {
-    if (props.disabled || props.modelValue <= props.min) return;
+    if (props.disabled || props.modelValue <= props.min) {
+return;
+}
+
     emit('update:modelValue', props.modelValue - 1);
 }
 
 function inc(): void {
-    if (props.disabled) return;
-    if (props.max !== null && props.modelValue >= props.max) return;
+    if (props.disabled) {
+return;
+}
+
+    if (props.max !== null && props.modelValue >= props.max) {
+return;
+}
+
     emit('update:modelValue', props.modelValue + 1);
 }
 </script>

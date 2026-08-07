@@ -41,16 +41,25 @@ const methodLabel = computed(() => {
     if (isVa.value) {
         return `Transfer VA ${props.payment.bank_code ?? ''}`.trim();
     }
-    if (isQris.value) return 'QRIS';
+
+    if (isQris.value) {
+return 'QRIS';
+}
+
     return 'Pembayaran';
 });
 
 const formattedExpiry = computed(() => {
-    if (!props.payment.expiry_date) return null;
+    if (!props.payment.expiry_date) {
+return null;
+}
+
     const date = new Date(props.payment.expiry_date);
+
     if (Number.isNaN(date.getTime())) {
         return String(props.payment.expiry_date);
     }
+
     return date.toLocaleString('id-ID', {
         day: 'numeric',
         month: 'short',
@@ -63,7 +72,10 @@ const formattedExpiry = computed(() => {
 async function renderQr(value: string | null | undefined): Promise<void> {
     qrDataUrl.value = null;
     qrError.value = false;
-    if (!value) return;
+
+    if (!value) {
+return;
+}
 
     try {
         qrDataUrl.value = await QRCode.toDataURL(value, {

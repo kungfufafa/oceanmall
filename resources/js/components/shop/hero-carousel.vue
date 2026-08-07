@@ -12,11 +12,13 @@ const activeIndex = ref(0);
 
 function updateActiveIndex(): void {
     const el = track.value;
+
     if (!el || !props.collections.length) {
         return;
     }
 
     const children = Array.from(el.children) as HTMLElement[];
+
     if (!children.length) {
         return;
     }
@@ -28,6 +30,7 @@ function updateActiveIndex(): void {
     children.forEach((child, index) => {
         const mid = child.offsetLeft + child.offsetWidth / 2;
         const dist = Math.abs(mid - center);
+
         if (dist < bestDist) {
             bestDist = dist;
             best = index;
@@ -40,6 +43,7 @@ function updateActiveIndex(): void {
 function scrollToIndex(index: number): void {
     const el = track.value;
     const child = el?.children[index] as HTMLElement | undefined;
+
     if (!el || !child) {
         return;
     }

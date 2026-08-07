@@ -33,8 +33,10 @@ export function useStripeElements(
 
     onMounted(async () => {
         stripeInstance = await stripe(options.publishableKey);
+
         if (!stripeInstance) {
             error.value = 'Unable to load Stripe.';
+
             return;
         }
 
@@ -49,8 +51,10 @@ export function useStripeElements(
         });
 
         const node = mountTarget();
+
         if (!node) {
             error.value = 'Stripe mount target not found.';
+
             return;
         }
 
@@ -67,8 +71,10 @@ export function useStripeElements(
     async function confirm(returnUrl: string): Promise<void> {
         if (!stripeInstance || !elements) {
             error.value = 'Stripe is not ready.';
+
             return;
         }
+
         submitting.value = true;
         error.value = null;
 

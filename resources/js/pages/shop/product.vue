@@ -73,23 +73,32 @@ const sortedReviews = computed(() => {
         return items.sort((a, b) => {
             const aTime = a.created_at ? Date.parse(a.created_at) : 0;
             const bTime = b.created_at ? Date.parse(b.created_at) : 0;
+
             return bTime - aTime;
         });
     }
 
     if (reviewSort.value === 'lowest') {
         return items.sort((a, b) => {
-            if (a.rating !== b.rating) return a.rating - b.rating;
+            if (a.rating !== b.rating) {
+return a.rating - b.rating;
+}
+
             const aTime = a.created_at ? Date.parse(a.created_at) : 0;
             const bTime = b.created_at ? Date.parse(b.created_at) : 0;
+
             return bTime - aTime;
         });
     }
 
     return items.sort((a, b) => {
-        if (a.rating !== b.rating) return b.rating - a.rating;
+        if (a.rating !== b.rating) {
+return b.rating - a.rating;
+}
+
         const aTime = a.created_at ? Date.parse(a.created_at) : 0;
         const bTime = b.created_at ? Date.parse(b.created_at) : 0;
+
         return bTime - aTime;
     });
 });
@@ -103,15 +112,26 @@ const reviewSortOptions = [
 const ratingLevels = [5, 4, 3, 2, 1] as const;
 
 function breakdownPercent(rating: number): number {
-    if (props.reviews.totalCount <= 0) return 0;
+    if (props.reviews.totalCount <= 0) {
+return 0;
+}
+
     const count = props.reviews.breakdown?.[rating] ?? 0;
+
     return Math.round((count / props.reviews.totalCount) * 100);
 }
 
 function authorInitials(name: string): string {
     const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (!parts.length) return 'P';
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+    if (!parts.length) {
+return 'P';
+}
+
+    if (parts.length === 1) {
+return parts[0].slice(0, 2).toUpperCase();
+}
+
     return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
@@ -126,7 +146,10 @@ function submitReview(): void {
 }
 
 function formatReviewDate(value: string | null): string {
-    if (!value) return '';
+    if (!value) {
+return '';
+}
+
     return new Date(value).toLocaleDateString('id-ID', {
         day: 'numeric',
         month: 'short',
@@ -159,12 +182,20 @@ const hasVariants = computed<boolean>(() =>
 );
 
 const selectedVariantId = computed<number | null>(() => {
-    if (!props.variantOptions || !hasVariants.value) return null;
+    if (!props.variantOptions || !hasVariants.value) {
+return null;
+}
+
     const required = props.variantOptions.productOptions.length;
-    if (Object.keys(selectedOptions.value).length !== required) return null;
+
+    if (Object.keys(selectedOptions.value).length !== required) {
+return null;
+}
+
     const key = Object.values(selectedOptions.value)
         .sort((a, b) => a - b)
         .join('-');
+
     return props.variantOptions.variantIndex[key] ?? null;
 });
 
@@ -204,11 +235,14 @@ const outOfStock = computed<boolean>(() => {
                 !selectedVariant.value.allow_backorder
             );
         }
+
         return (props.product.variants ?? []).every(
             (variant) => variant.stock <= 0 && !variant.allow_backorder,
         );
     }
+
     const stock = (props.product as { stock?: number }).stock ?? 0;
+
     return stock <= 0 && !props.product.allow_backorder;
 });
 
@@ -221,6 +255,7 @@ const maxQuantity = computed<number>(() => {
         }
     } else if (!hasVariants.value) {
         const stock = (props.product as { stock?: number }).stock ?? 0;
+
         if (!props.product.allow_backorder) {
             maxAllowed = Math.min(maxAllowed, stock);
         }
@@ -237,9 +272,18 @@ const canAdd = computed(
 );
 
 const ctaLabel = computed(() => {
-    if (outOfStock.value) return 'Stok habis';
-    if (adding.value) return 'Menambahkan…';
-    if (hasVariants.value && !selectedVariantId.value) return 'Pilih opsi dulu';
+    if (outOfStock.value) {
+return 'Stok habis';
+}
+
+    if (adding.value) {
+return 'Menambahkan…';
+}
+
+    if (hasVariants.value && !selectedVariantId.value) {
+return 'Pilih opsi dulu';
+}
+
     return 'Tambah ke keranjang';
 });
 
@@ -255,18 +299,29 @@ function selectOption(optionId: number, valueId: number): void {
 
 function optionModel(optionId: number): string {
     const value = selectedOptions.value[optionId];
+
     return value != null ? String(value) : '';
 }
 
 function onOptionToggle(optionId: number, value: unknown): void {
-    if (typeof value !== 'string' || value === '') return;
+    if (typeof value !== 'string' || value === '') {
+return;
+}
+
     const parsed = Number(value);
-    if (!Number.isFinite(parsed)) return;
+
+    if (!Number.isFinite(parsed)) {
+return;
+}
+
     selectOption(optionId, parsed);
 }
 
 function addToCart(): void {
-    if (!canAdd.value) return;
+    if (!canAdd.value) {
+return;
+}
+
     adding.value = true;
     cart.add({
         product_id: props.product.id,

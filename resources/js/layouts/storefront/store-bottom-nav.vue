@@ -24,9 +24,19 @@ const accountHref = computed(() =>
 
 const current = computed(() => {
     const url = path.value;
-    if (url === '/' || url === '') return 'home';
-    if (url.includes('categor')) return 'categories';
-    if (url.startsWith('/cart') || url.startsWith('/checkout')) return 'cart';
+
+    if (url === '/' || url === '') {
+return 'home';
+}
+
+    if (url.includes('categor')) {
+return 'categories';
+}
+
+    if (url.startsWith('/cart') || url.startsWith('/checkout')) {
+return 'cart';
+}
+
     if (
         url.startsWith('/dashboard') ||
         url.startsWith('/settings') ||
@@ -41,6 +51,7 @@ const current = computed(() => {
     ) {
         return 'account';
     }
+
     if (
         url === '/shop' ||
         url.startsWith('/shop/') ||
@@ -50,11 +61,13 @@ const current = computed(() => {
     ) {
         return 'shop';
     }
+
     return null;
 });
 
 function itemClass(key: string): string {
     const on = current.value === key;
+
     return [
         'flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-1',
         on ? 'text-[var(--om-navy)]' : 'text-muted-foreground',

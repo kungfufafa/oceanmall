@@ -23,6 +23,7 @@ const attrs = useAttrs();
 
 const fallthrough = computed(() => {
     const { class: _class, ...rest } = attrs as Record<string, unknown>;
+
     return rest;
 });
 

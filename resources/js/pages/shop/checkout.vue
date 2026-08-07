@@ -121,12 +121,14 @@ const selectedSavedAddressValue = computed<string>({
     set: (value) => {
         if (!value) {
             clearAddress();
+
             return;
         }
 
         const address = props.savedAddresses.find(
             (item) => String(item.id) === value,
         );
+
         if (address) {
             selectAddress(address);
         }
@@ -164,6 +166,7 @@ watch(destinationQuery, (value) => {
     if (!props.komerceEnabled || value.trim().length < 2) {
         destinationResults.value = [];
         destinationSearchError.value = null;
+
         return;
     }
 
@@ -218,10 +221,15 @@ function formatCourierTitle(option: DeliveryOption): string {
     const carrier =
         option.carrier_name ||
         (option.carrier_code ? option.carrier_code.toUpperCase() : '');
-    if (!carrier) return option.service_name;
+
+    if (!carrier) {
+return option.service_name;
+}
+
     if (option.service_name.toLowerCase().includes(carrier.toLowerCase())) {
         return option.service_name;
     }
+
     return `${carrier} - ${option.service_name}`;
 }
 
@@ -281,28 +289,45 @@ const ratesByShipment = ref<Record<number | string, string>>({
 
 const multiShippingTotal = computed<number>(() => {
     let sum = 0;
+
     for (const pkg of props.allocation ?? []) {
         const code = ratesByShipment.value[pkg.inventory_id];
-        if (!code) continue;
+
+        if (!code) {
+continue;
+}
+
         const options = props.deliveryOptionsByShipment[pkg.inventory_id] ?? [];
         const opt = options.find(
             (o) => String(o.service_code) === String(code),
         );
-        if (opt) sum += opt.amount;
+
+        if (opt) {
+sum += opt.amount;
+}
     }
+
     return sum;
 });
 
 const multiShippingCurrency = computed<string>(() => {
     for (const pkg of props.allocation ?? []) {
         const code = ratesByShipment.value[pkg.inventory_id];
-        if (!code) continue;
+
+        if (!code) {
+continue;
+}
+
         const options = props.deliveryOptionsByShipment[pkg.inventory_id] ?? [];
         const opt = options.find(
             (o) => String(o.service_code) === String(code),
         );
-        if (opt?.currency) return opt.currency;
+
+        if (opt?.currency) {
+return opt.currency;
+}
     }
+
     return 'IDR';
 });
 
@@ -435,6 +460,7 @@ function selectAddress(address: SavedCheckoutAddress): void {
         addressForm.clearErrors('rajaongkir_destination_id');
         // One tap: reuse street + district and jump to courier rates.
         submitAddress();
+
         return;
     }
 
@@ -445,6 +471,7 @@ function selectAddress(address: SavedCheckoutAddress): void {
         .filter(Boolean)
         .join(' ');
     destinationResults.value = [];
+
     if (destinationQuery.value.trim().length >= 2) {
         void searchDestinations(destinationQuery.value.trim());
     }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import InputError from '@/components/input-error.vue';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -9,7 +10,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 const props = defineProps<{
@@ -30,7 +30,10 @@ const emit = defineEmits<{
 const selected = computed(() => props.modelValue ?? '');
 
 function onUpdate(value: unknown): void {
-    if (typeof value !== 'string') return;
+    if (typeof value !== 'string') {
+return;
+}
+
     emit('update:modelValue', value);
 }
 </script>

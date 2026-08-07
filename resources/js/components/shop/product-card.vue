@@ -13,12 +13,14 @@ const thumbnail = computed<string | null>(
 );
 
 const price = computed(() => {
-    let basePrices = props.product.prices ?? [];
-    let variantPrices = props.product.variants?.flatMap((v: any) => v.prices ?? []) ?? [];
+    const basePrices = props.product.prices ?? [];
+    const variantPrices = props.product.variants?.flatMap((v: any) => v.prices ?? []) ?? [];
     
-    let allPrices = [...basePrices, ...variantPrices].filter(p => p && p.amount != null);
+    const allPrices = [...basePrices, ...variantPrices].filter(p => p && p.amount != null);
     
-    if (allPrices.length === 0) return null;
+    if (allPrices.length === 0) {
+return null;
+}
     
     // Sort by cheapest amount first
     allPrices.sort((a, b) => a.amount - b.amount);
@@ -34,6 +36,7 @@ const percentage = computed<number | null>(() => {
     ) {
         return null;
     }
+
     return Math.round(
         ((price.value.compare_amount - price.value.amount) /
             price.value.compare_amount) *

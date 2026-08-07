@@ -33,6 +33,7 @@ const percentage = computed<number | null>(() => {
     ) {
         return null;
     }
+
     return Math.round(
         ((props.price.compare_amount - props.price.amount) /
             props.price.compare_amount) *

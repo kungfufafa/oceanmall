@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Badge, type BadgeVariants } from '@/components/ui/badge';
+import { Badge  } from '@/components/ui/badge';
+import type {BadgeVariants} from '@/components/ui/badge';
 
 type StatusType = 'order' | 'payment' | 'shipping';
 

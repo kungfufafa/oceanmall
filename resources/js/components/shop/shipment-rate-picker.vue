@@ -40,7 +40,10 @@ const selected = computed<Record<number | string, string>>(
 );
 
 function selectRate(inventoryId: number, serviceCode: unknown): void {
-    if (typeof serviceCode !== 'string' || serviceCode === '') return;
+    if (typeof serviceCode !== 'string' || serviceCode === '') {
+return;
+}
+
     emit('update:modelValue', {
         ...selected.value,
         [inventoryId]: serviceCode,
@@ -60,11 +63,18 @@ const totalShipping = computed<number>(() => {
 
     for (const pkg of props.packages) {
         const code = selected.value[pkg.inventory_id];
-        if (!code) continue;
+
+        if (!code) {
+continue;
+}
+
         const opt = optionsFor(pkg.inventory_id).find(
             (o) => String(o.service_code) === String(code),
         );
-        if (opt) sum += opt.amount;
+
+        if (opt) {
+sum += opt.amount;
+}
     }
 
     return sum;
@@ -73,12 +83,20 @@ const totalShipping = computed<number>(() => {
 const totalCurrency = computed<string>(() => {
     for (const pkg of props.packages) {
         const code = selected.value[pkg.inventory_id];
-        if (!code) continue;
+
+        if (!code) {
+continue;
+}
+
         const opt = optionsFor(pkg.inventory_id).find(
             (o) => String(o.service_code) === String(code),
         );
-        if (opt?.currency) return opt.currency;
+
+        if (opt?.currency) {
+return opt.currency;
+}
     }
+
     return 'IDR';
 });
 
@@ -90,10 +108,15 @@ function formatCourierTitle(option: DeliveryOption): string {
     const carrier =
         option.carrier_name ||
         (option.carrier_code ? option.carrier_code.toUpperCase() : '');
-    if (!carrier) return option.service_name;
+
+    if (!carrier) {
+return option.service_name;
+}
+
     if (option.service_name.toLowerCase().includes(carrier.toLowerCase())) {
         return option.service_name;
     }
+
     return `${carrier} - ${option.service_name}`;
 }
 </script>
