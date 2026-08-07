@@ -40,16 +40,19 @@ const page = usePage();
 const flashError = computed(() => {
     const flash = page.props.flash as
         { error?: string; info?: string; success?: string } | undefined;
+
     return flash?.error ?? null;
 });
 const flashInfo = computed(() => {
     const flash = page.props.flash as
         { error?: string; info?: string; success?: string } | undefined;
+
     return flash?.info ?? null;
 });
 const flashSuccess = computed(() => {
     const flash = page.props.flash as
         { error?: string; info?: string; success?: string } | undefined;
+
     return flash?.success ?? null;
 });
 const paymentError = computed(
@@ -60,7 +63,11 @@ const needsPayment = computed(() => Boolean(props.komercePayment));
 
 const paymentStatus = computed(() => {
     const status = props.order.payment_status;
-    if (typeof status === 'string') return status;
+
+    if (typeof status === 'string') {
+return status;
+}
+
     return null;
 });
 
@@ -73,8 +80,14 @@ const paymentSetupFailed = computed(
 );
 
 const pageTitle = computed(() => {
-    if (needsPayment.value) return 'Selesaikan pembayaran';
-    if (paymentSetupFailed.value) return 'Pesanan dibuat';
+    if (needsPayment.value) {
+return 'Selesaikan pembayaran';
+}
+
+    if (paymentSetupFailed.value) {
+return 'Pesanan dibuat';
+}
+
     return 'Pesanan dibuat';
 });
 
@@ -90,7 +103,9 @@ function stopPolling(): void {
 }
 
 function syncPayment(silent = false): void {
-    if (!needsPayment.value || checkingPayment.value) return;
+    if (!needsPayment.value || checkingPayment.value) {
+return;
+}
 
     checkingPayment.value = true;
     router.post(
@@ -106,20 +121,27 @@ function syncPayment(silent = false): void {
 }
 
 onMounted(() => {
-    if (!needsPayment.value) return;
+    if (!needsPayment.value) {
+return;
+}
 
     pollTimer = setInterval(() => {
         pollCount += 1;
+
         if (pollCount > 12 || !needsPayment.value) {
             stopPolling();
+
             return;
         }
+
         syncPayment(true);
     }, 15000);
 });
 
 watch(needsPayment, (needs) => {
-    if (!needs) stopPolling();
+    if (!needs) {
+stopPolling();
+}
 });
 
 onBeforeUnmount(() => {
@@ -144,17 +166,17 @@ onBeforeUnmount(() => {
                 <Card
                     class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none"
                 >
-                    <CardHeader class="flex flex-row items-start gap-3 p-4">
+                    <CardHeader class="flex flex-row items-start gap-4 p-6">
                         <div
-                            class="flex size-11 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-800"
+                            class="flex size-14 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-800"
                         >
-                            <Clock3 class="size-5" aria-hidden="true" />
+                            <Clock3 class="size-7" aria-hidden="true" />
                         </div>
-                        <div class="flex flex-col gap-1">
-                            <CardTitle class="text-base sm:text-lg">
+                        <div class="flex flex-col gap-1.5">
+                            <CardTitle class="text-xl">
                                 Selesaikan pembayaran
                             </CardTitle>
-                            <CardDescription>
+                            <CardDescription class="text-base">
                                 Pesanan
                                 <span class="font-semibold text-foreground"
                                     >#{{ order.number }}</span
@@ -162,7 +184,7 @@ onBeforeUnmount(() => {
                                 sudah dibuat. Bayar sekarang supaya langsung
                                 diproses.
                             </CardDescription>
-                            <Badge variant="warning" class="mt-1 w-fit">
+                            <Badge variant="warning" class="mt-2 w-fit">
                                 Belum dibayar
                             </Badge>
                         </div>
@@ -217,7 +239,7 @@ onBeforeUnmount(() => {
                     .
                 </p>
 
-                <div class="mt-6 flex flex-col gap-2 sm:flex-row">
+                <div class="mt-8 flex flex-col gap-3 sm:flex-row">
                     <Button as-child variant="outline" size="xl" class="flex-1">
                         <Link :href="ordersShow.url(order.id)">
                             Lihat pesanan
@@ -227,7 +249,7 @@ onBeforeUnmount(() => {
                         as-child
                         variant="ghost"
                         size="xl"
-                        class="flex-1 text-muted-foreground hover:text-foreground"
+                        class="flex-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
                         <Link :href="shop.index.url()">Belanja lagi</Link>
                     </Button>
@@ -239,9 +261,9 @@ onBeforeUnmount(() => {
                 <Card
                     class="gap-0 rounded-md border-border bg-card py-0 text-center text-card-foreground shadow-none"
                 >
-                    <CardHeader class="items-center gap-4 p-4">
+                    <CardHeader class="items-center gap-4 p-6 sm:p-8">
                         <div
-                            class="flex size-14 items-center justify-center rounded-md"
+                            class="flex size-16 items-center justify-center rounded-full"
                             :class="
                                 paymentSetupFailed
                                     ? 'bg-amber-100 text-amber-800'
@@ -250,18 +272,18 @@ onBeforeUnmount(() => {
                         >
                             <Clock3
                                 v-if="paymentSetupFailed"
-                                class="size-7"
+                                class="size-8"
                                 aria-hidden="true"
                             />
                             <Check
                                 v-else
-                                class="size-7 text-emerald-700"
+                                class="size-8 text-emerald-700"
                                 aria-hidden="true"
                             />
                         </div>
 
                         <div class="flex flex-col gap-2">
-                            <CardTitle class="text-lg">
+                            <CardTitle class="text-xl sm:text-2xl">
                                 {{
                                     flashSuccess
                                         ? 'Pembayaran berhasil'
@@ -270,7 +292,7 @@ onBeforeUnmount(() => {
                                           : 'Pesanan berhasil dibuat'
                                 }}
                             </CardTitle>
-                            <CardDescription>
+                            <CardDescription class="text-base">
                                 Nomor pesanan
                                 <span class="font-semibold text-foreground"
                                     >#{{ order.number }}</span
@@ -286,14 +308,14 @@ onBeforeUnmount(() => {
                             <Badge
                                 v-if="paymentSetupFailed"
                                 variant="warning"
-                                class="mx-auto w-fit"
+                                class="mx-auto mt-1 w-fit"
                             >
                                 Pembayaran belum siap
                             </Badge>
                         </div>
                     </CardHeader>
 
-                    <CardContent class="flex flex-col gap-4 p-4 pt-0">
+                    <CardContent class="flex flex-col gap-4 p-6 pt-0 sm:p-8 sm:pt-0">
                         <Alert v-if="flashSuccess" variant="success">
                             <AlertDescription class="text-[13px] text-current">
                                 {{ flashSuccess }}
@@ -334,14 +356,19 @@ onBeforeUnmount(() => {
                         </Alert>
 
                         <div
-                            class="flex flex-col gap-2 sm:flex-row sm:justify-center"
+                            class="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center"
                         >
-                            <Button as-child size="xl">
+                            <Button as-child size="xl" class="sm:px-8">
                                 <Link :href="ordersShow.url(order.id)">
                                     Lihat pesanan
                                 </Link>
                             </Button>
-                            <Button as-child variant="outline" size="xl">
+                            <Button
+                                as-child
+                                variant="outline"
+                                size="xl"
+                                class="sm:px-8"
+                            >
                                 <Link :href="shop.index.url()">
                                     Lanjut belanja
                                 </Link>
