@@ -75,8 +75,7 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
                 $storeResponse = $delivery->storeOrder($payload);
             } catch (\Throwable $e) {
                 if (str_contains(strtolower($e->getMessage()), 'shipping service not available')) {
-                    $payload['shipping'] = 'JNT';
-                    $payload['shipping_type'] = 'EZ';
+                    $payload = $this->applyFallbackCourierPayload($payload);
                     $storeResponse = $delivery->storeOrder($payload);
                 } else {
                     throw $e;
@@ -269,30 +268,6 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             $totalWeightGrams += $weightInGrams * (int) $line->qty;
         }
         $weightInGrams = max(1000, $totalWeightGrams);
-
-        try {
-            $costClient = resolve(ShippingCostClient::class);
-            $response = $costClient->calculate(['id' => $originId], ['id' => $destinationId], $weightInGrams, [strtolower($carrierName)]);
-            $rates = data_get($response, 'data', []);
-            if (is_array($rates)) {
-                $matchedCost = null;
-                foreach ($rates as $rate) {
-                    $svc = (string) data_get($rate, 'service', data_get($rate, 'code', ''));
-                    if (strcasecmp($svc, $shippingType) === 0 || str_contains(strtoupper($svc), strtoupper($shippingType))) {
-                        $matchedCost = (int) data_get($rate, 'cost', data_get($rate, 'tariff'));
-                        break;
-                    }
-                }
-                if ($matchedCost === null && ! empty($rates)) {
-                    $matchedCost = (int) data_get($rates[0], 'cost', data_get($rates[0], 'tariff'));
-                }
-                if ($matchedCost !== null && $matchedCost > 0) {
-                    $shippingCost = $matchedCost;
-                }
-            }
-        } catch (\Throwable $e) {
-            // keep current shipment cost fallback
-        }
 
         $cashbackPercent = match (strtoupper($carrierName)) {
             'JNT', 'J&T', 'J&T EXPRESS' => 0.25,
@@ -585,5 +560,43 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
         $decoded = json_decode($metadata, true);
 
         return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function applyFallbackCourierPayload(array $payload): array
+    {
+        $payload['shipping'] = 'JNT';
+        $payload['shipping_type'] = 'EZ';
+
+        try {
+            $costClient = resolve(ShippingCostClient::class);
+            $response = $costClient->calculate(
+                ['id' => $payload['shipper_destination_id']],
+                ['id' => $payload['receiver_destination_id']],
+                1000,
+                ['jnt'],
+            );
+            $rates = data_get($response, 'data', []);
+            if (is_array($rates) && ! empty($rates)) {
+                $jntCost = (int) data_get($rates[0], 'cost', data_get($rates[0], 'tariff', 8000));
+                if ($jntCost > 0) {
+                    $oldCost = (int) $payload['shipping_cost'];
+                    $payload['shipping_cost'] = $jntCost;
+                    $payload['shipping_cashback'] = (int) round($jntCost * 0.25);
+                    $payload['grand_total'] = ($payload['grand_total'] - $oldCost) + $jntCost;
+                }
+            }
+        } catch (\Throwable) {
+            $jntCost = 8000;
+            $oldCost = (int) $payload['shipping_cost'];
+            $payload['shipping_cost'] = $jntCost;
+            $payload['shipping_cashback'] = 2000;
+            $payload['grand_total'] = ($payload['grand_total'] - $oldCost) + $jntCost;
+        }
+
+        return $payload;
     }
 }
