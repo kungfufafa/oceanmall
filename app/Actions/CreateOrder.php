@@ -66,6 +66,7 @@ final class CreateOrder
                 $shippingPrice = $shipmentTotal ?? (int) data_get($checkout, 'shipping_option.0.price', 0);
 
                 $order->update([
+                    'customer_id' => $order->customer_id ?? Auth::id() ?? $cart->customer_id,
                     'shipping_option_id' => $this->shippingOptionId($checkout),
                     'payment_method_id' => data_get($checkout, 'payment.0.id'),
                     'price_amount' => $order->price_amount + $shippingPrice,

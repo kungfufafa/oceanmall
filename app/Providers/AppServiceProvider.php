@@ -200,6 +200,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Livewire::component('komerce-order-shipping', KomerceOrderShipping::class);
         Livewire::component('shopper-order-summary', \App\Livewire\Shopper\OrderSummary::class);
+        Livewire::component('shopper-slide-overs.create-shipping-label', \App\Livewire\Shopper\SlideOvers\CreateShippingLabel::class);
+        Livewire::component('shopper-order-customer', \App\Livewire\Shopper\OrderCustomer::class);
 
         $resolveOrder = static function (): ?Order {
             $routeOrder = request()->route('order') ?? request()->route('id');
