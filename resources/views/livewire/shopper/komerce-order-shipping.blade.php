@@ -8,12 +8,17 @@
             <div>
                 <div class="flex items-center gap-2 flex-wrap">
                     <h4 class="text-base font-bold text-gray-900 dark:text-white">
-                        Pengiriman RajaOngkir / Komerce shipping
+                        Pengiriman RajaOngkir / Komerce
                     </h4>
-                    @if ($canPrintAnyLabel)
+                    @if ($canPrintAnyLabel && ! $hasUnprocessedShipment)
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-400">
                             <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
                             Terkirim ke Komerce
+                        </span>
+                    @elseif ($canPrintAnyLabel && $hasUnprocessedShipment)
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-400">
+                            <span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
+                            Sebagian Terdaftar
                         </span>
                     @else
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-400">
@@ -29,19 +34,21 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
-            <x-filament::button
-                type="button"
-                wire:click="markPaidAndProcessDelivery"
-                wire:loading.attr="disabled"
-                color="success"
-                icon="heroicon-o-check-circle"
-                size="sm"
-            >
-                <span wire:loading.remove wire:target="markPaidAndProcessDelivery">Tandai Lunas & Kirim Komerce</span>
-                <span wire:loading wire:target="markPaidAndProcessDelivery">Memproses…</span>
-            </x-filament::button>
+            @if ($order->payment_status !== \Shopper\Core\Enum\PaymentStatus::Paid)
+                <x-filament::button
+                    type="button"
+                    wire:click="markPaidAndProcessDelivery"
+                    wire:loading.attr="disabled"
+                    color="success"
+                    icon="heroicon-o-check-circle"
+                    size="sm"
+                >
+                    <span wire:loading.remove wire:target="markPaidAndProcessDelivery">Tandai Lunas & Kirim Komerce</span>
+                    <span wire:loading wire:target="markPaidAndProcessDelivery">Memproses…</span>
+                </x-filament::button>
+            @endif
 
-            @if ($komerceEnabled)
+            @if ($komerceEnabled && $hasUnprocessedShipment)
                 <x-filament::button
                     type="button"
                     wire:click="processAllDeliveryOrders"
@@ -61,7 +68,7 @@
                     href="{{ route('shopper.orders.fulfillment.print-label', $order) }}"
                     target="_blank"
                     icon="heroicon-o-printer"
-                    color="gray"
+                    color="primary"
                     size="sm"
                 >
                     Cetak Semua Stiker Resi
@@ -129,39 +136,47 @@
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2">
-                        @if ($komerceEnabled)
-                            <x-filament::button
-                                type="button"
-                                wire:click="processDeliveryOrder({{ $shipment['id'] }})"
-                                wire:loading.attr="disabled"
-                                icon="heroicon-o-paper-airplane"
-                                size="sm"
-                                color="{{ $shipment['can_print_label'] ? 'gray' : 'primary' }}"
-                            >
-                                <span wire:loading.remove wire:target="processDeliveryOrder({{ $shipment['id'] }})">
-                                    {{ $shipment['can_print_label'] ? 'Re-Generate Resi' : 'Generate Resi Komerce' }}
-                                </span>
-                                <span wire:loading wire:target="processDeliveryOrder({{ $shipment['id'] }})">Memproses…</span>
-                            </x-filament::button>
-                        @endif
-
                         @if ($shipment['can_print_label'] && $komerceEnabled)
                             <x-filament::button
                                 tag="a"
                                 href="{{ route('shopper.orders.fulfillment.print-label', ['order' => $order, 'shipment' => $shipment['id']]) }}"
                                 target="_blank"
                                 icon="heroicon-o-printer"
-                                color="gray"
+                                color="primary"
                                 size="sm"
                             >
                                 Cetak Stiker Resi
+                            </x-filament::button>
+
+                            <x-filament::button
+                                type="button"
+                                wire:click="processDeliveryOrder({{ $shipment['id'] }})"
+                                wire:loading.attr="disabled"
+                                icon="heroicon-o-arrow-path"
+                                size="sm"
+                                color="gray"
+                            >
+                                <span wire:loading.remove wire:target="processDeliveryOrder({{ $shipment['id'] }})">Re-Generate</span>
+                                <span wire:loading wire:target="processDeliveryOrder({{ $shipment['id'] }})">Memproses…</span>
+                            </x-filament::button>
+                        @elseif ($komerceEnabled)
+                            <x-filament::button
+                                type="button"
+                                wire:click="processDeliveryOrder({{ $shipment['id'] }})"
+                                wire:loading.attr="disabled"
+                                icon="heroicon-o-paper-airplane"
+                                size="sm"
+                                color="primary"
+                            >
+                                <span wire:loading.remove wire:target="processDeliveryOrder({{ $shipment['id'] }})">Generate Resi Komerce</span>
+                                <span wire:loading wire:target="processDeliveryOrder({{ $shipment['id'] }})">Memproses…</span>
                             </x-filament::button>
                         @endif
                     </div>
                 </div>
 
                 {{-- Resi Info Grid --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700/80 text-xs">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700/80 text-xs">
                     <div>
                         <span class="text-gray-500 dark:text-gray-400 block text-[11px] uppercase tracking-wider font-semibold">ID Order Komerce</span>
                         <span class="font-mono font-bold text-sm text-primary-600 dark:text-primary-400 mt-0.5 block">
