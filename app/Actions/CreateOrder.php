@@ -86,9 +86,19 @@ final class CreateOrder
     private function shippingOptionId(mixed $checkout): ?int
     {
         $id = data_get($checkout, 'shipping_option.0.id');
-
         if (is_int($id)) {
             return $id;
+        }
+
+        $carrierCode = data_get($checkout, 'shipping_option.0.carrier_code');
+        if (is_string($carrierCode) && $carrierCode !== '') {
+            $carrierId = \Shopper\Core\Models\Carrier::query()
+                ->where('slug', $carrierCode)
+                ->value('id');
+            
+            if ($carrierId) {
+                return (int) $carrierId;
+            }
         }
 
         return is_string($id) && ctype_digit($id) ? (int) $id : null;

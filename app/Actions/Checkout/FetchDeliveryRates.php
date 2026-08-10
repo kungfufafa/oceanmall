@@ -6,6 +6,7 @@ namespace App\Actions\Checkout;
 
 use App\Services\Komerce\ShippingCostClient;
 use App\Support\EnabledCarriers;
+use Illuminate\Support\Facades\Cache;
 use Shopper\Core\Models\Carrier;
 use Shopper\Core\Models\Country;
 use Shopper\Core\Models\Inventory;
@@ -98,12 +99,17 @@ final class FetchDeliveryRates
         }
 
         try {
-            $response = resolve(ShippingCostClient::class)->calculate(
-                origin: ['id' => $originId],
-                destination: ['id' => $destinationId],
-                weightGrams: $this->totalWeightGrams($packages),
-                couriers: $courierSlugs,
-            );
+            $cacheKey = 'shipping_rates:'
+                .sha1("{$originId}:{$destinationId}:{$this->totalWeightGrams($packages)}:".implode(',', $courierSlugs));
+
+            $response = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($originId, $destinationId, $packages, $courierSlugs): array {
+                return resolve(ShippingCostClient::class)->calculate(
+                    origin: ['id' => $originId],
+                    destination: ['id' => $destinationId],
+                    weightGrams: $this->totalWeightGrams($packages),
+                    couriers: $courierSlugs,
+                );
+            });
         } catch (Throwable $e) {
             report($e);
 

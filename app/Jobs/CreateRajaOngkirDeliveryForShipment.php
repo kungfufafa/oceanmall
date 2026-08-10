@@ -71,11 +71,14 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
 
         if ($deliveryOrderNo === null) {
             $payload = $this->storeOrderPayload($shipment);
+            $weightInGrams = data_get($payload, '_weight_grams', 1000);
+            unset($payload['_weight_grams']);
+
             try {
                 $storeResponse = $delivery->storeOrder($payload);
             } catch (\Throwable $e) {
                 if (str_contains(strtolower($e->getMessage()), 'shipping service not available')) {
-                    $payload = $this->applyFallbackCourierPayload($payload);
+                    $payload = $this->applyFallbackCourierPayload($payload, (int) $weightInGrams);
                     $storeResponse = $delivery->storeOrder($payload);
                 } else {
                     throw $e;
@@ -269,16 +272,11 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
         }
         $weightInGrams = max(1000, $totalWeightGrams);
 
-        $cashbackPercent = match (strtoupper($carrierName)) {
-            'JNT', 'J&T', 'J&T EXPRESS' => 0.25,
-            'SICEPAT' => 0.20,
-            'JNE', 'TIKI' => 0.15,
-            'POS' => 0.10,
-            default => 0.25,
-        };
-        $shippingCashback = (int) round($shippingCost * $cashbackPercent);
+        $shippingCashback = $this->resolveCashbackFromRate(is_array($shipment->metadata) ? $shipment->metadata : []) 
+            ?? $this->calculateCashback($carrierName, $shippingCost);
 
         return [
+            '_weight_grams' => $weightInGrams,
             'order_date' => now()->format('Y-m-d'),
             'brand_name' => (string) (shopper_setting('name') ?: shopper_setting('legal_name') ?: config('app.name')),
             'shipper_name' => (string) ($inventory?->name ?: shopper_setting('name') ?: config('app.name')),
@@ -563,10 +561,42 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
     }
 
     /**
+     * @param  array<string, mixed>  $decodedMetadata
+     */
+    private function resolveCashbackFromRate(array $decodedMetadata): ?int
+    {
+        $rate = data_get($decodedMetadata, 'rate');
+        
+        $cashback = data_get($rate, 'cashback');
+        if (is_numeric($cashback)) {
+            return (int) $cashback;
+        }
+
+        return null;
+    }
+
+    private function calculateCashback(string $carrierName, int $shippingCost): int
+    {
+        $defaultPercents = [
+            'JNT' => 0.25,
+            'J&T' => 0.25,
+            'SICEPAT' => 0.20,
+            'JNE' => 0.15,
+            'TIKI' => 0.15,
+            'POS' => 0.10,
+        ];
+
+        $name = strtoupper($carrierName);
+        $percent = $defaultPercents[$name] ?? 0.25;
+
+        return (int) round($shippingCost * $percent);
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
-    private function applyFallbackCourierPayload(array $payload): array
+    private function applyFallbackCourierPayload(array $payload, int $weightGrams): array
     {
         $payload['shipping'] = 'JNT';
         $payload['shipping_type'] = 'EZ';
@@ -576,25 +606,28 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldQueue
             $response = $costClient->calculate(
                 ['id' => $payload['shipper_destination_id']],
                 ['id' => $payload['receiver_destination_id']],
-                1000,
+                $weightGrams,
                 ['jnt'],
             );
             $rates = data_get($response, 'data', []);
             if (is_array($rates) && ! empty($rates)) {
-                $jntCost = (int) data_get($rates[0], 'cost', data_get($rates[0], 'tariff', 8000));
+                $costRows = data_get($rates[0], 'costs', []);
+                $ezRate = collect($costRows)->first(fn ($c) => strtoupper(data_get($c, 'service', '')) === 'EZ') ?? $costRows[0] ?? $rates[0];
+                
+                $jntCost = (int) data_get($ezRate, 'cost.0.value', data_get($ezRate, 'cost', data_get($ezRate, 'tariff')));
+                
                 if ($jntCost > 0) {
                     $oldCost = (int) $payload['shipping_cost'];
                     $payload['shipping_cost'] = $jntCost;
-                    $payload['shipping_cashback'] = (int) round($jntCost * 0.25);
+                    $payload['shipping_cashback'] = $this->calculateCashback('JNT', $jntCost);
                     $payload['grand_total'] = ($payload['grand_total'] - $oldCost) + $jntCost;
                 }
             }
         } catch (\Throwable) {
-            $jntCost = 8000;
-            $oldCost = (int) $payload['shipping_cost'];
-            $payload['shipping_cost'] = $jntCost;
-            $payload['shipping_cashback'] = 2000;
-            $payload['grand_total'] = ($payload['grand_total'] - $oldCost) + $jntCost;
+            $jntCost = (int) $payload['shipping_cost']; // fallback to customer paid cost if API totally fails
+            $payload['shipping_cost'] = $jntCost > 0 ? $jntCost : 8000;
+            $payload['shipping_cashback'] = $this->calculateCashback('JNT', $payload['shipping_cost']);
+            $payload['grand_total'] = ($payload['grand_total'] - $jntCost) + $payload['shipping_cost'];
         }
 
         return $payload;
