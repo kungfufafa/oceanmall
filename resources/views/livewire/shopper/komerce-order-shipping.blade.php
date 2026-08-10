@@ -28,7 +28,7 @@
                     @endif
                 </div>
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    Kelola pengiriman otomatis RajaOngkir Komerce, resi AWB, dan stiker pengiriman.
+                    Kelola pengiriman otomatis RajaOngkir / Komerce shipping, resi AWB, dan stiker pengiriman.
                 </p>
             </div>
         </div>
@@ -59,6 +59,20 @@
                 >
                     <span wire:loading.remove wire:target="processAllDeliveryOrders">Kirim ke Komerce (Push Order)</span>
                     <span wire:loading wire:target="processAllDeliveryOrders">Mengirim…</span>
+                </x-filament::button>
+            @endif
+
+            @if ($hasTrackableShipment && $komerceEnabled)
+                <x-filament::button
+                    type="button"
+                    wire:click="refreshTracking"
+                    wire:loading.attr="disabled"
+                    color="gray"
+                    icon="heroicon-o-arrow-path"
+                    size="sm"
+                >
+                    <span wire:loading.remove wire:target="refreshTracking">Lacak Status Kurir</span>
+                    <span wire:loading wire:target="refreshTracking">Memperbarui…</span>
                 </x-filament::button>
             @endif
 
@@ -126,6 +140,9 @@
                                     Belum Terdaftar di Komerce
                                 </span>
                             @endif
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+                                {{ $shipment['status_label'] }}
+                            </span>
                         </div>
 
                         <div class="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-2 flex-wrap">
@@ -150,13 +167,25 @@
 
                             <x-filament::button
                                 type="button"
+                                wire:click="refreshTracking({{ $shipment['id'] }})"
+                                wire:loading.attr="disabled"
+                                icon="heroicon-o-magnifying-glass"
+                                size="sm"
+                                color="gray"
+                            >
+                                <span wire:loading.remove wire:target="refreshTracking({{ $shipment['id'] }})">Lacak Resi</span>
+                                <span wire:loading wire:target="refreshTracking({{ $shipment['id'] }})">Melacak…</span>
+                            </x-filament::button>
+
+                            <x-filament::button
+                                type="button"
                                 wire:click="processDeliveryOrder({{ $shipment['id'] }})"
                                 wire:loading.attr="disabled"
                                 icon="heroicon-o-arrow-path"
                                 size="sm"
                                 color="gray"
                             >
-                                <span wire:loading.remove wire:target="processDeliveryOrder({{ $shipment['id'] }})">Re-Generate</span>
+                                <span wire:loading.remove wire:target="processDeliveryOrder({{ $shipment['id'] }})">Re-Push</span>
                                 <span wire:loading wire:target="processDeliveryOrder({{ $shipment['id'] }})">Memproses…</span>
                             </x-filament::button>
                         @elseif ($komerceEnabled)

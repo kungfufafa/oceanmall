@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Livewire\Shopper;
 
+use App\Actions\Shipping\RefreshShipmentTracking;
+use App\Actions\Shipping\SyncOrderShippingFromShipments;
 use App\Actions\Warehouse\OverrideAllocation;
 use App\Jobs\CreateRajaOngkirDeliveryForShipment;
 use App\Models\OrderShipment;
@@ -135,8 +137,12 @@ final class KomerceOrderShipping extends Component
         }
 
         $this->order->refresh();
+        resolve(SyncOrderShippingFromShipments::class)->handle($this->order);
+        $this->order->refresh();
+
         $this->seedOverrideDefaults();
         $this->dispatch('order.updated');
+        $this->dispatch('order.shipping.created');
 
         if ($processedCount > 0) {
             $this->successMessage = "Berhasil mendaftarkan Delivery Order Komerce untuk pesanan #{$this->order->number}.";
@@ -148,6 +154,53 @@ final class KomerceOrderShipping extends Component
     public function processAllDeliveryOrders(): void
     {
         $this->processDeliveryOrder(null);
+    }
+
+    public function refreshTracking(?int $shipmentId = null): void
+    {
+        Gate::authorize('print-shipment-label', $this->order);
+        $this->overrideError = null;
+        $this->successMessage = null;
+
+        $shipments = OrderShipment::query()
+            ->where('order_id', $this->order->id)
+            ->when($shipmentId !== null, fn ($q) => $q->where('id', $shipmentId))
+            ->where(function ($q) {
+                $q->whereNotNull('awb')->orWhereNotNull('tracking_number');
+            })
+            ->get();
+
+        if ($shipments->isEmpty()) {
+            $this->overrideError = 'Belum ada nomor resi AWB yang dapat dilacak.';
+            return;
+        }
+
+        $refresher = resolve(RefreshShipmentTracking::class);
+        $refreshedCount = 0;
+        $lastError = null;
+
+        foreach ($shipments as $shipment) {
+            try {
+                $refresher->handle($shipment);
+                $refreshedCount++;
+            } catch (\Throwable $e) {
+                report($e);
+                $lastError = $e->getMessage();
+            }
+        }
+
+        $this->order->refresh();
+        resolve(SyncOrderShippingFromShipments::class)->handle($this->order);
+        $this->order->refresh();
+
+        $this->seedOverrideDefaults();
+        $this->dispatch('order.updated');
+
+        if ($refreshedCount > 0) {
+            $this->successMessage = "Berhasil memperbarui status pelacakan kurir dari RajaOngkir.";
+        } elseif ($lastError !== null) {
+            $this->overrideError = 'Gagal memperbarui status pelacakan: '.$lastError;
+        }
     }
 
     public function markPaidAndProcessDelivery(): void
@@ -180,6 +233,7 @@ final class KomerceOrderShipping extends Component
         $inventories = $presenter->inventories();
         $printableCount = $presenter->printableCount($shipments);
         $hasUnprocessed = collect($shipments)->contains(fn (array $s): bool => ! $s['can_print_label']);
+        $hasTrackable = collect($shipments)->contains(fn (array $s): bool => filled($s['awb']) || filled($s['tracking_number']));
         $overridable = array_values(array_filter(
             $shipments,
             static fn (array $shipment): bool => (bool) $shipment['can_override'],
@@ -192,6 +246,7 @@ final class KomerceOrderShipping extends Component
             'canPrintAnyLabel' => $printableCount > 0,
             'printableShipmentCount' => $printableCount,
             'hasUnprocessedShipment' => $hasUnprocessed,
+            'hasTrackableShipment' => $hasTrackable,
             'overridableShipments' => $overridable,
             'lineOptions' => collect($overridable)->flatMap(
                 static fn (array $shipment): array => collect($shipment['lines'])->map(
@@ -223,17 +278,49 @@ final class KomerceOrderShipping extends Component
             return collect();
         }
 
-        $this->order->loadMissing('items');
+        $this->order->loadMissing(['items', 'shippingOption.carrier']);
+
+        $shippingOption = $this->order->shippingOption;
+        $carrierCode = 'jne';
+        $carrierName = 'JNE';
+        $serviceCode = 'REG';
+        $serviceName = 'Reguler';
+        $shippingCost = (int) ($this->order->shipping_total ?? 0);
+
+        if ($shippingOption) {
+            $carrierName = $shippingOption->carrier?->name ?? 'JNE';
+            $carrierCode = strtolower($shippingOption->carrier?->slug ?? $carrierName);
+            $serviceName = $shippingOption->name ?? 'Reguler';
+            $serviceCode = strtoupper((string) (data_get($shippingOption->metadata, 'service_code') ?? $serviceName));
+            if ($shippingCost === 0 && isset($shippingOption->price)) {
+                $shippingCost = (int) $shippingOption->price;
+            }
+        }
+
+        $metadata = is_array($this->order->metadata)
+            ? $this->order->metadata
+            : json_decode((string) $this->order->metadata, true) ?? [];
+
+        if (isset($metadata['shipping']) && is_array($metadata['shipping'])) {
+            $shippingMeta = $metadata['shipping'];
+            $carrierCode = $shippingMeta['courier_code'] ?? $shippingMeta['courier'] ?? $carrierCode;
+            $carrierName = $shippingMeta['courier_name'] ?? strtoupper((string) $carrierCode);
+            $serviceCode = $shippingMeta['service_code'] ?? $shippingMeta['service'] ?? $serviceCode;
+            $serviceName = $shippingMeta['service_name'] ?? $shippingMeta['service_description'] ?? $serviceName;
+            if (! empty($shippingMeta['cost'])) {
+                $shippingCost = (int) $shippingMeta['cost'];
+            }
+        }
 
         $shipment = OrderShipment::query()->create([
             'order_id' => $this->order->id,
             'inventory_id' => $defaultInventory->id,
             'status' => 'pending',
-            'carrier_code' => 'jne',
-            'carrier_name' => 'JNE',
-            'service_code' => 'REG',
-            'service_name' => 'Reguler',
-            'cost' => 0,
+            'carrier_code' => strtolower((string) $carrierCode),
+            'carrier_name' => $carrierName,
+            'service_code' => $serviceCode,
+            'service_name' => $serviceName,
+            'cost' => $shippingCost,
             'currency_code' => $this->order->currency_code ?? 'IDR',
         ]);
 

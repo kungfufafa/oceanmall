@@ -125,7 +125,13 @@ final class SyncOrderShippingFromShipments
             default => \Shopper\Core\Enum\ShipmentStatus::Pending,
         };
 
-        \Shopper\Core\Models\OrderShipping::query()->updateOrCreate(
+        $itemFulfillmentStatus = match (strtolower((string) $shipment->status)) {
+            'delivered' => \Shopper\Core\Enum\FulfillmentStatus::Delivered,
+            'picked_up', 'in_transit', 'labeled' => \Shopper\Core\Enum\FulfillmentStatus::Shipped,
+            default => \Shopper\Core\Enum\FulfillmentStatus::Processing,
+        };
+
+        $orderShipping = \Shopper\Core\Models\OrderShipping::query()->updateOrCreate(
             [
                 'order_id' => $order->id,
                 'tracking_number' => $awb,
@@ -137,5 +143,19 @@ final class SyncOrderShippingFromShipments
                 'shipped_at' => now(),
             ],
         );
+
+        $order->loadMissing('items');
+        $shipment->loadMissing('lines');
+
+        foreach ($shipment->lines as $line) {
+            $order->items()
+                ->where('product_id', $line->purchasable_id)
+                ->where('product_type', $line->purchasable_type)
+                ->whereNull('order_shipping_id')
+                ->update([
+                    'order_shipping_id' => $orderShipping->id,
+                    'fulfillment_status' => $itemFulfillmentStatus,
+                ]);
+        }
     }
 }

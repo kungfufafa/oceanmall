@@ -30,43 +30,7 @@ final class OrderCustomer extends Component
                 ->find($this->order->customer_id);
         }
 
-        if ($customer) {
-            return $customer;
-        }
-
-        // Fallback for guest checkout or orders without a linked User account
-        $shippingAddress = $this->order->shippingAddress;
-        $metadata = is_array($this->order->metadata)
-            ? $this->order->metadata
-            : (json_decode((string) $this->order->metadata, true) ?: []);
-
-        $email = data_get($metadata, 'shipping_address.email')
-            ?? data_get($metadata, 'email');
-
-        $phone = $shippingAddress?->phone_number
-            ?? $shippingAddress?->phone
-            ?? data_get($metadata, 'shipping_address.phone_number')
-            ?? data_get($metadata, 'phone_number');
-
-        $firstName = $shippingAddress?->first_name ?? data_get($metadata, 'shipping_address.first_name', '');
-        $lastName = $shippingAddress?->last_name ?? data_get($metadata, 'shipping_address.last_name', '');
-        $fullName = trim("{$firstName} {$lastName}");
-
-        if ($fullName === '' && ! $email && ! $phone) {
-            return null;
-        }
-
-        $fullName = $fullName !== '' ? $fullName : 'Pelanggan Guest';
-
-        return (object) [
-            'id' => null,
-            'full_name' => $fullName,
-            'email' => $email ?: 'Guest Checkout (Tanpa Akun)',
-            'phone_number' => $phone ?: '-',
-            'picture' => 'https://ui-avatars.com/api/?name='.urlencode($fullName).'&color=7F9CF5&background=EBF4FF',
-            'created_at' => $this->order->created_at,
-            'orders_count' => 1,
-        ];
+        return $customer;
     }
 
     public function render(): View
