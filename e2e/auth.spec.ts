@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { expectNoCriticalA11y, loginAsCustomer, qaUser } from './helpers/qa';
+import { expectNoCriticalA11y, loginAsCustomer } from './helpers/qa';
 
 test.describe('TC-UI-AUTH — Auth (browser)', () => {
     test('TC-UI-AUTH-001 login page a11y + fields @smoke', async ({ page }) => {

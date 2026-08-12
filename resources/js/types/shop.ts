@@ -1,4 +1,4 @@
-/// <reference path="./generated.d.ts" />
+import './generated.d.ts';
 
 import type {
     Address,

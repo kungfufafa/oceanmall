@@ -27,7 +27,7 @@ type Paginated<T> = {
     links: Array<{ url: string | null; label: string; active: boolean }>;
 };
 
-const props = defineProps<{
+defineProps<{
     notifications: Paginated<NotificationItem>;
 }>();
 

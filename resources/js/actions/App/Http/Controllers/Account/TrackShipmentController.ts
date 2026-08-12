@@ -4,7 +4,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 * @see app/Http/Controllers/Account/TrackShipmentController.php:18
 * @route '/account/orders/{order}/shipments/{shipment}/track'
 */
-const TrackShipmentController = (args: { order: number | { id: number }, shipment: number | { id: number } } | [order: number | { id: number }, shipment: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+const TrackShipmentController = (args: { order: number | { id: number }, shipment: string | number | { id: string | number } } | [order: number | { id: number }, shipment: string | number | { id: string | number } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: TrackShipmentController.url(args, options),
     method: 'post',
 })
@@ -19,7 +19,7 @@ TrackShipmentController.definition = {
 * @see app/Http/Controllers/Account/TrackShipmentController.php:18
 * @route '/account/orders/{order}/shipments/{shipment}/track'
 */
-TrackShipmentController.url = (args: { order: number | { id: number }, shipment: number | { id: number } } | [order: number | { id: number }, shipment: number | { id: number } ], options?: RouteQueryOptions) => {
+TrackShipmentController.url = (args: { order: number | { id: number }, shipment: string | number | { id: string | number } } | [order: number | { id: number }, shipment: string | number | { id: string | number } ], options?: RouteQueryOptions) => {
     if (Array.isArray(args)) {
         args = {
             order: args[0],
@@ -49,7 +49,7 @@ TrackShipmentController.url = (args: { order: number | { id: number }, shipment:
 * @see app/Http/Controllers/Account/TrackShipmentController.php:18
 * @route '/account/orders/{order}/shipments/{shipment}/track'
 */
-TrackShipmentController.post = (args: { order: number | { id: number }, shipment: number | { id: number } } | [order: number | { id: number }, shipment: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+TrackShipmentController.post = (args: { order: number | { id: number }, shipment: string | number | { id: string | number } } | [order: number | { id: number }, shipment: string | number | { id: string | number } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: TrackShipmentController.url(args, options),
     method: 'post',
 })
@@ -59,7 +59,7 @@ TrackShipmentController.post = (args: { order: number | { id: number }, shipment
 * @see app/Http/Controllers/Account/TrackShipmentController.php:18
 * @route '/account/orders/{order}/shipments/{shipment}/track'
 */
-const TrackShipmentControllerForm = (args: { order: number | { id: number }, shipment: number | { id: number } } | [order: number | { id: number }, shipment: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+const TrackShipmentControllerForm = (args: { order: number | { id: number }, shipment: string | number | { id: string | number } } | [order: number | { id: number }, shipment: string | number | { id: string | number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
     action: TrackShipmentController.url(args, options),
     method: 'post',
 })
@@ -69,7 +69,7 @@ const TrackShipmentControllerForm = (args: { order: number | { id: number }, shi
 * @see app/Http/Controllers/Account/TrackShipmentController.php:18
 * @route '/account/orders/{order}/shipments/{shipment}/track'
 */
-TrackShipmentControllerForm.post = (args: { order: number | { id: number }, shipment: number | { id: number } } | [order: number | { id: number }, shipment: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+TrackShipmentControllerForm.post = (args: { order: number | { id: number }, shipment: string | number | { id: string | number } } | [order: number | { id: number }, shipment: string | number | { id: string | number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
     action: TrackShipmentController.url(args, options),
     method: 'post',
 })

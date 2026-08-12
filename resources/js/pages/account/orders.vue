@@ -6,7 +6,7 @@ import OrderStatusBadge from '@/components/account/order-status-badge.vue';
 import EmptyState from '@/components/shop/empty-state.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { orders as accountOrders } from '@/routes/account';
@@ -280,7 +280,8 @@ return 'Selesai';
                     link.url === null && 'pointer-events-none opacity-40',
                 )
             "
-            v-html="link.label"
-        />
+        >
+            <span v-html="link.label" />
+        </Link>
     </nav>
 </template>

@@ -97,7 +97,7 @@ const props = defineProps<{
     couponCode?: string | null;
 }>();
 
-const { currency, taxLabel, zone } = useShop();
+const { currency, taxLabel } = useShop();
 
 const step = computed<1 | 2 | 3>(() => props.step);
 

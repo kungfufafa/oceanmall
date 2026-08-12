@@ -4,7 +4,7 @@ import { computed, ref } from 'vue';
 import OrderStatusBadge from '@/components/account/order-status-badge.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
 import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
     Breadcrumb,
     BreadcrumbItem,

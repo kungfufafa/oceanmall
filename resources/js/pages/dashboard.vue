@@ -3,13 +3,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { Bell, ChevronRight, MapPin, ShoppingBag, User } from 'lucide-vue-next';
 import OrderStatusBadge from '@/components/account/order-status-badge.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { formatMoney } from '@/lib/format';
 import {
     addresses as accountAddresses,
@@ -30,7 +24,7 @@ type RecentOrder = {
     created_at: string | null;
 };
 
-const props = defineProps<{
+defineProps<{
     recentOrders: RecentOrder[];
     unreadNotifications: number;
 }>();

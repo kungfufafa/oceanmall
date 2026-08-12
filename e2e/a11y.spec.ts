@@ -26,6 +26,7 @@ test.describe('TC-UI-A11Y — Accessibility sweep', () => {
 
     test('TC-UI-A11Y-008 axe dashboard + addresses (auth)', async ({ page }) => {
         await loginAsCustomer(page);
+
         for (const path of ['/dashboard', '/account/addresses', '/account/notifications']) {
             await page.goto(path);
             await expect(page.locator('body')).toBeVisible();

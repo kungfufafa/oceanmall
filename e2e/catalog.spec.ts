@@ -6,12 +6,14 @@ test.describe('TC-UI-CAT — Guest catalog (browser)', () => {
         await page.goto('/');
         // Desktop: OceanMall wordmark. Mobile header hides wordmark — use home content + nav.
         const visibleBrand = page.getByText('OceanMall').filter({ visible: true });
+
         if (await visibleBrand.count()) {
             await expect(visibleBrand.first()).toBeVisible();
         } else {
             await expect(page.getByRole('link', { name: /^Beranda$/i })).toBeVisible();
             await expect(page.getByText(/Promo hari ini|Produk Unggulan/i).first()).toBeVisible();
         }
+
         await expect(
             page.getByRole('link', { name: /masuk|daftar|belanja/i }).or(
                 page.getByRole('button', { name: /masuk|daftar/i }),

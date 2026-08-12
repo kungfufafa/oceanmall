@@ -61,21 +61,25 @@ test.describe('TC-UI-CART — Cart & checkout (browser)', () => {
 
         // Select a shipping rate when already past address (saved address session).
         const rate = page.locator('main').getByRole('radio').first();
+
         if (await rate.isVisible().catch(() => false)) {
             await rate.click();
             await expect(
                 page.getByText(/pengiriman|kurir|ongkir|pembayaran|qris|transfer|lanjut/i).first(),
             ).toBeVisible({ timeout: 15_000 });
             await expectNoCriticalA11y(page, 'checkout');
+
             return;
         }
 
         const saved = page.locator('main').getByText(/jakarta|jalan|alamat/i).first();
+
         if (await saved.isVisible().catch(() => false)) {
             await saved.click().catch(() => undefined);
         }
 
         const dest = page.getByPlaceholder(/cari|kecamatan|destinasi|jakarta/i).first();
+
         if (await dest.isVisible().catch(() => false)) {
             await dest.fill('Jakarta Selatan');
             const suggestion = page.locator('main').getByRole('button').filter({
@@ -86,14 +90,19 @@ test.describe('TC-UI-CART — Cart & checkout (browser)', () => {
         }
 
         const street = page.getByLabel(/alamat|jalan|street/i).first();
+
         if (await street.isVisible().catch(() => false)) {
             const val = await street.inputValue().catch(() => '');
-            if (!val) await street.fill('Jl. Melawai Raya No. 1');
+
+            if (!val) {
+await street.fill('Jl. Melawai Raya No. 1');
+}
         }
 
         const continueBtn = page.locator('main').getByRole('button', {
             name: /lanjut|simpan|pakai alamat|kirim/i,
         }).first();
+
         if (await continueBtn.isVisible().catch(() => false)) {
             await continueBtn.click();
         }
@@ -103,6 +112,7 @@ test.describe('TC-UI-CART — Cart & checkout (browser)', () => {
         ).toBeVisible({ timeout: 30_000 });
 
         const shippingRate = page.locator('main').getByRole('radio').first();
+
         if (await shippingRate.isVisible().catch(() => false)) {
             await shippingRate.click();
         }

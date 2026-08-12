@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 defineOptions({ inheritAttrs: false });
 
-const props = defineProps<{
+defineProps<{
     id: string;
     label: string;
     modelValue?: string;
@@ -22,9 +22,10 @@ const emit = defineEmits<{
 const attrs = useAttrs();
 
 const fallthrough = computed(() => {
-    const { class: _class, ...rest } = attrs as Record<string, unknown>;
+    const copy = { ...attrs } as Record<string, unknown>;
+    delete copy.class;
 
-    return rest;
+    return copy;
 });
 
 const inputClass = computed(() =>

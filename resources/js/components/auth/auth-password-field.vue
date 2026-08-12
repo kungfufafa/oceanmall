@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 defineOptions({ inheritAttrs: false });
 
-const props = defineProps<{
+defineProps<{
     id: string;
     label: string;
     modelValue?: string;
@@ -25,13 +25,11 @@ const attrs = useAttrs();
 const showPassword = ref(false);
 
 const fallthrough = computed(() => {
-    const {
-        class: _class,
-        type: _type,
-        ...rest
-    } = attrs as Record<string, unknown>;
+    const copy = { ...attrs } as Record<string, unknown>;
+    delete copy.class;
+    delete copy.type;
 
-    return rest;
+    return copy;
 });
 
 const inputClass = computed(() =>

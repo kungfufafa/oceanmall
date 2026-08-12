@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page } from '@playwright/test';
+import { expect  } from '@playwright/test';
+import type {Page} from '@playwright/test';
 
 export const qaUser = {
     email: process.env.PLAYWRIGHT_EMAIL
@@ -54,6 +55,7 @@ export async function selectFirstAvailableVariantIfNeeded(page: Page): Promise<v
     }).first();
     await expect(cta).toBeVisible({ timeout: 15_000 });
     const label = ((await cta.textContent()) ?? '').toLowerCase();
+
     if (!label.includes('pilih opsi')) {
         return;
     }
@@ -66,11 +68,13 @@ export async function selectFirstAvailableVariantIfNeeded(page: Page): Promise<v
         .filter({ has: page.locator('[data-slot="toggle-group"]') });
 
     const count = await groups.count();
+
     for (let i = 0; i < count; i++) {
         const option = groups
             .nth(i)
             .locator('[data-slot="toggle-group-item"]:not([disabled])')
             .first();
+
         if (await option.count()) {
             await option.click();
         }
