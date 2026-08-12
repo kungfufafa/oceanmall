@@ -22,12 +22,12 @@ final class RajaOngkirDriver extends Driver
 
     public function isConfigured(): bool
     {
-        return true;
+        return komerce_shipping_cost_enabled();
     }
 
     public function supportsRealTimeRates(): bool
     {
-        return true;
+        return false;
     }
 
     public function supportsLabels(): bool
@@ -37,7 +37,7 @@ final class RajaOngkirDriver extends Driver
 
     public function supportsTracking(): bool
     {
-        return true;
+        return false;
     }
 
     public function calculateRates(Address $from, Address $to, array $packages): Collection

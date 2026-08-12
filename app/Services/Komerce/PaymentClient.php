@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Komerce;
 
 use App\Services\Komerce\Concerns\UsesKomerceHttp;
+use Illuminate\Support\Facades\Cache;
+use InvalidArgumentException;
 
 final class PaymentClient
 {
@@ -61,10 +63,23 @@ final class PaymentClient
      */
     public function getStatus(string $reference): array
     {
-        $response = $this->paymentHttp()
-            ->get(self::STATUS_ENDPOINT.'/'.rawurlencode($reference))
-            ->throw()
-            ->json();
+        $reference = trim($reference);
+
+        if ($reference === '') {
+            throw new InvalidArgumentException('Komerce payment reference is required.');
+        }
+
+        // Official contract permits at most one status request every three
+        // seconds for each payment_id. Reuse the same response inside that
+        // window instead of sending a second provider request.
+        $response = Cache::remember(
+            'komerce:payment-status:'.hash('sha256', $reference),
+            now()->addSeconds(3),
+            fn (): mixed => $this->paymentHttp()
+                ->get(self::STATUS_ENDPOINT.'/'.rawurlencode($reference))
+                ->throw()
+                ->json(),
+        );
 
         return is_array($response) ? $response : [];
     }

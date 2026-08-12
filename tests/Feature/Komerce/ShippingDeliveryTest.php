@@ -19,6 +19,7 @@ use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
 use Shopper\Core\Models\OrderAddress;
+use Shopper\Core\Models\OrderItem;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Enum\TransactionType;
 use Shopper\Payment\Models\PaymentTransaction;
@@ -30,9 +31,12 @@ final class ShippingDeliveryTest extends TestCase
 
     private function fakeDeliveryConfig(): void
     {
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.shipping_delivery_api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
         config()->set('komerce.rajaongkir.delivery_base_url', 'https://delivery.example.test');
+        config()->set('komerce.pickup_time', '10:00:00');
+        config()->set('komerce.pickup_vehicle', 'Motor');
     }
 
     public function test_delivery_client_posts_store_order_and_pickup_request(): void
@@ -41,35 +45,54 @@ final class ShippingDeliveryTest extends TestCase
 
         Http::fake([
             'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
-                'success' => true,
-                'data' => ['order_no' => 'RO-ORDER-001', 'awb' => 'JNE123456789'],
+                'meta' => [
+                    'message' => 'Success Create New Order',
+                    'code' => 201,
+                    'status' => 'success',
+                ],
+                'data' => ['order_id' => 9999, 'order_no' => 'RO-ORDER-001'],
             ]),
             'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
-                'success' => true,
-                'data' => ['pickup_code' => 'PICKUP-001'],
+                'meta' => [
+                    'message' => 'Success Request Pickup',
+                    'code' => 201,
+                    'status' => 'success',
+                ],
+                'data' => [[
+                    'status' => 'success',
+                    'order_no' => 'RO-ORDER-001',
+                    'awb' => 'JNE123456789',
+                ]],
             ]),
         ]);
 
         $client = resolve(ShippingDeliveryClient::class);
 
-        $storeResponse = $client->storeOrder(['order_no' => 'ORDER-1001-SHIP-1']);
-        $pickupResponse = $client->requestPickup(['order_no' => 'RO-ORDER-001']);
+        $storeResponse = $client->storeOrder(['order_date' => '2026-08-12']);
+        $pickupResponse = $client->requestPickup([
+            'pickup_date' => '2026-08-13',
+            'pickup_time' => '10:00:00',
+            'pickup_vehicle' => 'Motor',
+            'orders' => [['order_no' => 'RO-ORDER-001']],
+        ]);
 
+        $this->assertSame(9999, data_get($storeResponse, 'data.order_id'));
         $this->assertSame('RO-ORDER-001', data_get($storeResponse, 'data.order_no'));
-        $this->assertSame('PICKUP-001', data_get($pickupResponse, 'data.pickup_code'));
+        $this->assertSame('JNE123456789', data_get($pickupResponse, 'data.0.awb'));
 
         Http::assertSent(function (Request $request): bool {
             return $request->method() === 'POST'
                 && $request->url() === 'https://delivery.example.test/order/api/v1/orders/store'
                 && $request->hasHeader('x-api-key', 'test-komerce-key')
-                && data_get($request->data(), 'order_no') === 'ORDER-1001-SHIP-1';
+                && data_get($request->data(), 'order_date') === '2026-08-12';
         });
 
         Http::assertSent(function (Request $request): bool {
             return $request->method() === 'POST'
                 && $request->url() === 'https://delivery.example.test/order/api/v1/pickup/request'
                 && $request->hasHeader('x-api-key', 'test-komerce-key')
-                && data_get($request->data(), 'order_no') === 'RO-ORDER-001';
+                && data_get($request->data(), 'orders.0.order_no') === 'RO-ORDER-001'
+                && data_get($request->data(), 'pickup_time') === '10:00:00';
         });
     }
 
@@ -79,8 +102,8 @@ final class ShippingDeliveryTest extends TestCase
 
         Http::fake([
             'https://delivery.example.test/order/api/v1/orders/history-airway-bill*' => Http::response([
-                'meta' => ['code' => 200],
-                'data' => ['status' => 'ON_PROCESS'],
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => ['last_status' => 'ON_PROCESS', 'history' => []],
             ]),
         ]);
 
@@ -103,16 +126,24 @@ final class ShippingDeliveryTest extends TestCase
 
         Http::fake([
             'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
-                'success' => true,
-                'data' => [
-                    'order_no' => 'RO-ORDER-001',
-                    'awb' => 'JNE123456789',
-                    'tracking_number' => 'JNE123456789',
+                'meta' => [
+                    'message' => 'Success Create New Order',
+                    'code' => 201,
+                    'status' => 'success',
                 ],
+                'data' => ['order_id' => 9999, 'order_no' => 'RO-ORDER-001'],
             ]),
             'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
-                'success' => true,
-                'data' => ['pickup_code' => 'PICKUP-001'],
+                'meta' => [
+                    'message' => 'Success Request Pickup',
+                    'code' => 201,
+                    'status' => 'success',
+                ],
+                'data' => [[
+                    'status' => 'success',
+                    'order_no' => 'RO-ORDER-001',
+                    'awb' => 'JNE123456789',
+                ]],
             ]),
         ]);
 
@@ -138,14 +169,18 @@ final class ShippingDeliveryTest extends TestCase
                 && data_get($payload, 'receiver_destination_id') === 152
                 && data_get($payload, 'payment_method') === 'BANK TRANSFER'
                 && data_get($payload, 'service_fee') === 0
+                && data_get($payload, 'shipping_cashback') === 4500
                 && data_get($payload, 'shipping') === 'JNE'
-                && data_get($payload, 'shipping_type') === 'REG'
+                && data_get($payload, 'shipping_type') === 'REG23'
                 && data_get($payload, 'receiver_name') === 'Budi Santoso'
                 && data_get($payload, 'receiver_phone') === '081234567890'
-                && data_get($payload, 'receiver_address') === 'Jl. Merdeka 1'
+                && data_get($payload, 'receiver_address') === 'Jl. Merdeka 1, Jakarta, 10110'
                 && data_get($payload, 'order_details.0.product_name') === 'Kopi Cirebon'
                 && data_get($payload, 'order_details.0.qty') === 2
                 && data_get($payload, 'order_details.0.product_weight') === 500
+                && data_get($payload, 'order_details.0.product_width') === 12
+                && data_get($payload, 'order_details.0.product_height') === 8
+                && data_get($payload, 'order_details.0.product_length') === 20
                 && ! array_key_exists('order_no', $payload)
                 && ! array_key_exists('origin_id', $payload);
         });
@@ -157,6 +192,7 @@ final class ShippingDeliveryTest extends TestCase
                 && $request->url() === 'https://delivery.example.test/order/api/v1/pickup/request'
                 && data_get($payload, 'orders.0.order_no') === 'RO-ORDER-001'
                 && data_get($payload, 'pickup_vehicle') === 'Motor'
+                && data_get($payload, 'pickup_time') === '10:00:00'
                 && isset($payload['pickup_date'], $payload['pickup_time'])
                 && ! array_key_exists('order_no', $payload);
         });
@@ -170,11 +206,12 @@ final class ShippingDeliveryTest extends TestCase
 
         Http::fake([
             'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
-                'success' => true,
-                'data' => [
-                    'order_no' => 'RO-ORDER-BEFORE-PICKUP',
-                    'awb' => 'JNE-BEFORE-PICKUP',
+                'meta' => [
+                    'message' => 'Success Create New Order',
+                    'code' => 201,
+                    'status' => 'success',
                 ],
+                'data' => ['order_id' => 10001, 'order_no' => 'RO-ORDER-BEFORE-PICKUP'],
             ]),
             'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
                 'success' => false,
@@ -191,8 +228,9 @@ final class ShippingDeliveryTest extends TestCase
             $shipment->refresh();
         }
 
+        $this->assertSame('10001', data_get($shipment->metadata, 'komerce.order_id'));
         $this->assertSame('RO-ORDER-BEFORE-PICKUP', data_get($shipment->metadata, 'komerce.order_no'));
-        $this->assertSame('JNE-BEFORE-PICKUP', data_get($shipment->metadata, 'komerce.awb'));
+        $this->assertNull(data_get($shipment->metadata, 'komerce.awb'));
         $this->assertNull($shipment->awb);
     }
 
@@ -203,13 +241,17 @@ final class ShippingDeliveryTest extends TestCase
         [, $shipment] = $this->createShipmentReadyForDelivery([
             'metadata' => [
                 'komerce' => [
+                    'order_id' => 10002,
                     'order_no' => 'RO-ORDER-RETRY',
-                    'awb' => 'JNE-RETRY-AWB',
                     'store_order_response' => [
-                        'success' => true,
+                        'meta' => [
+                            'message' => 'Success Create New Order',
+                            'code' => 201,
+                            'status' => 'success',
+                        ],
                         'data' => [
+                            'order_id' => 10002,
                             'order_no' => 'RO-ORDER-RETRY',
-                            'awb' => 'JNE-RETRY-AWB',
                         ],
                     ],
                 ],
@@ -218,12 +260,20 @@ final class ShippingDeliveryTest extends TestCase
 
         Http::fake([
             'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
-                'success' => true,
-                'data' => ['order_no' => 'RO-SHOULD-NOT-BE-USED'],
+                'meta' => ['code' => 201, 'status' => 'success'],
+                'data' => ['order_id' => 99999, 'order_no' => 'RO-SHOULD-NOT-BE-USED'],
             ]),
             'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
-                'success' => true,
-                'data' => ['pickup_code' => 'PICKUP-RETRY'],
+                'meta' => [
+                    'message' => 'Success Request Pickup',
+                    'code' => 201,
+                    'status' => 'success',
+                ],
+                'data' => [[
+                    'status' => 'success',
+                    'order_no' => 'RO-ORDER-RETRY',
+                    'awb' => 'JNE-RETRY-AWB',
+                ]],
             ]),
         ]);
 
@@ -250,6 +300,52 @@ final class ShippingDeliveryTest extends TestCase
                 && data_get($payload, 'pickup_vehicle') === 'Motor'
                 && isset($payload['pickup_date'], $payload['pickup_time']);
         });
+    }
+
+    public function test_delivery_job_rejects_failed_pickup_item_from_successful_http_response(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [, $shipment] = $this->createShipmentReadyForDelivery();
+
+        Http::fake([
+            'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
+                'meta' => [
+                    'message' => 'Success Create New Order',
+                    'code' => 201,
+                    'status' => 'success',
+                ],
+                'data' => ['order_id' => 10003, 'order_no' => 'RO-PICKUP-FAILED'],
+            ]),
+            'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
+                'meta' => [
+                    'message' => 'Success Request Pickup',
+                    'code' => 201,
+                    'status' => 'success',
+                ],
+                'data' => [[
+                    'status' => 'failed',
+                    'order_no' => 'RO-PICKUP-FAILED',
+                    'awb' => '',
+                ]],
+            ]),
+        ]);
+
+        try {
+            resolve(CreateRajaOngkirDeliveryForShipment::class, [
+                'orderShipmentId' => $shipment->id,
+            ])->handle(resolve(ShippingDeliveryClient::class));
+
+            $this->fail('Expected the failed pickup item to reject the delivery workflow.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('pickup failed', strtolower($exception->getMessage()));
+        }
+
+        $shipment->refresh();
+        $this->assertSame('RO-PICKUP-FAILED', data_get($shipment->metadata, 'komerce.order_no'));
+        $this->assertNull($shipment->awb);
+        $this->assertNull($shipment->tracking_number);
+        $this->assertSame('pending', $shipment->status);
     }
 
     public function test_delivery_job_skips_shipments_that_already_have_tracking(): void
@@ -395,6 +491,9 @@ final class ShippingDeliveryTest extends TestCase
             'payment_status' => PaymentStatus::Pending,
             'shipping_address_id' => $address->id,
             'metadata' => json_encode([
+                'komerce' => [
+                    'payment_type' => 'bank_transfer',
+                ],
                 'shipping_address' => [
                     'country_id' => 1,
                     'rajaongkir_destination_id' => '152',
@@ -403,6 +502,13 @@ final class ShippingDeliveryTest extends TestCase
         ]);
 
         $inventory = Inventory::factory()->create([
+            'name' => 'Gudang Cirebon',
+            'email' => 'gudang@oceanmall.test',
+            'phone_number' => '02311234567',
+            'street_address' => 'Jl. Gudang 10',
+            'street_address_plus' => null,
+            'city' => 'Cirebon',
+            'postal_code' => '45111',
             'rajaongkir_origin_id' => '501',
         ]);
 
@@ -416,12 +522,43 @@ final class ShippingDeliveryTest extends TestCase
             'cost' => 18000,
             'currency_code' => 'IDR',
             'status' => 'pending',
+            'metadata' => [
+                'rate' => [
+                    'provider' => 'shipping_delivery',
+                    'shipping_name' => 'JNE',
+                    'service_name' => 'REG23',
+                    'shipping_cost' => 18000,
+                    'shipping_cashback' => 4500,
+                    'service_fee' => 0,
+                    'additional_cost' => 0,
+                    'grandtotal' => 118000,
+                    'cod_value' => 0,
+                    'insurance_value' => 0,
+                ],
+            ],
         ], $shipmentOverrides));
 
         $product = Product::factory()->standard()->create([
             'name' => 'Kopi Cirebon',
+            'sku' => 'KOPI-CIREBON-500',
             'weight_value' => 500,
             'weight_unit' => 'g',
+            'width_value' => 12,
+            'width_unit' => 'cm',
+            'height_value' => 8,
+            'height_unit' => 'cm',
+            'depth_value' => 20,
+            'depth_unit' => 'cm',
+        ]);
+
+        OrderItem::query()->create([
+            'order_id' => $order->id,
+            'name' => $product->name,
+            'sku' => $product->sku,
+            'product_type' => $product->getMorphClass(),
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'unit_price_amount' => 50000,
         ]);
 
         $shipment->lines()->create([
@@ -431,5 +568,96 @@ final class ShippingDeliveryTest extends TestCase
         ]);
 
         return [$order, $shipment];
+    }
+
+    public function test_delivery_job_fails_safely_when_official_tariff_data_is_unavailable(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        // Create shipment without persisted rate in metadata
+        [, $shipment] = $this->createShipmentReadyForDelivery([
+            'metadata' => null,
+        ]);
+
+        Http::fake([
+            'https://delivery.example.test/tariff/api/v1/calculate*' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [
+                    'calculate_reguler' => [],
+                    'calculate_cargo' => [],
+                    'calculate_instant' => [],
+                ],
+            ]),
+        ]);
+
+        try {
+            resolve(CreateRajaOngkirDeliveryForShipment::class, [
+                'orderShipmentId' => $shipment->id,
+            ])->handle(resolve(ShippingDeliveryClient::class));
+
+            $this->fail('Expected delivery job to fail safely when official tariff data is unavailable.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Data tarif resmi Shipping Delivery belum tersedia', $e->getMessage());
+        }
+
+        $shipment->refresh();
+        $this->assertSame('pending', $shipment->status);
+        $this->assertNull($shipment->awb);
+
+        Http::assertNotSent(function (Request $request): bool {
+            return $request->method() === 'POST'
+                && $request->url() === 'https://delivery.example.test/order/api/v1/orders/store';
+        });
+    }
+
+    public function test_delivery_job_attempts_dynamic_official_tariff_resolution_when_metadata_rate_is_missing(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [, $shipment] = $this->createShipmentReadyForDelivery([
+            'metadata' => null,
+        ]);
+
+        Http::fake([
+            'https://delivery.example.test/tariff/api/v1/calculate*' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [
+                    'calculate_reguler' => [
+                        [
+                            'shipping_name' => 'JNE',
+                            'service_name' => 'REG',
+                            'shipping_cost' => 18000,
+                            'shipping_cashback' => 4500,
+                            'service_fee' => 0,
+                            'additional_cost' => 0,
+                            'grandtotal' => 118000,
+                            'cod_value' => 0,
+                            'insurance_value' => 0,
+                        ],
+                    ],
+                ],
+            ]),
+            'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
+                'meta' => ['message' => 'Success Create New Order', 'code' => 201, 'status' => 'success'],
+                'data' => ['order_id' => 8888, 'order_no' => 'RO-DYNAMIC-001'],
+            ]),
+            'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
+                'meta' => ['message' => 'Success Request Pickup', 'code' => 201, 'status' => 'success'],
+                'data' => [[
+                    'status' => 'success',
+                    'order_no' => 'RO-DYNAMIC-001',
+                    'awb' => 'JNE-DYNAMIC-AWB',
+                ]],
+            ]),
+        ]);
+
+        resolve(CreateRajaOngkirDeliveryForShipment::class, [
+            'orderShipmentId' => $shipment->id,
+        ])->handle(resolve(ShippingDeliveryClient::class));
+
+        $shipment->refresh();
+        $this->assertSame('JNE-DYNAMIC-AWB', $shipment->awb);
+        $this->assertSame('labeled', $shipment->status);
+        $this->assertSame('RO-DYNAMIC-001', data_get($shipment->metadata, 'komerce.order_no'));
     }
 }

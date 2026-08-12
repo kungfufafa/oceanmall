@@ -8,11 +8,14 @@ use App\Actions\Checkout\BuildShippingPackages;
 use App\Actions\Checkout\CreateKomercePayment;
 use App\Actions\Checkout\FetchDeliveryRates;
 use App\Actions\Checkout\FetchPaymentMethods;
+use App\Actions\Checkout\MarkOrderPaidFromKomerce;
 use App\Actions\CreateOrder;
+use App\Jobs\CreateRajaOngkirDeliveryForShipment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Bus;
 use RuntimeException;
 use Shopper\Cart\CartManager;
 use Shopper\Cart\Models\Cart;
@@ -21,6 +24,7 @@ use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Country;
 use Shopper\Core\Models\Order;
+use Shopper\Core\Models\OrderItem;
 use Shopper\Core\Models\PaymentMethod;
 use Shopper\Core\Models\Product;
 use Shopper\Core\Models\Zone;
@@ -51,7 +55,7 @@ final class KomerceCheckoutTest extends TestCase
 
     private function komerceFakeConfig(): void
     {
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
         config()->set('komerce.webhook_secret', 'webhook-secret');
         config()->set('shopper.payment.drivers.stripe.enabled', false);
@@ -109,6 +113,16 @@ final class KomerceCheckoutTest extends TestCase
                 ], $extra),
             ],
         ];
+    }
+
+    private function makeOrderPayable(Order $order, ?int $unitPrice = null): void
+    {
+        OrderItem::factory()->create([
+            'order_id' => $order->id,
+            'name' => 'Produk OceanMall',
+            'quantity' => 1,
+            'unit_price_amount' => $unitPrice ?? (int) $order->price_amount,
+        ]);
     }
 
     public function test_checkout_keeps_komerce_place_order_available_before_payment_instructions(): void
@@ -221,6 +235,7 @@ final class KomerceCheckoutTest extends TestCase
             'payment_status' => PaymentStatus::Pending,
             'status' => OrderStatus::New,
         ]);
+        $this->makeOrderPayable($order);
 
         $this->app->instance(CreateOrder::class, new class($order)
         {
@@ -296,6 +311,7 @@ final class KomerceCheckoutTest extends TestCase
             'payment_status' => PaymentStatus::Pending,
             'status' => OrderStatus::New,
         ]);
+        $this->makeOrderPayable($order);
 
         $this->app->instance(CreateOrder::class, new class($order)
         {
@@ -362,6 +378,7 @@ final class KomerceCheckoutTest extends TestCase
             'payment_status' => PaymentStatus::Pending,
             'status' => OrderStatus::New,
         ]);
+        $this->makeOrderPayable($order);
 
         $this->app->instance(CreateOrder::class, new class($order)
         {
@@ -455,7 +472,7 @@ final class KomerceCheckoutTest extends TestCase
 
     public function test_fetch_payment_methods_includes_stripe_when_enabled(): void
     {
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
         config()->set('shopper.payment.drivers.stripe.enabled', true);
 
@@ -504,7 +521,7 @@ final class KomerceCheckoutTest extends TestCase
     {
         // Stripe IS enabled in the zone, but placeOrder should reject the stripe path.
         config()->set('shopper.payment.drivers.stripe.enabled', true);
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
 
         $user = User::factory()->create();
@@ -547,6 +564,7 @@ final class KomerceCheckoutTest extends TestCase
             'payment_status' => PaymentStatus::Pending,
             'status' => OrderStatus::New,
         ]);
+        $this->makeOrderPayable($order);
 
         Http::fake([
             'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
@@ -592,6 +610,8 @@ final class KomerceCheckoutTest extends TestCase
                 && data_get($body, 'channel_code') === 'BCA'
                 && data_get($body, 'order_id') === 'ORD-ACTION-001'
                 && data_get($body, 'amount') === 100000
+                && data_get($body, 'callback_API_KEY') === 'webhook-secret'
+                && ! array_key_exists('callback_api_key', $body)
                 && is_array(data_get($body, 'items'))
                 && count(data_get($body, 'items')) >= 1
                 && data_get($body, 'items.0.name') !== null
@@ -616,6 +636,7 @@ final class KomerceCheckoutTest extends TestCase
             'payment_status' => PaymentStatus::Pending,
             'status' => OrderStatus::New,
         ]);
+        $this->makeOrderPayable($vaOrder);
 
         Http::fake([
             'https://payment.example.test/user/api/v1/user/payment/create' => Http::sequence()
@@ -668,6 +689,7 @@ final class KomerceCheckoutTest extends TestCase
             'payment_status' => PaymentStatus::Pending,
             'status' => OrderStatus::New,
         ]);
+        $this->makeOrderPayable($qrisOrder);
 
         $qris = resolve(CreateKomercePayment::class)->handle($qrisOrder, [
             'driver' => 'komerce',
@@ -697,6 +719,7 @@ final class KomerceCheckoutTest extends TestCase
             'payment_status' => PaymentStatus::Pending,
             'status' => OrderStatus::New,
         ]);
+        $this->makeOrderPayable($order);
 
         $this->app->instance(CreateOrder::class, new class($order)
         {
@@ -743,6 +766,7 @@ final class KomerceCheckoutTest extends TestCase
             'payment_status' => PaymentStatus::Pending,
             'status' => OrderStatus::New,
         ]);
+        $this->makeOrderPayable($order);
 
         Http::fake([
             'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
@@ -779,5 +803,39 @@ final class KomerceCheckoutTest extends TestCase
             ],
         );
         $this->assertSame(0, PaymentTransaction::query()->where('order_id', $order->id)->count());
+    }
+
+    public function test_late_paid_callback_cannot_revive_a_cancelled_order(): void
+    {
+        $this->komerceFakeConfig();
+        Bus::fake();
+
+        $order = Order::factory()->create([
+            'number' => 'ORD-CANCELLED-LATE-PAID',
+            'price_amount' => 100000,
+            'currency_code' => 'IDR',
+            'payment_status' => PaymentStatus::Voided,
+            'status' => OrderStatus::Cancelled,
+        ]);
+
+        PaymentTransaction::query()->create([
+            'order_id' => $order->id,
+            'driver' => 'komerce',
+            'type' => TransactionType::Initiate,
+            'status' => TransactionStatus::Failed,
+            'amount' => 100000,
+            'currency_code' => 'IDR',
+            'reference' => 'KOMPAY-LATE-PAID',
+        ]);
+
+        Http::fake();
+
+        $status = resolve(MarkOrderPaidFromKomerce::class)->handle('KOMPAY-LATE-PAID');
+
+        $this->assertSame('cancelled_order', $status);
+        $this->assertSame(OrderStatus::Cancelled, $order->refresh()->status);
+        $this->assertSame(PaymentStatus::Voided, $order->payment_status);
+        Bus::assertNotDispatched(CreateRajaOngkirDeliveryForShipment::class);
+        Http::assertNothingSent();
     }
 }

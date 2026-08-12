@@ -69,7 +69,7 @@ final class PersistUserShippingAddress
         $metadata = $this->decodeMetadata($address->metadata);
         $destinationId = trim((string) ($metadata['rajaongkir_destination_id'] ?? ''));
 
-        if ($destinationId === '' && komerce_enabled()) {
+        if ($destinationId === '' && komerce_shipping_cost_enabled()) {
             // District missing — still usable as form prefills, but not as a
             // complete checkout session address for rate quotes.
             return null;

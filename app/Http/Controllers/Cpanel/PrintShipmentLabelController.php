@@ -31,7 +31,7 @@ final class PrintShipmentLabelController extends Controller
     ): View|RedirectResponse|JsonResponse|StreamedResponse|Response {
         Gate::authorize('print-shipment-label', $order);
 
-        if (! komerce_enabled()) {
+        if (! komerce_shipping_delivery_enabled()) {
             return back()->withErrors([
                 'label' => __('Shipping labels need Komerce delivery configured. Add your Shipping Delivery API key, then try again.'),
             ]);

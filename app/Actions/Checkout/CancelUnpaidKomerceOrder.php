@@ -83,7 +83,7 @@ final readonly class CancelUnpaidKomerceOrder
             return;
         }
 
-        if (! komerce_enabled()) {
+        if (! komerce_payment_enabled()) {
             return;
         }
 

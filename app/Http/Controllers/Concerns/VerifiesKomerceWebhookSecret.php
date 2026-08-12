@@ -12,12 +12,7 @@ trait VerifiesKomerceWebhookSecret
     protected function hasValidKomerceWebhookSecret(Request $request): bool
     {
         $expected = (string) config('komerce.webhook_secret', '');
-        $actual = (string) (
-            $request->header('X-Callback-Api-Key')
-            ?? $request->header('x-api-key')
-            ?? $request->header('X-Komerce-Webhook-Secret')
-            ?? ''
-        );
+        $actual = (string) $request->header('X-Callback-Api-Key', '');
 
         return KomerceCallbackSignature::isValid($request->getContent(), $expected, $actual);
     }

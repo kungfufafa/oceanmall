@@ -47,14 +47,17 @@ final class ResolveKomercePaymentInstructions
             return false;
         }
 
-        if (! komerce_enabled()) {
+        $order->loadMissing('paymentMethod');
+
+        $metadata = $this->decodeMetadata($order->getAttribute('metadata'));
+        $provider = (string) data_get($metadata, 'komerce.provider', 'payment_api');
+
+        if ($provider === 'qrisly' ? ! qrisly_enabled() : ! komerce_payment_enabled()) {
             return false;
         }
 
-        $order->loadMissing('paymentMethod');
-
         return ($order->paymentMethod?->driver ?? null) === 'komerce'
-            || filled(data_get($this->decodeMetadata($order->getAttribute('metadata')), 'komerce'));
+            || filled(data_get($metadata, 'komerce'));
     }
 
     /**

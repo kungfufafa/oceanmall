@@ -133,14 +133,13 @@ OceanMall checkout aktif memakai **Komerce Payment** (VA / QRIS) + **RajaOngkir 
 | `KOMERCE_QRISLY_QRIS_ID` | ID template QRIS dari upload di Collaborator (wajib kalau QRISLY aktif) |
 | `KOMERCE_QRISLY_BASE_URL` | Default = `KOMERCE_PAYMENT_BASE_URL` |
 | `KOMERCE_QRISLY_UNIQUE_AMOUNT` | Default `true` (generate-qris) |
-| `KOMERCE_API_KEY` | Legacy fallback satu key (opsional; tests / setup lama) |
 | `KOMERCE_PAYMENT_BASE_URL` | Default sandbox: `https://api-sandbox.collaborator.komerce.id/user` |
 | `RAJAONGKIR_COST_BASE_URL` | Default: `https://rajaongkir.komerce.id` |
 | `RAJAONGKIR_DELIVERY_BASE_URL` | Sandbox delivery / AWB base URL |
 | `RAJAONGKIR_COURIERS` | Kurir aktif, comma-separated (default: `jne,jnt,sicepat`) |
-| `KOMERCE_WEBHOOK_SECRET` | Secret buatan sendiri; dikirim sebagai `callback_API_KEY`. **Semua** webhook Komerce (payment, delivery, qrisly) diverifikasi via **HMAC-SHA256** (`X-Callback-Api-Key` = HMAC(raw JSON body, secret)) |
+| `KOMERCE_WEBHOOK_SECRET` | Secret buatan sendiri untuk **Payment callback**; dikirim sebagai `callback_API_KEY` dan diverifikasi melalui HMAC-SHA256 raw body |
 | `KOMERCE_PICKUP_VEHICLE` | Kendaraan pickup (default: `Motor`) |
-| `KOMERCE_PICKUP_TIME` | Jam pickup default (default: `10:00`) |
+| `KOMERCE_PICKUP_TIME` | Jam pickup format `HH:mm:ss` (default: `10:00:00`) |
 | `KOMERCE_TIMEOUT` | Timeout HTTP client (detik) |
 | `PAYMENT_STRIPE_ENABLED` | **Harus `false`** untuk production OceanMall v1 |
 
@@ -152,7 +151,7 @@ POST {APP_URL}/webhooks/komerce/delivery
 POST {APP_URL}/webhooks/komerce/qrisly
 ```
 
-Semua endpoint di atas wajib mengirim header `X-Callback-Api-Key` berisi HMAC-SHA256 body dengan `KOMERCE_WEBHOOK_SECRET`. Request tanpa signature ditolak (401).
+Hanya callback **Payment API** yang secara resmi mendefinisikan header `X-Callback-Api-Key` berisi HMAC-SHA256 raw body dengan `KOMERCE_WEBHOOK_SECRET`. Dokumentasi Delivery dan QRISLY tidak mendefinisikan signature; handler memperlakukan payload mereka sebagai sinyal lalu memeriksa status melalui API provider yang memakai dedicated key sebelum mengubah order.
 
 ### Production ops (wajib jalan)
 

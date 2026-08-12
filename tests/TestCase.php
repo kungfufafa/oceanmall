@@ -17,10 +17,9 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         // Keep Feature tests hermetic: local UAT credentials in `.env` must not
-        // flip komerce_enabled() on and change warehouse/payment behavior.
+        // enable a product-specific integration and change test behavior.
         config([
             'komerce.enabled' => null,
-            'komerce.api_key' => '',
             'komerce.payment_api_key' => '',
             'komerce.shipping_cost_api_key' => '',
             'komerce.shipping_delivery_api_key' => '',

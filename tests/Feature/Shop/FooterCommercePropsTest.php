@@ -20,7 +20,8 @@ final class FooterCommercePropsTest extends TestCase
 
         Cache::flush();
         config()->set('komerce.enabled', true);
-        config()->set('komerce.api_key', 'test-key');
+        config()->set('komerce.payment_api_key', 'payment-key');
+        config()->set('komerce.shipping_cost_api_key', 'shipping-cost-key');
         config()->set('shopper.payment.drivers.stripe.enabled', false);
     }
 

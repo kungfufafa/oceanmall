@@ -86,7 +86,7 @@ final readonly class SuggestAllocation
     {
         $query = Inventory::query();
 
-        if (komerce_enabled()) {
+        if (komerce_shipping_cost_enabled()) {
             $query->whereNotNull('rajaongkir_origin_id')
                 ->where('rajaongkir_origin_id', '!=', '');
         }

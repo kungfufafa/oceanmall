@@ -21,7 +21,7 @@ final class PrintLabelTest extends TestCase
 
     private function fakeDeliveryConfig(): void
     {
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.shipping_delivery_api_key', 'test-komerce-key');
         config()->set('komerce.rajaongkir.delivery_base_url', 'https://delivery.example.test');
     }
 
@@ -141,7 +141,7 @@ final class PrintLabelTest extends TestCase
 
         $this->actingAs($this->admin())
             ->get(route('shopper.orders.fulfillment.print-label', $order))
-            ->assertRedirect('https://delivery.example.test/storage/label-relative.pdf');
+            ->assertRedirect('https://delivery.example.test/order/storage/label-relative.pdf');
     }
 
     public function test_admin_print_label_streams_base64_pdf_when_path_missing(): void
@@ -195,7 +195,7 @@ final class PrintLabelTest extends TestCase
     public function test_print_label_blocked_when_komerce_disabled(): void
     {
         config()->set('komerce.enabled', false);
-        config()->set('komerce.api_key', '');
+        config()->set('komerce.shipping_delivery_api_key', '');
         [$order] = $this->orderWithDeliveryOrder();
         Http::fake();
 

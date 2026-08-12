@@ -31,35 +31,58 @@ if (! function_exists('cartSession')) {
     }
 }
 
+if (! function_exists('komerce_service_enabled')) {
+    /**
+     * Resolve one Komerce product independently from every other product key.
+     * KOMERCE_ENABLED=false is a master kill switch; true does not make a
+     * credential-less service ready.
+     */
+    function komerce_service_enabled(string $apiKeyConfig): bool
+    {
+        if (config('komerce.enabled') === false) {
+            return false;
+        }
+
+        return trim((string) config($apiKeyConfig, '')) !== '';
+    }
+}
+
+if (! function_exists('komerce_payment_enabled')) {
+    function komerce_payment_enabled(): bool
+    {
+        return komerce_service_enabled('komerce.payment_api_key');
+    }
+}
+
+if (! function_exists('komerce_shipping_cost_enabled')) {
+    function komerce_shipping_cost_enabled(): bool
+    {
+        return komerce_service_enabled('komerce.shipping_cost_api_key');
+    }
+}
+
+if (! function_exists('komerce_shipping_delivery_enabled')) {
+    function komerce_shipping_delivery_enabled(): bool
+    {
+        return komerce_service_enabled('komerce.shipping_delivery_api_key');
+    }
+}
+
 if (! function_exists('komerce_enabled')) {
     /**
-     * Whether the Komerce collaborator integration (payment + RajaOngkir shipping)
-     * is active. When KOMERCE_ENABLED is not set explicitly, the integration is
-     * considered enabled only when an API key is configured. This is the single
-     * source of truth used to short-circuit every Komerce/RajaOngkir feature so
-     * an unconfigured store never attempts an outbound call.
+     * Whether at least one independently configured Komerce product is ready.
+     * Product-specific callers should use the corresponding readiness helper.
      */
     function komerce_enabled(): bool
     {
-        $explicit = config('komerce.enabled');
-
-        if ($explicit !== null) {
-            return (bool) $explicit;
+        if (config('komerce.enabled') === false) {
+            return false;
         }
 
-        foreach ([
-            'komerce.api_key',
-            'komerce.payment_api_key',
-            'komerce.shipping_cost_api_key',
-            'komerce.shipping_delivery_api_key',
-            'komerce.qrisly_api_key',
-        ] as $key) {
-            if (trim((string) config($key, '')) !== '') {
-                return true;
-            }
-        }
-
-        return false;
+        return komerce_payment_enabled()
+            || komerce_shipping_cost_enabled()
+            || komerce_shipping_delivery_enabled()
+            || qrisly_enabled();
     }
 }
 
@@ -70,11 +93,7 @@ if (! function_exists('qrisly_enabled')) {
      */
     function qrisly_enabled(): bool
     {
-        if (! komerce_enabled()) {
-            return false;
-        }
-
-        return trim((string) config('komerce.qrisly_api_key', '')) !== ''
+        return komerce_service_enabled('komerce.qrisly_api_key')
             && trim((string) config('komerce.qrisly_qris_id', '')) !== '';
     }
 }
@@ -128,4 +147,3 @@ if (! function_exists('current_tax_label')) {
         });
     }
 }
-

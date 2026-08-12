@@ -10,7 +10,7 @@ readonly class ShippingRateRequestData
         public string|int $originId,
         public string|int $destinationSubdistrictId,
         public int $weightInGrams,
-        public array $couriers = ['jne', 'jnt', 'sicepat'],
+        public array $couriers = [],
         public array $items = [],
     ) {}
 }

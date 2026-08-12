@@ -23,25 +23,33 @@ final class FetchPaymentMethods
         }
 
         $stripeEnabled = (bool) config('shopper.payment.drivers.stripe.enabled', false);
-        $komerceEnabled = komerce_enabled();
         $service = resolve(PaymentProcessingService::class);
 
         return $zone->paymentMethods()
             ->where('is_enabled', true)
             ->get()
-            ->filter(fn (PaymentMethod $method): bool => $this->isAvailable($method, $stripeEnabled, $komerceEnabled))
+            ->filter(fn (PaymentMethod $method): bool => $this->isAvailable($method, $stripeEnabled))
             ->map(fn (PaymentMethod $method): array => $this->toArray($method, $service))
             ->values()
             ->all();
     }
 
-    private function isAvailable(PaymentMethod $method, bool $stripeEnabled, bool $komerceEnabled): bool
+    private function isAvailable(PaymentMethod $method, bool $stripeEnabled): bool
     {
         return match ($method->driver ?? 'manual') {
             'stripe' => $stripeEnabled,
-            'komerce' => $komerceEnabled,
+            'komerce' => $this->komerceMethodAvailable($method),
             default => Payment::isConfigured($method->driver ?? 'manual'),
         };
+    }
+
+    private function komerceMethodAvailable(PaymentMethod $method): bool
+    {
+        $paymentType = strtolower((string) ($this->decodeMeta($method->metadata)['payment_type'] ?? 'bank_transfer'));
+
+        return $paymentType === 'qris'
+            ? qrisly_enabled() || komerce_payment_enabled()
+            : komerce_payment_enabled();
     }
 
     /**

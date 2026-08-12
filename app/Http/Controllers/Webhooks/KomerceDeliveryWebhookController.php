@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Webhooks;
 
 use App\Actions\Shipping\ApplyDeliveryWebhookStatus;
-use App\Http\Controllers\Concerns\VerifiesKomerceWebhookSecret;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,36 +15,27 @@ use Illuminate\Http\Request;
  *
  * Payload: { order_no, cnote, status }
  *
- * Authenticated with the same HMAC-SHA256 callback secret as Payment
- * (`X-Callback-Api-Key` = HMAC(raw body, KOMERCE_WEBHOOK_SECRET)).
+ * The official Delivery webhook contract does not define a signature header.
+ * Its payload is treated only as a refresh signal; the action verifies the
+ * resulting state through the authenticated Shipping Delivery tracking API.
  */
 final class KomerceDeliveryWebhookController extends Controller
 {
-    use VerifiesKomerceWebhookSecret;
-
     public function __invoke(Request $request, ApplyDeliveryWebhookStatus $apply): JsonResponse
     {
-        if (! $this->hasValidKomerceWebhookSecret($request)) {
-            return response()->json(['status' => 'invalid_secret'], 401);
-        }
-
-        if (! komerce_enabled()) {
+        if (! komerce_shipping_delivery_enabled()) {
             return response()->json(['status' => 'disabled'], 503);
         }
 
         $payload = $request->validate([
-            'order_no' => ['nullable', 'string'],
+            'order_no' => ['required', 'string'],
             'cnote' => ['nullable', 'string'],
-            'status' => ['nullable', 'string'],
+            'status' => ['required', 'string'],
         ]);
 
         $orderNo = trim((string) ($payload['order_no'] ?? ''));
         $cnote = isset($payload['cnote']) ? trim((string) $payload['cnote']) : null;
         $status = isset($payload['status']) ? trim((string) $payload['status']) : null;
-
-        if ($orderNo === '' && ($cnote === null || $cnote === '')) {
-            return response()->json(['status' => 'ignored']);
-        }
 
         $result = $apply->handle($orderNo, $cnote, $status);
 

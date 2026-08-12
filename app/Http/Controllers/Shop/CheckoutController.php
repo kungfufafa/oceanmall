@@ -164,7 +164,7 @@ final class CheckoutController extends Controller
                 'return_url' => route('shop.checkout.stripe-return'),
             ] : null,
             'komercePayment' => $komercePayment,
-            'komerceEnabled' => komerce_enabled(),
+            'komerceEnabled' => komerce_shipping_cost_enabled(),
             'shippingRatesHint' => $this->shippingRatesHint(
                 is_array($shippingAddress) ? $shippingAddress : null,
                 $allocation,
@@ -200,7 +200,7 @@ final class CheckoutController extends Controller
             return null;
         }
 
-        if (! komerce_enabled()) {
+        if (! komerce_shipping_cost_enabled()) {
             return __('Pengiriman Komerce/RajaOngkir belum dikonfigurasi (API key belum diisi di .env).');
         }
 
@@ -217,7 +217,7 @@ final class CheckoutController extends Controller
 
     public function saveShippingAddress(Request $request): RedirectResponse
     {
-        $destinationRule = komerce_enabled()
+        $destinationRule = komerce_shipping_cost_enabled()
             ? ['required', 'string', 'max:50']
             : ['nullable', 'string', 'max:50'];
 

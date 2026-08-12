@@ -25,4 +25,13 @@ final class NormalizeShipmentStatusTest extends TestCase
         $this->assertSame('pending', $normalize->handle('pending'));
         $this->assertSame('labeled', $normalize->handle(null, 'labeled'));
     }
+
+    public function test_delivery_words_do_not_imply_delivered(): void
+    {
+        $normalize = new NormalizeShipmentStatus;
+
+        $this->assertSame('in_transit', $normalize->handle('Out for delivery'));
+        $this->assertSame('labeled', $normalize->handle('Delivery failed', 'labeled'));
+        $this->assertSame('picked_up', $normalize->handle('Undelivered', 'picked_up'));
+    }
 }

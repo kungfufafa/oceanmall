@@ -14,7 +14,7 @@ final class OrderObserver
 {
     public function updated(Order $order): void
     {
-        if (! komerce_enabled() || app()->runningUnitTests()) {
+        if (! komerce_shipping_delivery_enabled() || app()->runningUnitTests()) {
             return;
         }
 

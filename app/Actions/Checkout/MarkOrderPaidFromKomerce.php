@@ -48,6 +48,10 @@ final class MarkOrderPaidFromKomerce
             return 'no_order';
         }
 
+        if ($this->isTerminallyCancelled($order)) {
+            return 'cancelled_order';
+        }
+
         if ($order->payment_status === PaymentStatus::Paid) {
             $this->dispatchPendingDeliveries($order);
 
@@ -76,7 +80,64 @@ final class MarkOrderPaidFromKomerce
             }
         }
 
-        if ($this->amountMismatches($order, $transaction, $remotePayment, $provider)) {
+        $result = DB::transaction(function () use ($order, $transaction, $paymentId, $remotePayment, $remoteStatus, $provider): array {
+            $lockedOrder = Order::query()->lockForUpdate()->find($order->id);
+
+            if (! $lockedOrder instanceof Order) {
+                return ['status' => 'no_order', 'order' => null, 'newly_paid' => false];
+            }
+
+            if ($this->isTerminallyCancelled($lockedOrder)) {
+                return ['status' => 'cancelled_order', 'order' => $lockedOrder, 'newly_paid' => false];
+            }
+
+            if ($lockedOrder->payment_status === PaymentStatus::Paid) {
+                return ['status' => 'already_processed', 'order' => $lockedOrder, 'newly_paid' => false];
+            }
+
+            $lockedTransaction = $transaction instanceof PaymentTransaction
+                ? PaymentTransaction::query()->lockForUpdate()->find($transaction->id)
+                : null;
+
+            if ($this->amountMismatches($lockedOrder, $lockedTransaction, $remotePayment, $provider)) {
+                return ['status' => 'amount_mismatch', 'order' => $lockedOrder, 'newly_paid' => false];
+            }
+
+            $orderUpdates = ['payment_status' => PaymentStatus::Paid];
+
+            if ($lockedOrder->status === OrderStatus::New) {
+                $orderUpdates['status'] = OrderStatus::Processing;
+            }
+
+            $lockedOrder->update($orderUpdates);
+
+            if ($lockedTransaction instanceof PaymentTransaction) {
+                $lockedTransaction->update([
+                    'type' => TransactionType::Capture,
+                    'status' => TransactionStatus::Success,
+                ]);
+            } else {
+                PaymentTransaction::query()->create([
+                    'order_id' => $lockedOrder->id,
+                    'payment_method_id' => $lockedOrder->payment_method_id,
+                    'driver' => 'komerce',
+                    'type' => TransactionType::Capture,
+                    'status' => TransactionStatus::Success,
+                    'amount' => $this->remoteAmount($remotePayment, $provider) ?? (int) $lockedOrder->price_amount,
+                    'currency_code' => $lockedOrder->currency_code,
+                    'reference' => $paymentId,
+                    'metadata' => [
+                        'komerce_payment_ref' => $paymentId,
+                        'komerce_provider' => $provider,
+                        'komerce_status' => $remoteStatus,
+                    ],
+                ]);
+            }
+
+            return ['status' => 'handled', 'order' => $lockedOrder, 'newly_paid' => true];
+        });
+
+        if ($result['status'] === 'amount_mismatch') {
             report(new \RuntimeException(sprintf(
                 'Komerce payment amount mismatch for order %s (payment %s).',
                 $order->number,
@@ -86,59 +147,28 @@ final class MarkOrderPaidFromKomerce
             return 'amount_mismatch';
         }
 
-        $wasUnpaid = $order->payment_status !== PaymentStatus::Paid;
-
-        DB::transaction(function () use ($order, $transaction, $paymentId, $remotePayment, $remoteStatus, $provider): void {
-            $order->refresh();
-
-            if ($order->payment_status !== PaymentStatus::Paid) {
-                $orderUpdates = ['payment_status' => PaymentStatus::Paid];
-
-                if ($order->status === OrderStatus::New) {
-                    $orderUpdates['status'] = OrderStatus::Processing;
-                }
-
-                $order->update($orderUpdates);
-            }
-
-            if ($transaction) {
-                $transaction->refresh();
-                $transaction->update([
-                    'type' => TransactionType::Capture,
-                    'status' => TransactionStatus::Success,
-                ]);
-
-                return;
-            }
-
-            PaymentTransaction::query()->create([
-                'order_id' => $order->id,
-                'payment_method_id' => $order->payment_method_id,
-                'driver' => 'komerce',
-                'type' => TransactionType::Capture,
-                'status' => TransactionStatus::Success,
-                'amount' => $this->remoteAmount($remotePayment, $provider) ?? (int) $order->price_amount,
-                'currency_code' => $order->currency_code,
-                'reference' => $paymentId,
-                'metadata' => [
-                    'komerce_payment_ref' => $paymentId,
-                    'komerce_provider' => $provider,
-                    'komerce_status' => $remoteStatus,
-                ],
-            ]);
-        });
-
-        if ($wasUnpaid) {
-            $this->notifyOrderCustomer->handle($order->refresh(), OrderNotificationType::Paid);
+        if ($result['status'] === 'cancelled_order' || $result['status'] === 'no_order') {
+            return $result['status'];
         }
 
-        $this->dispatchPendingDeliveries($order);
+        /** @var Order $processedOrder */
+        $processedOrder = $result['order'];
 
-        return 'handled';
+        if ($result['newly_paid']) {
+            $this->notifyOrderCustomer->handle($processedOrder->refresh(), OrderNotificationType::Paid);
+        }
+
+        $this->dispatchPendingDeliveries($processedOrder);
+
+        return $result['status'];
     }
 
     private function dispatchPendingDeliveries(Order $order): void
     {
+        if (! komerce_shipping_delivery_enabled()) {
+            return;
+        }
+
         OrderShipment::query()
             ->where('order_id', $order->id)
             ->whereNull('awb')
@@ -147,6 +177,15 @@ final class MarkOrderPaidFromKomerce
             ->each(static function (mixed $shipmentId): void {
                 CreateRajaOngkirDeliveryForShipment::dispatch((int) $shipmentId);
             });
+    }
+
+    private function isTerminallyCancelled(Order $order): bool
+    {
+        return $order->status === OrderStatus::Cancelled
+            || in_array($order->payment_status, [
+                PaymentStatus::Voided,
+                PaymentStatus::Refunded,
+            ], true);
     }
 
     private function findOrderByPaymentReference(string $paymentId): ?Order
@@ -205,7 +244,7 @@ final class MarkOrderPaidFromKomerce
 
     private function isPaidStatus(string $status): bool
     {
-        return in_array(strtoupper(trim($status)), ['PAID', 'SUCCESS', 'SUCCEEDED'], true);
+        return strtoupper(trim($status)) === 'PAID';
     }
 
     /**

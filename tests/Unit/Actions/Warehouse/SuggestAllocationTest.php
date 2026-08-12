@@ -109,7 +109,7 @@ final class SuggestAllocationTest extends TestCase
     public function test_komerce_enabled_skips_inventories_without_rajaongkir_origin(): void
     {
         config()->set('komerce.enabled', true);
-        config()->set('komerce.api_key', 'test-key');
+        config()->set('komerce.shipping_cost_api_key', 'test-key');
 
         $cart = $this->cart();
         $withoutOrigin = Inventory::factory()->create([

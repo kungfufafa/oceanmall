@@ -26,19 +26,43 @@ final class ShippingCostClient
      * @param  array<int, string>  $couriers
      * @return array<string, mixed>
      */
-    public function calculate(array $origin, array $destination, int $weightGrams, array $couriers): array
-    {
+    public function calculate(
+        array $origin,
+        array $destination,
+        int $weightGrams,
+        array $couriers,
+        ?string $price = null,
+    ): array {
         if (! array_key_exists('id', $origin) || ! array_key_exists('id', $destination)) {
             throw new InvalidArgumentException('Origin and destination must include a RajaOngkir id.');
         }
 
+        $originId = $this->positiveDestinationId($origin['id'], 'Origin');
+        $destinationId = $this->positiveDestinationId($destination['id'], 'Destination');
+
+        if ($weightGrams <= 0) {
+            throw new InvalidArgumentException('Shipping Cost weight must be greater than zero grams.');
+        }
+
+        $couriers = $this->normalizeCouriers($couriers);
+
+        if ($price !== null && ! in_array($price, ['lowest', 'highest'], true)) {
+            throw new InvalidArgumentException('Shipping Cost price must be either lowest or highest.');
+        }
+
+        $payload = [
+            'origin' => $originId,
+            'destination' => $destinationId,
+            'weight' => $weightGrams,
+            'courier' => implode(':', $couriers),
+        ];
+
+        if ($price !== null) {
+            $payload['price'] = $price;
+        }
+
         $response = $this->shippingCostHttp()
-            ->post(self::DOMESTIC_COST_ENDPOINT, [
-                'origin' => $origin['id'],
-                'destination' => $destination['id'],
-                'weight' => $weightGrams,
-                'courier' => implode(':', $couriers),
-            ])
+            ->post(self::DOMESTIC_COST_ENDPOINT, $payload)
             ->throw()
             ->json();
 
@@ -92,5 +116,51 @@ final class ShippingCostClient
             })
             ->values()
             ->all();
+    }
+
+    private function positiveDestinationId(mixed $value, string $field): int
+    {
+        if (is_bool($value)) {
+            throw new InvalidArgumentException("{$field} RajaOngkir id must be a positive integer.");
+        }
+
+        $id = filter_var($value, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+
+        if ($id === false) {
+            throw new InvalidArgumentException("{$field} RajaOngkir id must be a positive integer.");
+        }
+
+        return $id;
+    }
+
+    /**
+     * @param  array<int, string>  $couriers
+     * @return list<string>
+     */
+    private function normalizeCouriers(array $couriers): array
+    {
+        $normalized = [];
+
+        foreach ($couriers as $courier) {
+            if (! is_string($courier)) {
+                throw new InvalidArgumentException('Shipping Cost courier codes must be strings.');
+            }
+
+            $courier = strtolower(trim($courier));
+
+            if ($courier === '' || preg_match('/^[a-z0-9_-]+$/', $courier) !== 1) {
+                throw new InvalidArgumentException('Shipping Cost courier codes must contain only letters, numbers, underscores, or hyphens.');
+            }
+
+            $normalized[$courier] = true;
+        }
+
+        if ($normalized === []) {
+            throw new InvalidArgumentException('At least one Shipping Cost courier code is required.');
+        }
+
+        return array_keys($normalized);
     }
 }

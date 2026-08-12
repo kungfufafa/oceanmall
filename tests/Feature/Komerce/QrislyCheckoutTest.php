@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Komerce;
 
 use App\Actions\Checkout\CreateKomercePayment;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Order;
+use Shopper\Core\Models\OrderItem;
 use Shopper\Core\Models\PaymentMethod;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Models\PaymentTransaction;
@@ -23,7 +25,6 @@ final class QrislyCheckoutTest extends TestCase
     public function test_qrisly_enabled_requires_key_and_qris_id(): void
     {
         config()->set('komerce.enabled', null);
-        config()->set('komerce.api_key', 'x');
         config()->set('komerce.qrisly_api_key', '');
         config()->set('komerce.qrisly_qris_id', '');
         $this->assertFalse(qrisly_enabled());
@@ -38,7 +39,6 @@ final class QrislyCheckoutTest extends TestCase
 
     public function test_create_qris_uses_qrisly_when_enabled(): void
     {
-        config()->set('komerce.api_key', 'legacy');
         config()->set('komerce.payment_api_key', 'payment-key');
         config()->set('komerce.qrisly_api_key', 'qrisly-key');
         config()->set('komerce.qrisly_qris_id', '18');
@@ -91,7 +91,6 @@ final class QrislyCheckoutTest extends TestCase
 
     public function test_create_qris_falls_back_to_payment_api_when_qrisly_key_empty(): void
     {
-        config()->set('komerce.api_key', 'legacy');
         config()->set('komerce.payment_api_key', 'payment-key');
         config()->set('komerce.qrisly_api_key', '');
         config()->set('komerce.qrisly_qris_id', '');
@@ -99,13 +98,21 @@ final class QrislyCheckoutTest extends TestCase
         config()->set('komerce.webhook_secret', 'webhook-secret');
 
         $paymentMethod = PaymentMethod::factory()->create(['driver' => 'komerce', 'is_enabled' => true]);
+        $customer = User::factory()->create();
         $order = Order::factory()->create([
             'number' => 'ORD-QRIS-FALLBACK',
             'price_amount' => 25000,
             'currency_code' => 'IDR',
             'payment_method_id' => $paymentMethod->id,
+            'customer_id' => $customer->id,
             'payment_status' => PaymentStatus::Pending,
             'status' => OrderStatus::New,
+        ]);
+        OrderItem::factory()->create([
+            'order_id' => $order->id,
+            'name' => 'Produk OceanMall',
+            'quantity' => 1,
+            'unit_price_amount' => 25000,
         ]);
 
         Http::fake([

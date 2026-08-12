@@ -13,8 +13,7 @@ use App\Models\OrderShipment;
 final readonly class ApplyDeliveryWebhookStatus
 {
     public function __construct(
-        private NormalizeShipmentStatus $normalizeStatus,
-        private SyncOrderShippingFromShipments $syncOrderShipping,
+        private RefreshShipmentTracking $refreshTracking,
     ) {}
 
     /**
@@ -36,41 +35,25 @@ final readonly class ApplyDeliveryWebhookStatus
             return 'not_found';
         }
 
+        $airwayBill = $cnote ?: $shipment->awb ?: $shipment->tracking_number;
+        if (! is_scalar($airwayBill) || trim((string) $airwayBill) === '') {
+            return 'ignored';
+        }
+
+        // Set only in memory first. RefreshShipmentTracking persists it only
+        // after the authenticated provider lookup succeeds.
+        $shipment->setAttribute('awb', trim((string) $airwayBill));
+        $shipment->setAttribute('tracking_number', trim((string) $airwayBill));
+        $shipment = $this->refreshTracking->handle($shipment);
+
         $metadata = is_array($shipment->metadata) ? $shipment->metadata : [];
         $komerce = is_array($metadata['komerce'] ?? null) ? $metadata['komerce'] : [];
-        $komerce['webhook_status'] = $status;
-        $komerce['webhook_at'] = now()->toIso8601String();
-
-        if ($cnote !== null && $cnote !== '') {
-            $komerce['awb'] = $cnote;
-        }
-
-        if ($orderNo !== '') {
-            $komerce['order_no'] = $orderNo;
-        }
-
+        $komerce['webhook_reported_status'] = $status;
+        $komerce['webhook_received_at'] = now()->toIso8601String();
+        $komerce['order_no'] = $orderNo;
         $metadata['komerce'] = $komerce;
 
-        $attributes = ['metadata' => $metadata];
-
-        if ($cnote !== null && $cnote !== '') {
-            $attributes['awb'] = $cnote;
-            $attributes['tracking_number'] = $cnote;
-        }
-
-        $normalized = $this->normalizeStatus->handle($status, is_string($shipment->status) ? $shipment->status : null);
-
-        if ($normalized !== null) {
-            $attributes['status'] = $normalized;
-        }
-
-        $shipment->forceFill($attributes)->save();
-
-        $order = $shipment->order()->first();
-
-        if ($order !== null) {
-            $this->syncOrderShipping->handle($order);
-        }
+        $shipment->forceFill(['metadata' => $metadata])->save();
 
         return 'handled';
     }

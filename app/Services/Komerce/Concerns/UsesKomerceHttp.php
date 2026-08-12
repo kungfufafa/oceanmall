@@ -12,7 +12,7 @@ trait UsesKomerceHttp
 {
     protected function paymentHttp(): PendingRequest
     {
-        $this->ensureKomerceEnabled();
+        $this->ensureServiceEnabled(komerce_payment_enabled());
 
         return Http::baseUrl($this->baseUrl('komerce.payment_base_url'))
             ->timeout($this->timeout())
@@ -40,7 +40,7 @@ trait UsesKomerceHttp
 
     protected function shippingCostHttp(): PendingRequest
     {
-        $this->ensureKomerceEnabled();
+        $this->ensureServiceEnabled(komerce_shipping_cost_enabled());
 
         return Http::baseUrl($this->baseUrl('komerce.rajaongkir.cost_base_url'))
             ->timeout($this->timeout())
@@ -53,7 +53,7 @@ trait UsesKomerceHttp
 
     protected function deliveryHttp(): PendingRequest
     {
-        $this->ensureKomerceEnabled();
+        $this->ensureServiceEnabled(komerce_shipping_delivery_enabled());
 
         return Http::baseUrl($this->baseUrl('komerce.rajaongkir.delivery_base_url'))
             ->timeout($this->timeout())
@@ -64,26 +64,22 @@ trait UsesKomerceHttp
             ]);
     }
 
-    /**
-     * Guard every outbound Komerce call behind the integration switch so an
-     * unconfigured store never hits the collaborator API.
-     */
-    protected function ensureKomerceEnabled(): void
+    private function ensureServiceEnabled(bool $enabled): void
     {
-        if (! komerce_enabled()) {
+        if (! $enabled) {
             throw KomerceNotConfiguredException::make();
         }
     }
 
     private function apiKey(string $configKey): string
     {
-        $specific = trim((string) config($configKey, ''));
+        $apiKey = trim((string) config($configKey, ''));
 
-        if ($specific !== '') {
-            return $specific;
+        if ($apiKey === '') {
+            throw KomerceNotConfiguredException::make();
         }
 
-        return trim((string) config('komerce.api_key', ''));
+        return $apiKey;
     }
 
     private function baseUrl(string $key): string

@@ -8,6 +8,7 @@ use App\Domain\Payment\Adapters\KomercePaymentAdapter;
 use App\Domain\Payment\DTO\PaymentRequestData;
 use App\Domain\Payment\Services\PaymentService;
 use App\Domain\Shipping\Adapters\RajaOngkirShippingAdapter;
+use App\Domain\Shipping\DTO\DeliveryOrderRequestData;
 use App\Domain\Shipping\DTO\ShippingRateRequestData;
 use App\Domain\Shipping\Services\ShippingService;
 use App\Services\Komerce\PaymentClient;
@@ -16,6 +17,7 @@ use App\Services\Komerce\ShippingCostClient;
 use App\Services\Komerce\ShippingDeliveryClient;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
+use LogicException;
 use Tests\TestCase;
 
 class DomainServicesTest extends TestCase
@@ -28,8 +30,7 @@ class DomainServicesTest extends TestCase
             '*/api/v1/user/payment/create' => Http::response([
                 'status' => 'success',
                 'data' => [
-                    'id' => 'TRX123',
-                    'payment_reference' => 'VA888123',
+                    'payment_id' => 'TRX123',
                     'va_number' => '88812345',
                     'bank_code' => 'bca',
                     'amount' => 150000,
@@ -48,13 +49,20 @@ class DomainServicesTest extends TestCase
             paymentType: 'bank_transfer',
             channelCode: 'bca',
             customerName: 'Ahmad User',
-            customerEmail: 'ahmad@example.com'
+            customerEmail: 'ahmad@example.com',
+            customerPhone: '081234567890',
+            items: [[
+                'name' => 'Kopi Arabika',
+                'quantity' => 1,
+                'price' => 150000,
+            ]],
+            expiresInMinutes: 60,
         );
 
         $result = $service->createPayment($request);
 
         $this->assertEquals('TRX123', $result->transactionId);
-        $this->assertEquals('VA888123', $result->paymentRef);
+        $this->assertEquals('TRX123', $result->paymentRef);
         $this->assertEquals('88812345', $result->vaNumber);
         $this->assertEquals('bca', $result->bankName);
         $this->assertEquals(150000, $result->amount);
@@ -71,15 +79,10 @@ class DomainServicesTest extends TestCase
                     [
                         'code' => 'jne',
                         'name' => 'JNE Express',
-                        'costs' => [
-                            [
-                                'service' => 'REG',
-                                'description' => 'Layanan Reguler',
-                                'cost' => [
-                                    ['value' => 18000, 'etd' => '2-3 Hari'],
-                                ],
-                            ],
-                        ],
+                        'service' => 'REG',
+                        'description' => 'Layanan Reguler',
+                        'cost' => 18000,
+                        'etd' => '2-3 Hari',
                     ],
                 ],
             ], 200),
@@ -102,6 +105,33 @@ class DomainServicesTest extends TestCase
         $this->assertEquals('jne', $rates->first()->courierCode);
         $this->assertEquals('REG', $rates->first()->serviceCode);
         $this->assertEquals(18000, $rates->first()->cost);
+    }
+
+    public function test_shipping_adapter_refuses_to_invent_incomplete_delivery_payload(): void
+    {
+        $adapter = new RajaOngkirShippingAdapter(new ShippingCostClient, new ShippingDeliveryClient);
+
+        $request = new DeliveryOrderRequestData(
+            shipmentId: 1,
+            orderNumber: 'INV/2026/001',
+            originId: 123,
+            destinationSubdistrictId: 456,
+            senderName: 'OceanMall',
+            senderPhone: '081234567890',
+            receiverName: 'Ahmad User',
+            receiverPhone: '081298765432',
+            receiverAddress: 'Jl. Merdeka 1',
+            courier: 'jne',
+            service: 'REG',
+            weightInGrams: 1000,
+        );
+
+        Http::fake();
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('official Store Order plus Pickup contracts');
+
+        $adapter->createDeliveryOrder($request);
     }
 
     public function test_payment_adapter_verifies_webhook_signature_correctly(): void

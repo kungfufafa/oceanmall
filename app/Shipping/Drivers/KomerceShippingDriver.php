@@ -22,22 +22,22 @@ final class KomerceShippingDriver extends Driver
 
     public function isConfigured(): bool
     {
-        return true;
+        return komerce_shipping_delivery_enabled();
     }
 
     public function supportsRealTimeRates(): bool
     {
-        return true;
+        return false;
     }
 
     public function supportsLabels(): bool
     {
-        return true;
+        return false;
     }
 
     public function supportsTracking(): bool
     {
-        return true;
+        return false;
     }
 
     public function calculateRates(Address $from, Address $to, array $packages): Collection

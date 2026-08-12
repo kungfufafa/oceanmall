@@ -13,7 +13,7 @@ final class PaymentClientTest extends TestCase
 {
     public function test_create_virtual_account_posts_json_payload_with_api_key_header(): void
     {
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
         config()->set('komerce.timeout', 15);
 
@@ -55,7 +55,7 @@ final class PaymentClientTest extends TestCase
 
     public function test_create_qris_posts_json_payload_with_qris_payment_type(): void
     {
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
 
         Http::fake([
@@ -88,9 +88,8 @@ final class PaymentClientTest extends TestCase
         });
     }
 
-    public function test_create_virtual_account_uses_payment_api_key_over_legacy(): void
+    public function test_create_virtual_account_uses_only_payment_api_key(): void
     {
-        config()->set('komerce.api_key', 'legacy-key');
         config()->set('komerce.payment_api_key', 'payment-key');
         config()->set('komerce.qrisly_api_key', 'qrisly-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
@@ -105,7 +104,7 @@ final class PaymentClientTest extends TestCase
         (new PaymentClient)->createVirtualAccount([
             'channel_code' => 'BRIVA',
             'order_id' => 'ORDER-VA',
-            'amount' => 1000,
+            'amount' => 10000,
             'customer' => ['name' => 'A', 'email' => 'a@test', 'phone' => '1'],
         ]);
 
@@ -114,7 +113,6 @@ final class PaymentClientTest extends TestCase
 
     public function test_create_qris_uses_payment_api_key(): void
     {
-        config()->set('komerce.api_key', 'legacy-key');
         config()->set('komerce.payment_api_key', 'payment-key');
         config()->set('komerce.qrisly_api_key', 'qrisly-key');
         config()->set('komerce.qrisly_qris_id', '99');
@@ -138,7 +136,7 @@ final class PaymentClientTest extends TestCase
 
     public function test_get_status_fetches_payment_status_by_reference(): void
     {
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
 
         Http::fake([
@@ -162,9 +160,28 @@ final class PaymentClientTest extends TestCase
         });
     }
 
+    public function test_get_status_reuses_response_for_three_second_provider_limit(): void
+    {
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/status/pay_rate_limited' => Http::response([
+                'data' => ['payment_id' => 'pay_rate_limited', 'status' => 'PENDING'],
+            ]),
+        ]);
+
+        $client = new PaymentClient;
+        $first = $client->getStatus('pay_rate_limited');
+        $second = $client->getStatus('pay_rate_limited');
+
+        $this->assertSame($first, $second);
+        Http::assertSentCount(1);
+    }
+
     public function test_cancel_posts_payment_id_and_reason(): void
     {
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
 
         Http::fake([

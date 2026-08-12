@@ -19,6 +19,7 @@ use Shopper\Core\Enum\ShippingStatus;
 use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
 use Shopper\Core\Models\OrderAddress;
+use Shopper\Core\Models\OrderItem;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -43,9 +44,11 @@ final class WarehouseOpsE2ETest extends TestCase
     private function fakeKomerce(): void
     {
         config()->set('komerce.enabled', true);
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.shipping_delivery_api_key', 'test-komerce-key');
         config()->set('komerce.webhook_secret', 'webhook-secret');
         config()->set('komerce.rajaongkir.delivery_base_url', 'https://delivery.example.test');
+        config()->set('komerce.pickup_time', '10:00:00');
+        config()->set('komerce.pickup_vehicle', 'Motor');
     }
 
     /**
@@ -71,6 +74,9 @@ final class WarehouseOpsE2ETest extends TestCase
             'shipping_status' => ShippingStatus::Unfulfilled,
             'shipping_address_id' => $address->id,
             'metadata' => json_encode([
+                'komerce' => [
+                    'payment_type' => 'bank_transfer',
+                ],
                 'shipping_address' => [
                     'country_id' => 1,
                     'rajaongkir_destination_id' => '152',
@@ -80,6 +86,12 @@ final class WarehouseOpsE2ETest extends TestCase
 
         $inventory = Inventory::factory()->create([
             'name' => 'Gudang Cirebon',
+            'email' => 'gudang@oceanmall.test',
+            'phone_number' => '02311234567',
+            'street_address' => 'Jl. Gudang 10',
+            'street_address_plus' => null,
+            'city' => 'Cirebon',
+            'postal_code' => '45111',
             'rajaongkir_origin_id' => '501',
         ]);
 
@@ -93,12 +105,43 @@ final class WarehouseOpsE2ETest extends TestCase
             'cost' => 18000,
             'currency_code' => 'IDR',
             'status' => 'pending',
+            'metadata' => [
+                'rate' => [
+                    'provider' => 'shipping_delivery',
+                    'shipping_name' => 'JNE',
+                    'service_name' => 'REG23',
+                    'shipping_cost' => 18000,
+                    'shipping_cashback' => 4500,
+                    'service_fee' => 0,
+                    'additional_cost' => 0,
+                    'grandtotal' => 118000,
+                    'cod_value' => 0,
+                    'insurance_value' => 0,
+                ],
+            ],
         ]);
 
         $product = Product::factory()->standard()->create([
             'name' => 'Kopi Cirebon',
+            'sku' => 'KOPI-CIREBON-500',
             'weight_value' => 500,
             'weight_unit' => 'g',
+            'width_value' => 12,
+            'width_unit' => 'cm',
+            'height_value' => 8,
+            'height_unit' => 'cm',
+            'depth_value' => 20,
+            'depth_unit' => 'cm',
+        ]);
+
+        OrderItem::query()->create([
+            'order_id' => $order->id,
+            'name' => $product->name,
+            'sku' => $product->sku,
+            'product_type' => $product->getMorphClass(),
+            'product_id' => $product->id,
+            'quantity' => 1,
+            'unit_price_amount' => 100000,
         ]);
 
         $shipment->lines()->create([
@@ -118,20 +161,43 @@ final class WarehouseOpsE2ETest extends TestCase
 
         Http::fake([
             'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
-                'success' => true,
-                'data' => [
-                    'order_no' => 'RO-WH-1',
-                    'awb' => 'JNE-WH-1',
-                    'tracking_number' => 'JNE-WH-1',
+                'meta' => [
+                    'message' => 'Success Create New Order',
+                    'code' => 201,
+                    'status' => 'success',
                 ],
+                'data' => ['order_id' => 20001, 'order_no' => 'RO-WH-1'],
             ]),
             'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
-                'success' => true,
-                'data' => ['pickup_code' => 'PICKUP-WH'],
+                'meta' => [
+                    'message' => 'Success Request Pickup',
+                    'code' => 201,
+                    'status' => 'success',
+                ],
+                'data' => [[
+                    'status' => 'success',
+                    'order_no' => 'RO-WH-1',
+                    'awb' => 'JNE-WH-1',
+                ]],
             ]),
             'https://delivery.example.test/order/api/v1/orders/print-label*' => Http::response([
                 'meta' => ['code' => 200, 'status' => 'success'],
-                'data' => ['path' => 'https://delivery.example.test/storage/label/RO-WH-1.pdf'],
+                'data' => ['path' => '/storage/label/RO-WH-1.pdf'],
+            ]),
+            'https://delivery.example.test/order/api/v1/orders/history-airway-bill*' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success', 'message' => 'Success Fetch Airway Bill History'],
+                'data' => [
+                    'airway_bill' => 'JNE-WH-1',
+                    'last_status' => 'DELIVERED',
+                    'history' => [
+                        [
+                            'desc' => 'Package delivered to recipient',
+                            'date' => '2026-08-12 10:00:00',
+                            'code' => '200',
+                            'status' => 'DELIVERED',
+                        ],
+                    ],
+                ],
             ]),
         ]);
 
@@ -154,7 +220,7 @@ final class WarehouseOpsE2ETest extends TestCase
 
         $this->actingAs($admin)
             ->get(route('shopper.orders.fulfillment.print-label', $order))
-            ->assertRedirect('https://delivery.example.test/storage/label/RO-WH-1.pdf');
+            ->assertRedirect('https://delivery.example.test/order/storage/label/RO-WH-1.pdf');
         $payload = [
             'order_no' => 'RO-WH-1',
             'cnote' => 'JNE-WH-1',

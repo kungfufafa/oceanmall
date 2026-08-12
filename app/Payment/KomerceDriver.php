@@ -33,7 +33,7 @@ final class KomerceDriver extends Driver
 
     public function isConfigured(): bool
     {
-        return komerce_enabled();
+        return komerce_payment_enabled() || qrisly_enabled();
     }
 
     public function supportsWebhooks(): bool

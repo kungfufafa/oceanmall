@@ -25,7 +25,7 @@ final class ReusableShippingAddressTest extends TestCase
         parent::setUp();
 
         config()->set('komerce.enabled', true);
-        config()->set('komerce.api_key', 'test-key');
+        config()->set('komerce.shipping_cost_api_key', 'test-key');
 
         $manifest = public_path('build/manifest.json');
         $this->withHeader(

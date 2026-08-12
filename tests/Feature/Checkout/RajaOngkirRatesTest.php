@@ -39,7 +39,7 @@ final class RajaOngkirRatesTest extends TestCase
 
     private function fakeRajaOngkirConfig(): void
     {
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.shipping_cost_api_key', 'test-komerce-key');
         config()->set('komerce.rajaongkir.cost_base_url', 'https://shipping.example.test');
     }
 

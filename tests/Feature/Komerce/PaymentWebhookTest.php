@@ -25,7 +25,7 @@ final class PaymentWebhookTest extends TestCase
     public function test_paid_callback_marks_order_paid_once_when_remote_status_is_paid(): void
     {
         config()->set('komerce.webhook_secret', 'webhook-secret');
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
 
         $order = Order::factory()->create([
@@ -112,7 +112,7 @@ final class PaymentWebhookTest extends TestCase
     public function test_callback_rejecting_plain_secret_header_requires_hmac(): void
     {
         config()->set('komerce.webhook_secret', 'webhook-secret');
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
         Http::fake();
 
@@ -132,7 +132,7 @@ final class PaymentWebhookTest extends TestCase
     public function test_paid_callback_rejects_amount_mismatch(): void
     {
         config()->set('komerce.webhook_secret', 'webhook-secret');
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
 
         $order = Order::factory()->create([
@@ -180,7 +180,7 @@ final class PaymentWebhookTest extends TestCase
     public function test_paid_callback_can_find_order_by_komerce_payment_ref_metadata(): void
     {
         config()->set('komerce.webhook_secret', 'webhook-secret');
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
 
         $order = Order::factory()->create([

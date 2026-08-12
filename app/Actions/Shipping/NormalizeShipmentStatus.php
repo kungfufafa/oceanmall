@@ -40,19 +40,21 @@ final class NormalizeShipmentStatus
         $lower = strtolower($candidate);
 
         if (
-            str_contains($lower, 'deliver')
-            || str_contains($lower, 'selesai')
-            || in_array($upper, ['DELIVERED', 'DELIVERY_SUCCESS', 'SUCCESS', 'COMPLETED', 'POD', 'SELESAI'], true)
-        ) {
-            return self::DELIVERED;
-        }
-
-        if (
             str_contains($lower, 'cancel')
             || str_contains($lower, 'batal')
+            || str_contains($lower, 'failed')
+            || str_contains($lower, 'undeliver')
             || in_array($upper, ['CANCELLED', 'CANCELED', 'DIBATALKAN'], true)
         ) {
             return $this->stableOrNull($fallback) ?? self::LABELED;
+        }
+
+        if (
+            in_array($lower, ['delivered', 'delivery success', 'selesai'], true)
+            || (str_starts_with($lower, 'package delivered') && ! str_contains($lower, 'failed'))
+            || in_array($upper, ['DELIVERED', 'DELIVERY_SUCCESS', 'COMPLETED', 'POD', 'SELESAI'], true)
+        ) {
+            return self::DELIVERED;
         }
 
         if (
@@ -60,6 +62,7 @@ final class NormalizeShipmentStatus
             || str_contains($lower, 'on_process')
             || str_contains($lower, 'on process')
             || str_contains($lower, 'dikirim')
+            || str_contains($lower, 'out for delivery')
             || in_array($upper, ['ON_PROCESS', 'OTW', 'IN_TRANSIT', 'SHIPPING', 'PROCESS', 'DIKIRIM'], true)
         ) {
             return self::IN_TRANSIT;

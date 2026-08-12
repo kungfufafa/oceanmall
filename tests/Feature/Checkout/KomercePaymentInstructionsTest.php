@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Http;
 use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Order;
+use Shopper\Core\Models\OrderItem;
 use Shopper\Core\Models\PaymentMethod;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Enum\TransactionType;
@@ -26,7 +27,6 @@ final class KomercePaymentInstructionsTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('komerce.api_key', 'test-komerce-key');
         config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
         config()->set('komerce.webhook_secret', 'webhook-secret');
@@ -36,7 +36,7 @@ final class KomercePaymentInstructionsTest extends TestCase
     public function test_create_payment_persists_instructions_on_order_metadata(): void
     {
         Http::fake([
-            'payment.example.test/*' => Http::response([
+            'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
                 'success' => true,
                 'data' => [
                     'payment_id' => 'KOMPAY-PERSIST-1',
@@ -64,6 +64,12 @@ final class KomercePaymentInstructionsTest extends TestCase
             'currency_code' => 'IDR',
             'number' => 'ORD-PERSIST-1',
             'metadata' => json_encode([]),
+        ]);
+        OrderItem::factory()->create([
+            'order_id' => $order->id,
+            'name' => 'Produk OceanMall',
+            'quantity' => 1,
+            'unit_price_amount' => 150000,
         ]);
 
         $instructions = resolve(CreateKomercePayment::class)->handle($order, [
@@ -195,7 +201,19 @@ final class KomercePaymentInstructionsTest extends TestCase
     public function test_customer_can_retry_komerce_payment_for_pending_order(): void
     {
         Http::fake([
-            'payment.example.test/*' => Http::response([
+            'https://payment.example.test/user/api/v1/user/payment/status/KOMPAY-RETRY-OLD' => Http::response([
+                'data' => [
+                    'payment_id' => 'KOMPAY-RETRY-OLD',
+                    'status' => 'PENDING',
+                ],
+            ], 200),
+            'https://payment.example.test/user/api/v1/user/payment/cancel' => Http::response([
+                'data' => [
+                    'payment_id' => 'KOMPAY-RETRY-OLD',
+                    'status' => 'CANCELED',
+                ],
+            ], 200),
+            'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
                 'success' => true,
                 'data' => [
                     'payment_id' => 'KOMPAY-RETRY-2',
@@ -228,6 +246,12 @@ final class KomercePaymentInstructionsTest extends TestCase
                 ],
             ], JSON_THROW_ON_ERROR),
         ]);
+        OrderItem::factory()->create([
+            'order_id' => $order->id,
+            'name' => 'Produk OceanMall',
+            'quantity' => 1,
+            'unit_price_amount' => 88000,
+        ]);
 
         PaymentTransaction::query()->create([
             'order_id' => $order->id,
@@ -249,6 +273,11 @@ final class KomercePaymentInstructionsTest extends TestCase
         $meta = json_decode((string) $order->getAttribute('metadata'), true);
         $this->assertSame('5555666677', data_get($meta, 'komerce.payment_instructions.virtual_account_number'));
         $this->assertSame('KOMPAY-RETRY-2', data_get($meta, 'komerce.payment_instructions.payment_id'));
+        $this->assertDatabaseHas((new PaymentTransaction)->getTable(), [
+            'reference' => 'KOMPAY-RETRY-OLD',
+            'status' => TransactionStatus::Failed->value,
+        ]);
+        Http::assertSentCount(3);
     }
 
     public function test_customer_can_sync_pending_komerce_payment_to_paid(): void

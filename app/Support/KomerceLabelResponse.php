@@ -28,13 +28,25 @@ final class KomerceLabelResponse
             $value = trim($value);
 
             if (preg_match('#^https?://#i', $value) === 1) {
-                return $value;
+                $base = rtrim((string) ($deliveryBaseUrl ?? config('komerce.rajaongkir.delivery_base_url', '')), '/');
+                $baseHost = parse_url($base, PHP_URL_HOST);
+                $valueHost = parse_url($value, PHP_URL_HOST);
+
+                return $baseHost !== null && $baseHost === $valueHost ? $value : null;
             }
 
             if (str_starts_with($value, '/')) {
                 $base = rtrim((string) ($deliveryBaseUrl ?? config('komerce.rajaongkir.delivery_base_url', '')), '/');
 
-                return $base !== '' ? $base.$value : null;
+                if ($base === '') {
+                    return null;
+                }
+
+                // Official response returns `/storage/...`; the download URL
+                // is served below the Shipping Delivery `/order` prefix.
+                $path = str_starts_with($value, '/order/') ? $value : '/order'.$value;
+
+                return $base.$path;
             }
         }
 
@@ -55,7 +67,7 @@ final class KomerceLabelResponse
 
             $decoded = base64_decode(trim($value), true);
 
-            if ($decoded !== false && $decoded !== '') {
+            if ($decoded !== false && str_starts_with($decoded, '%PDF-')) {
                 return $decoded;
             }
         }

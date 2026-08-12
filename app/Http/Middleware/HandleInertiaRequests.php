@@ -93,7 +93,7 @@ class HandleInertiaRequests extends Middleware
     private function footerPaymentMethods(): array
     {
         $stripeEnabled = (bool) config('shopper.payment.drivers.stripe.enabled', false);
-        $komerceEnabled = komerce_enabled();
+        $komerceEnabled = komerce_payment_enabled() || qrisly_enabled();
 
         return Cache::remember(
             'footer.payment_methods.v4.'.$this->commerceCatalogSignature($stripeEnabled, $komerceEnabled),
@@ -142,7 +142,7 @@ class HandleInertiaRequests extends Middleware
      */
     private function footerShippingCouriers(): array
     {
-        $komerceEnabled = komerce_enabled();
+        $komerceEnabled = komerce_shipping_cost_enabled();
         /** @var \Closure(Carrier): ?string $logoResolver */
         $logoResolver = app('shopper.carrier.logo');
 

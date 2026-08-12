@@ -35,3 +35,5 @@ frankenphp
 frankenphp-worker.php
 /.omo/
 /storage/media-library
+graphify-out/
+**/graphify-out/

@@ -18,8 +18,8 @@ final class RefreshPendingShipmentTracking extends Command
 
     public function handle(RefreshShipmentTracking $refresh): int
     {
-        if (! komerce_enabled()) {
-            $this->info('Komerce is disabled; skipping tracking refresh.');
+        if (! komerce_shipping_delivery_enabled()) {
+            $this->info('Komerce Shipping Delivery is disabled; skipping tracking refresh.');
 
             return self::SUCCESS;
         }

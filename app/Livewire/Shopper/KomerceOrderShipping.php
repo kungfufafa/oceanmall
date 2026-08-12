@@ -242,7 +242,7 @@ final class KomerceOrderShipping extends Component
         return view('livewire.shopper.komerce-order-shipping', [
             'shipments' => $shipments,
             'inventories' => $inventories,
-            'komerceEnabled' => komerce_enabled(),
+            'komerceEnabled' => komerce_shipping_delivery_enabled(),
             'canPrintAnyLabel' => $printableCount > 0,
             'printableShipmentCount' => $printableCount,
             'hasUnprocessedShipment' => $hasUnprocessed,

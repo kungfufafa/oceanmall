@@ -22,7 +22,7 @@ final class KomercePaymentWebhookController extends Controller
             return response()->json(['status' => 'invalid_secret'], 401);
         }
 
-        if (! komerce_enabled()) {
+        if (! komerce_payment_enabled()) {
             return response()->json(['status' => 'disabled'], 503);
         }
 
@@ -43,7 +43,7 @@ final class KomercePaymentWebhookController extends Controller
 
         return match ($status) {
             'no_transaction', 'no_order' => response()->json(['status' => $status], 404),
-            'not_paid' => response()->json(['status' => $status], 409),
+            'not_paid', 'cancelled_order' => response()->json(['status' => $status], 409),
             'amount_mismatch' => response()->json(['status' => $status], 422),
             default => response()->json(['status' => $status]),
         };

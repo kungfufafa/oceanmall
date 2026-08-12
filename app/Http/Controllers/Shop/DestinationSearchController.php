@@ -14,7 +14,7 @@ final class DestinationSearchController extends Controller
 {
     public function __invoke(Request $request, ShippingCostClient $client): JsonResponse
     {
-        if (! komerce_enabled()) {
+        if (! komerce_shipping_cost_enabled()) {
             return response()->json(['data' => []]);
         }
 

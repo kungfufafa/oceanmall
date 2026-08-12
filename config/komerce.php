@@ -5,14 +5,13 @@ declare(strict_types=1);
 $komerceEnabled = env('KOMERCE_ENABLED');
 
 /*
- * Per-service keys mirror https://collaborator.komerce.id/settings (Api Key List).
- * KOMERCE_API_KEY remains as a legacy single-key fallback for local/tests.
- * Empty dedicated keys fall through to the legacy key (or Payment for QRISLY).
+ * Komerce issues independent credentials for Payment, Shipping Cost, Shipping
+ * Delivery, and QRISLY. A key from one product must never authenticate another
+ * product, so every integration reads only its dedicated environment variable.
  */
-$legacyApiKey = trim((string) env('KOMERCE_API_KEY', ''));
-$paymentApiKey = trim((string) env('KOMERCE_PAYMENT_API_KEY', '')) ?: $legacyApiKey;
-$shippingCostApiKey = trim((string) env('KOMERCE_SHIPPING_COST_API_KEY', '')) ?: $legacyApiKey;
-$shippingDeliveryApiKey = trim((string) env('KOMERCE_SHIPPING_DELIVERY_API_KEY', '')) ?: $legacyApiKey;
+$paymentApiKey = trim((string) env('KOMERCE_PAYMENT_API_KEY', ''));
+$shippingCostApiKey = trim((string) env('KOMERCE_SHIPPING_COST_API_KEY', ''));
+$shippingDeliveryApiKey = trim((string) env('KOMERCE_SHIPPING_DELIVERY_API_KEY', ''));
 /*
  * QRISLY is opt-in: leave KOMERCE_QRISLY_API_KEY empty to skip the QRISLY product
  * and keep using Payment API QRIS instead. Do not fall back to the Payment key.
@@ -20,8 +19,6 @@ $shippingDeliveryApiKey = trim((string) env('KOMERCE_SHIPPING_DELIVERY_API_KEY',
 $qrislyApiKey = trim((string) env('KOMERCE_QRISLY_API_KEY', ''));
 
 return [
-    'api_key' => $legacyApiKey,
-
     'payment_api_key' => $paymentApiKey,
 
     'shipping_cost_api_key' => $shippingCostApiKey,
@@ -45,11 +42,11 @@ return [
 
     /*
      * Master switch for the Komerce collaborator integration (payment + RajaOngkir).
-     * Leave KOMERCE_ENABLED unset to auto-detect: the integration is considered
-     * enabled only when at least one service API key is filled in. Set
+     * Leave KOMERCE_ENABLED unset to auto-detect: each service is considered
+     * ready only when its own required credentials are filled in. Set
      * KOMERCE_ENABLED=false to force it off even when keys are present
      * (mirrors PAYMENT_STRIPE_ENABLED). `null` here means "auto-detect from
-     * the API keys" (resolved by komerce_enabled()).
+     * service credentials" (resolved by the helpers in app/helpers.php).
      */
     'enabled' => $komerceEnabled === null
         ? null
@@ -68,7 +65,7 @@ return [
 
     'pickup_vehicle' => env('KOMERCE_PICKUP_VEHICLE', 'Motor'),
 
-    'pickup_time' => env('KOMERCE_PICKUP_TIME', '10:00'),
+    'pickup_time' => env('KOMERCE_PICKUP_TIME', '10:00:00'),
 
     'timeout' => (int) env('KOMERCE_TIMEOUT', 30),
 ];

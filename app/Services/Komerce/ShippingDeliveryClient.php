@@ -11,7 +11,15 @@ final class ShippingDeliveryClient
 {
     use UsesKomerceHttp;
 
+    private const SEARCH_DESTINATION_ENDPOINT = '/tariff/api/v1/destination/search';
+
+    private const CALCULATE_ENDPOINT = '/tariff/api/v1/calculate';
+
     private const STORE_ORDER_ENDPOINT = '/order/api/v1/orders/store';
+
+    private const DETAIL_ORDER_ENDPOINT = '/order/api/v1/orders/detail';
+
+    private const CANCEL_ORDER_ENDPOINT = '/order/api/v1/orders/cancel';
 
     private const REQUEST_PICKUP_ENDPOINT = '/order/api/v1/pickup/request';
 
@@ -28,14 +36,81 @@ final class ShippingDeliveryClient
 
     public const DEFAULT_LABEL_PAGE = 'page_5';
 
-    public function getExpeditionsRaw(): array
+    /**
+     * Search a Shipping Delivery destination by address keyword.
+     *
+     * @return array<string, mixed>
+     */
+    public function searchDestinations(string $keyword): array
     {
-        return $this->deliveryHttp()->get('/v1/expedition')->json() ?: [];
+        $keyword = trim($keyword);
+
+        if ($keyword === '') {
+            throw new InvalidArgumentException('Shipping Delivery destination keyword is required.');
+        }
+
+        $response = $this->deliveryHttp()
+            ->get(self::SEARCH_DESTINATION_ENDPOINT, ['keyword' => $keyword])
+            ->throw()
+            ->json();
+
+        return is_array($response) ? $response : [];
     }
 
     /**
+     * Calculate a Shipping Delivery tariff.
      *
-     * Assumed payload follows the official store-order schema:
+     * Shipping Delivery documents `weight` in kilograms. This method names and
+     * validates that unit explicitly so it cannot be confused with the Shipping
+     * Cost API, whose similarly named field is measured in grams.
+     *
+     * @return array<string, mixed>
+     */
+    public function calculate(
+        int|string $shipperDestinationId,
+        int|string $receiverDestinationId,
+        string $originPinPoint,
+        string $destinationPinPoint,
+        float $weightKilograms,
+        int $itemValue,
+        ?bool $cod = null,
+    ): array {
+        $shipperDestinationId = $this->positiveDestinationId($shipperDestinationId, 'Shipper');
+        $receiverDestinationId = $this->positiveDestinationId($receiverDestinationId, 'Receiver');
+        $originPinPoint = $this->pinPoint($originPinPoint, 'Origin');
+        $destinationPinPoint = $this->pinPoint($destinationPinPoint, 'Destination');
+
+        if (! is_finite($weightKilograms) || $weightKilograms <= 0) {
+            throw new InvalidArgumentException('Shipping Delivery weight must be greater than zero kilograms.');
+        }
+
+        if ($itemValue < 0) {
+            throw new InvalidArgumentException('Shipping Delivery item value cannot be negative.');
+        }
+
+        $query = [
+            'shipper_destination_id' => $shipperDestinationId,
+            'receiver_destination_id' => $receiverDestinationId,
+            'origin_pin_point' => $originPinPoint,
+            'destination_pin_point' => $destinationPinPoint,
+            'weight' => $weightKilograms,
+            'item_value' => $itemValue,
+        ];
+
+        if ($cod !== null) {
+            $query['cod'] = $cod ? 'yes' : 'no';
+        }
+
+        $response = $this->deliveryHttp()
+            ->get(self::CALCULATE_ENDPOINT, $query)
+            ->throw()
+            ->json();
+
+        return is_array($response) ? $response : [];
+    }
+
+    /**
+     * Payload follows the official store-order schema:
      * order_date, brand_name, shipper_*, receiver_*, shipping, shipping_type,
      * shipping_cost, payment_method, order_details, etc.
      *
@@ -44,8 +119,49 @@ final class ShippingDeliveryClient
      */
     public function storeOrder(array $payload): array
     {
+        if ($payload === []) {
+            throw new InvalidArgumentException('Shipping Delivery store-order payload cannot be empty.');
+        }
+
         $response = $this->deliveryHttp()
             ->post(self::STORE_ORDER_ENDPOINT, $payload)
+            ->throw()
+            ->json();
+
+        return is_array($response) ? $response : [];
+    }
+
+    /**
+     * Fetch one Shipping Delivery order by its order number.
+     *
+     * @return array<string, mixed>
+     */
+    public function detailOrder(string $orderNo): array
+    {
+        $orderNo = $this->orderNo($orderNo);
+
+        $response = $this->deliveryHttp()
+            ->get(self::DETAIL_ORDER_ENDPOINT, ['order_no' => $orderNo])
+            ->throw()
+            ->json();
+
+        return is_array($response) ? $response : [];
+    }
+
+    /**
+     * Cancel one Shipping Delivery order.
+     *
+     * The documented request schema contains only `order_no`; no undocumented
+     * cancellation-reason field is invented here.
+     *
+     * @return array<string, mixed>
+     */
+    public function cancelOrder(string $orderNo): array
+    {
+        $response = $this->deliveryHttp()
+            ->put(self::CANCEL_ORDER_ENDPOINT, [
+                'order_no' => $this->orderNo($orderNo),
+            ])
             ->throw()
             ->json();
 
@@ -132,5 +248,54 @@ final class ShippingDeliveryClient
             ->json();
 
         return is_array($response) ? $response : [];
+    }
+
+    private function positiveDestinationId(int|string $value, string $field): int
+    {
+        $id = filter_var($value, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+
+        if ($id === false) {
+            throw new InvalidArgumentException("{$field} destination id must be a positive integer.");
+        }
+
+        return $id;
+    }
+
+    private function pinPoint(string $value, string $field): string
+    {
+        $parts = array_map('trim', explode(',', trim($value)));
+
+        if (count($parts) !== 2 || ! is_numeric($parts[0]) || ! is_numeric($parts[1])) {
+            throw new InvalidArgumentException("{$field} pin point must use the latitude,longitude format.");
+        }
+
+        $latitude = (float) $parts[0];
+        $longitude = (float) $parts[1];
+
+        if (
+            ! is_finite($latitude)
+            || ! is_finite($longitude)
+            || $latitude < -90
+            || $latitude > 90
+            || $longitude < -180
+            || $longitude > 180
+        ) {
+            throw new InvalidArgumentException("{$field} pin point contains an invalid latitude or longitude.");
+        }
+
+        return $parts[0].','.$parts[1];
+    }
+
+    private function orderNo(string $orderNo): string
+    {
+        $orderNo = trim($orderNo);
+
+        if ($orderNo === '') {
+            throw new InvalidArgumentException('Shipping Delivery order number is required.');
+        }
+
+        return $orderNo;
     }
 }

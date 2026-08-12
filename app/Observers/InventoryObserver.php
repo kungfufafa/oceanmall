@@ -12,7 +12,7 @@ final class InventoryObserver
 {
     public function saving(Inventory $inventory): void
     {
-        if (! komerce_enabled()) {
+        if (! komerce_shipping_cost_enabled()) {
             return;
         }
 
@@ -66,34 +66,103 @@ final class InventoryObserver
      */
     private function findBestOriginId(array $results, string $street, string $city, string $state, string $postalCode): ?string
     {
-        $normalizedStreet = strtolower($street);
-        $normalizedCity = strtolower($city);
+        $candidates = array_values(array_filter(
+            $results,
+            static fn (mixed $row): bool => is_array($row)
+                && isset($row['id'])
+                && trim((string) $row['id']) !== '',
+        ));
 
-        // 1. Try to find a row where subdistrict or district name appears in street address
-        foreach ($results as $row) {
-            $subdistrict = strtolower((string) ($row['subdistrict_name'] ?? ''));
-            $district = strtolower((string) ($row['district_name'] ?? ''));
+        if ($candidates === []) {
+            return null;
+        }
 
-            if ($subdistrict !== '' && str_contains($normalizedStreet, $subdistrict)) {
-                return (string) $row['id'];
+        $hasVerifiedMatch = false;
+
+        if ($postalCode !== '') {
+            $candidates = array_values(array_filter(
+                $candidates,
+                static fn (array $row): bool => trim((string) ($row['zip_code'] ?? '')) === $postalCode,
+            ));
+
+            if ($candidates === []) {
+                return null;
             }
 
-            if ($district !== '' && str_contains($normalizedStreet, $district)) {
-                return (string) $row['id'];
+            $hasVerifiedMatch = true;
+        }
+
+        $normalizedStreet = $this->normalize($street);
+        if ($normalizedStreet !== '') {
+            $streetMatches = array_values(array_filter(
+                $candidates,
+                function (array $row) use ($normalizedStreet): bool {
+                    foreach (['subdistrict_name', 'district_name'] as $field) {
+                        $place = $this->normalize((string) ($row[$field] ?? ''));
+
+                        if ($place !== '' && str_contains($normalizedStreet, $place)) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                },
+            ));
+
+            if ($streetMatches !== []) {
+                $candidates = $streetMatches;
+                $hasVerifiedMatch = true;
             }
         }
 
-        // 2. Try to find a row matching city name and postal code
-        foreach ($results as $row) {
-            $rowCity = strtolower((string) ($row['city_name'] ?? ''));
-            $rowZip = (string) ($row['zip_code'] ?? '');
+        foreach ([
+            'city_name' => $city,
+            'province_name' => $state,
+        ] as $field => $expected) {
+            $expected = $this->normalize($expected);
 
-            if ($rowCity !== '' && (str_contains($normalizedCity, $rowCity) || str_contains($rowCity, $normalizedCity)) && ($postalCode === '' || $rowZip === $postalCode)) {
-                return (string) $row['id'];
+            if ($expected === '') {
+                continue;
             }
+
+            $fieldMatches = array_values(array_filter(
+                $candidates,
+                function (array $row) use ($field, $expected): bool {
+                    $actual = $this->normalize((string) ($row[$field] ?? ''));
+
+                    return $actual !== ''
+                        && (str_contains($actual, $expected) || str_contains($expected, $actual));
+                },
+            ));
+
+            $knownFieldRows = array_filter(
+                $candidates,
+                fn (array $row): bool => $this->normalize((string) ($row[$field] ?? '')) !== '',
+            );
+
+            if ($knownFieldRows !== [] && $fieldMatches === []) {
+                return null;
+            }
+
+            if ($fieldMatches === []) {
+                continue;
+            }
+
+            $candidates = $fieldMatches;
+            $hasVerifiedMatch = true;
         }
 
-        // 3. Fallback to first result's ID
-        return isset($results[0]['id']) ? (string) $results[0]['id'] : null;
+        // The search endpoint returns candidates, not a guaranteed canonical
+        // match. Persist only one result supported by supplied address data.
+        if (! $hasVerifiedMatch || count($candidates) !== 1) {
+            return null;
+        }
+
+        return (string) $candidates[0]['id'];
+    }
+
+    private function normalize(string $value): string
+    {
+        return strtolower(trim((string) preg_replace('/\s+/', ' ', $value)));
     }
 }

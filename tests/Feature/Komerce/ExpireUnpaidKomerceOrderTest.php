@@ -25,7 +25,7 @@ final class ExpireUnpaidKomerceOrderTest extends TestCase
 
     public function test_expire_command_cancels_unpaid_order_and_restores_stock(): void
     {
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.enabled', true);
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
 
@@ -103,7 +103,7 @@ final class ExpireUnpaidKomerceOrderTest extends TestCase
 
     public function test_expire_command_skips_orders_not_yet_expired(): void
     {
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.enabled', true);
 
         Http::fake();

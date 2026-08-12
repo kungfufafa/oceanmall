@@ -6,6 +6,7 @@ namespace App\Actions\Checkout;
 
 use App\Services\Komerce\ShippingCostClient;
 use App\Support\EnabledCarriers;
+use App\Support\KomerceCourierAssets;
 use Illuminate\Support\Facades\Cache;
 use Shopper\Core\Models\Carrier;
 use Shopper\Core\Models\Country;
@@ -71,7 +72,7 @@ final class FetchDeliveryRates
      */
     private function rajaOngkirRates(array $shippingAddress, array $packages, ?int $originInventoryId = null): ?array
     {
-        if (! komerce_enabled()) {
+        if (! komerce_shipping_cost_enabled()) {
             return null;
         }
 
@@ -203,7 +204,7 @@ final class FetchDeliveryRates
             $dbCarrier = $dbCarriers->get($carrierCode) ?? $dbCarriers->get($carrierCode === 'idexpress' ? 'ide' : ($carrierCode === 'ide' ? 'idexpress' : $carrierCode));
             $logoUrl = data_get($dbCarrier?->metadata, 'logo_url')
                 ?? $dbCarrier?->logo()
-                ?? \App\Support\KomerceCourierAssets::logoUrl($carrierCode);
+                ?? KomerceCourierAssets::logoUrl($carrierCode);
 
             $costRows = isset($carrierRow['costs']) && is_array($carrierRow['costs'])
                 ? $carrierRow['costs']

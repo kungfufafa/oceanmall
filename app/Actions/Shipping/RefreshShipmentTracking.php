@@ -37,6 +37,12 @@ final readonly class RefreshShipmentTracking
         }
 
         $response = $this->delivery->track($awb, $shipping);
+        $providerAwb = data_get($response, 'data.airway_bill');
+
+        if (is_scalar($providerAwb) && trim((string) $providerAwb) !== ''
+            && strcasecmp(trim((string) $providerAwb), $awb) !== 0) {
+            throw new RuntimeException('Shipping Delivery tracking response returned a different airway bill.');
+        }
 
         $history = $this->normalizeHistory($response);
         $rawStatus = $this->resolveRawStatus($response, $history);
@@ -126,8 +132,8 @@ final readonly class RefreshShipmentTracking
 
                 $description = data_get($entry, 'manifest_description')
                     ?? data_get($entry, 'description')
-                    ?? data_get($entry, 'status')
-                    ?? data_get($entry, 'desc');
+                    ?? data_get($entry, 'desc')
+                    ?? data_get($entry, 'status');
 
                 $location = data_get($entry, 'city_name')
                     ?? data_get($entry, 'city')
@@ -149,7 +155,7 @@ final readonly class RefreshShipmentTracking
      */
     private function resolveRawStatus(array $response, array $history): ?string
     {
-        foreach (['data.status', 'data.delivery_status', 'data.summary.status', 'status'] as $path) {
+        foreach (['data.last_status', 'data.status', 'data.delivery_status', 'data.summary.status', 'status'] as $path) {
             $value = data_get($response, $path);
 
             if (is_scalar($value) && trim((string) $value) !== '') {

@@ -14,7 +14,6 @@ final class QrislyClientTest extends TestCase
 {
     public function test_generate_qris_posts_to_qrisly_endpoint_with_api_key(): void
     {
-        config()->set('komerce.api_key', 'legacy');
         config()->set('komerce.qrisly_api_key', 'qrisly-key');
         config()->set('komerce.qrisly_qris_id', '18');
         config()->set('komerce.qrisly_base_url', 'https://qrisly.example.test/user');
@@ -75,7 +74,6 @@ final class QrislyClientTest extends TestCase
     public function test_client_throws_when_qrisly_disabled(): void
     {
         config()->set('komerce.enabled', true);
-        config()->set('komerce.api_key', 'x');
         config()->set('komerce.qrisly_api_key', '');
         config()->set('komerce.qrisly_qris_id', '');
 

@@ -53,7 +53,7 @@ final class CreateShippingLabel extends BaseCreateShippingLabel
             ->first();
 
         // If AWB is not yet generated, auto-trigger creation via Komerce API before saving Shopper native fulfillment
-        if ($shipment && (! $shipment->awb && ! $shipment->tracking_number) && komerce_enabled()) {
+        if ($shipment && (! $shipment->awb && ! $shipment->tracking_number) && komerce_shipping_delivery_enabled()) {
             try {
                 $deliveryClient = resolve(ShippingDeliveryClient::class);
                 (new CreateRajaOngkirDeliveryForShipment((int) $shipment->id))->handle($deliveryClient);

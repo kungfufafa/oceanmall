@@ -23,7 +23,6 @@ final class KomerceDisabledTest extends TestCase
 
     private function disableKomerce(): void
     {
-        config()->set('komerce.api_key', '');
         config()->set('komerce.payment_api_key', '');
         config()->set('komerce.shipping_cost_api_key', '');
         config()->set('komerce.shipping_delivery_api_key', '');
@@ -50,12 +49,15 @@ final class KomerceDisabledTest extends TestCase
         $this->assertFalse(komerce_enabled());
     }
 
-    public function test_komerce_is_enabled_when_api_key_present(): void
+    public function test_legacy_general_key_does_not_enable_any_service(): void
     {
         config()->set('komerce.enabled', null);
         config()->set('komerce.api_key', 'live-key');
 
-        $this->assertTrue(komerce_enabled());
+        $this->assertFalse(komerce_enabled());
+        $this->assertFalse(komerce_payment_enabled());
+        $this->assertFalse(komerce_shipping_cost_enabled());
+        $this->assertFalse(komerce_shipping_delivery_enabled());
     }
 
     public function test_komerce_is_enabled_when_only_shipping_cost_key_present(): void
@@ -68,10 +70,11 @@ final class KomerceDisabledTest extends TestCase
 
     public function test_explicit_disable_flag_overrides_a_present_api_key(): void
     {
-        config()->set('komerce.api_key', 'live-key');
+        config()->set('komerce.payment_api_key', 'payment-key');
         config()->set('komerce.enabled', false);
 
         $this->assertFalse(komerce_enabled());
+        $this->assertFalse(komerce_payment_enabled());
     }
 
     public function test_delivery_client_throws_when_disabled(): void

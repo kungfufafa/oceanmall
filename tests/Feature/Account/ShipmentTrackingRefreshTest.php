@@ -23,7 +23,7 @@ final class ShipmentTrackingRefreshTest extends TestCase
 
     private function fakeDeliveryConfig(): void
     {
-        config()->set('komerce.api_key', 'test-komerce-key');
+        config()->set('komerce.shipping_delivery_api_key', 'test-komerce-key');
         config()->set('komerce.rajaongkir.delivery_base_url', 'https://delivery.example.test');
     }
 
@@ -63,19 +63,20 @@ final class ShipmentTrackingRefreshTest extends TestCase
             'https://delivery.example.test/order/api/v1/orders/history-airway-bill*' => Http::response([
                 'meta' => ['code' => 200, 'status' => 'success'],
                 'data' => [
-                    'status' => 'ON_PROCESS',
-                    'manifest' => [
+                    'airway_bill' => 'JNE123456789',
+                    'last_status' => 'ON_PROCESS',
+                    'history' => [
                         [
-                            'manifest_description' => 'Shipment received by courier',
-                            'manifest_date' => '2026-08-01',
-                            'manifest_time' => '09:00',
-                            'city_name' => 'Jakarta',
+                            'desc' => 'Shipment received by courier',
+                            'date' => '2026-08-01 09:00',
+                            'code' => '100',
+                            'status' => 'ON_PROCESS',
                         ],
                         [
-                            'manifest_description' => 'In transit to destination',
-                            'manifest_date' => '2026-08-02',
-                            'manifest_time' => '14:30',
-                            'city_name' => 'Cirebon',
+                            'desc' => 'In transit to destination',
+                            'date' => '2026-08-02 14:30',
+                            'code' => '101',
+                            'status' => 'ON_PROCESS',
                         ],
                     ],
                 ],
@@ -102,7 +103,7 @@ final class ShipmentTrackingRefreshTest extends TestCase
         $this->assertCount(2, $history);
         $this->assertSame('Shipment received by courier', $history[0]['description']);
         $this->assertSame('2026-08-01 09:00', $history[0]['datetime']);
-        $this->assertSame('Jakarta', $history[0]['location']);
+        $this->assertNull($history[0]['location']);
         $this->assertSame('ON_PROCESS', data_get($shipment->metadata, 'komerce.tracking_status'));
         $this->assertSame(NormalizeShipmentStatus::IN_TRANSIT, $shipment->status);
 
@@ -118,11 +119,14 @@ final class ShipmentTrackingRefreshTest extends TestCase
             'https://delivery.example.test/order/api/v1/orders/history-airway-bill*' => Http::response([
                 'meta' => ['code' => 200, 'status' => 'success'],
                 'data' => [
-                    'status' => 'DELIVERED',
-                    'manifest' => [
+                    'airway_bill' => 'JNE123456789',
+                    'last_status' => 'DELIVERED',
+                    'history' => [
                         [
-                            'manifest_description' => 'Package delivered to recipient',
-                            'manifest_date' => '2026-08-03',
+                            'desc' => 'Package delivered to recipient',
+                            'date' => '2026-08-03',
+                            'code' => '200',
+                            'status' => 'DELIVERED',
                             'manifest_time' => '11:00',
                             'city_name' => 'Bandung',
                         ],

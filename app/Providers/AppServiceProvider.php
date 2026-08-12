@@ -12,7 +12,6 @@ use App\Livewire\Shopper\KomerceOrderShipping;
 use App\Models\OrderShipment;
 use App\Models\User;
 use App\Observers\InventoryObserver;
-use App\Observers\OrderObserver;
 use App\Observers\OrderShipmentObserver;
 use Shopper\Core\Models\Inventory;
 use App\Payment\KomerceDriver;
@@ -53,7 +52,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Order::observe(OrderObserver::class);
         OrderShipment::observe(OrderShipmentObserver::class);
         Inventory::observe(InventoryObserver::class);
 
@@ -105,7 +103,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Payment::extend('komerce', static fn (): KomerceDriver => new KomerceDriver);
 
-        config()->set('shopper.payment.drivers.komerce.enabled', true);
+        config()->set('shopper.payment.drivers.komerce.enabled', komerce_payment_enabled() || qrisly_enabled());
     }
 
     protected function configureShopperShipping(): void
@@ -113,8 +111,8 @@ class AppServiceProvider extends ServiceProvider
         Shipping::extend('rajaongkir', static fn (): RajaOngkirDriver => new RajaOngkirDriver);
         Shipping::extend('komerce', static fn (): KomerceShippingDriver => new KomerceShippingDriver);
 
-        config()->set('shopper.shipping.drivers.rajaongkir.enabled', true);
-        config()->set('shopper.shipping.drivers.komerce.enabled', true);
+        config()->set('shopper.shipping.drivers.rajaongkir.enabled', komerce_shipping_cost_enabled());
+        config()->set('shopper.shipping.drivers.komerce.enabled', komerce_shipping_delivery_enabled());
     }
 
     protected function configureShopperLogos(): void

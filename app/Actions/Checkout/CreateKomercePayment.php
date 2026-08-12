@@ -34,8 +34,16 @@ final class CreateKomercePayment
     {
         $paymentType = (string) ($selectedMethod['payment_type'] ?? 'bank_transfer');
 
+        if (! in_array($paymentType, ['bank_transfer', 'qris'], true)) {
+            throw new RuntimeException('Unsupported Komerce payment type.');
+        }
+
         if ($paymentType === 'qris' && qrisly_enabled()) {
             return $this->createViaQrisly($order);
+        }
+
+        if (! komerce_payment_enabled()) {
+            throw new RuntimeException('Komerce Payment API is not configured.');
         }
 
         return $this->createViaPaymentApi($order, $selectedMethod, $paymentType);
@@ -50,21 +58,30 @@ final class CreateKomercePayment
         $channelCode = $selectedMethod['channel_code'] ?? null;
 
         if ($paymentType === 'bank_transfer' && ($channelCode === null || $channelCode === '')) {
-            $channelCode = 'BCA';
+            throw new RuntimeException('Komerce virtual account requires an explicit payment channel.');
+        }
+
+        if ($paymentType === 'bank_transfer' && (int) $order->price_amount < 10_000) {
+            throw new RuntimeException('Komerce virtual account requires a minimum amount of Rp10,000.');
         }
 
         $customer = $order->customer;
         $firstName = (string) ($customer?->first_name ?? '');
         $lastName = (string) ($customer?->last_name ?? '');
-        $customerName = trim("{$firstName} {$lastName}") ?: 'Customer';
+        $customerName = trim("{$firstName} {$lastName}");
+        $customerEmail = trim((string) ($customer?->email ?? ''));
         $customerPhone = $this->customerPhone($order, $customer);
+
+        if ($customerName === '' || $customerEmail === '') {
+            throw new RuntimeException('Komerce payment requires the customer name and email from the order.');
+        }
 
         $payload = [
             'order_id' => $order->number,
             'amount' => (int) $order->price_amount,
             'customer' => [
                 'name' => $customerName,
-                'email' => (string) ($customer?->email ?? ''),
+                'email' => $customerEmail,
                 'phone' => $customerPhone,
             ],
             'items' => $this->paymentItems($order),
@@ -77,7 +94,6 @@ final class CreateKomercePayment
 
         if ($callbackUrl !== '' && $webhookSecret !== '') {
             $payload['callback_url'] = $callbackUrl;
-            $payload['callback_api_key'] = $webhookSecret;
             $payload['callback_API_KEY'] = $webhookSecret;
         }
 
@@ -131,6 +147,10 @@ final class CreateKomercePayment
     private function createViaQrisly(Order $order): array
     {
         $qrisId = config('komerce.qrisly_qris_id');
+
+        if ((int) $order->price_amount < 1000) {
+            throw new RuntimeException('QRISLY requires a minimum amount of Rp1,000.');
+        }
 
         $response = $this->qrisly->generateQris([
             'qris_id' => is_numeric($qrisId) ? (int) $qrisId : (string) $qrisId,
@@ -258,27 +278,26 @@ final class CreateKomercePayment
 
         $items = $order->items
             ->map(static fn ($item): array => [
-                'name' => (string) ($item->name ?: 'Item'),
-                'quantity' => max(1, (int) $item->quantity),
-                'price' => max(0, (int) $item->unit_price_amount),
+                'name' => trim((string) $item->name),
+                'quantity' => (int) $item->quantity,
+                'price' => (int) $item->unit_price_amount,
             ])
             ->values()
             ->all();
 
-        if ($items !== []) {
-            $invalid = collect($items)->contains(static fn (array $item): bool => $item['price'] <= 0);
-            if ($invalid) {
-                throw new RuntimeException('Order contains items without a valid unit price.');
-            }
-
-            return $items;
+        if ($items === []) {
+            throw new RuntimeException('Komerce payment requires at least one real order item.');
         }
 
-        return [[
-            'name' => 'Order '.$order->number,
-            'quantity' => 1,
-            'price' => max(1, (int) $order->price_amount),
-        ]];
+        $invalid = collect($items)->contains(static fn (array $item): bool => $item['name'] === ''
+            || $item['quantity'] <= 0
+            || $item['price'] <= 0);
+
+        if ($invalid) {
+            throw new RuntimeException('Order contains an item without a real name, quantity, or unit price.');
+        }
+
+        return $items;
     }
 
     /**
@@ -315,7 +334,7 @@ final class CreateKomercePayment
             return $fromShipping;
         }
 
-        return '080000000000';
+        throw new RuntimeException('Komerce payment requires the customer phone from the profile or shipping address.');
     }
 
     /**

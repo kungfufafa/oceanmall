@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Actions\Checkout;
 
+use App\Services\Komerce\PaymentClient;
 use RuntimeException;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Order;
 use Shopper\Core\Models\PaymentMethod;
+use Shopper\Payment\Enum\TransactionStatus;
+use Shopper\Payment\Models\PaymentTransaction;
 use Throwable;
 
 final class RetryKomercePayment
@@ -15,6 +18,7 @@ final class RetryKomercePayment
     public function __construct(
         private readonly CreateKomercePayment $createPayment,
         private readonly ResolveKomercePaymentInstructions $resolveInstructions,
+        private readonly PaymentClient $payments,
     ) {}
 
     /**
@@ -42,11 +46,56 @@ final class RetryKomercePayment
         $selected = $this->selectedMethodPayload($order, $method);
 
         try {
+            $this->closePreviousPaymentApiCharge($order);
+
             return $this->createPayment->handle($order, $selected);
         } catch (Throwable $e) {
             report($e);
 
             throw new RuntimeException('Unable to recreate Komerce payment: '.$e->getMessage(), 0, $e);
+        }
+    }
+
+    private function closePreviousPaymentApiCharge(Order $order): void
+    {
+        $metadata = $this->decodeMetadata($order->getAttribute('metadata'));
+        $provider = (string) data_get($metadata, 'komerce.provider', 'payment_api');
+
+        if ($provider !== 'payment_api') {
+            return;
+        }
+
+        $transaction = PaymentTransaction::query()
+            ->where('order_id', $order->id)
+            ->where('driver', 'komerce')
+            ->where('status', TransactionStatus::Pending)
+            ->latest('id')
+            ->first();
+        $paymentId = trim((string) (
+            data_get($metadata, 'komerce.payment_ref')
+            ?? $transaction?->reference
+            ?? ''
+        ));
+
+        if ($paymentId === '') {
+            return;
+        }
+
+        $remote = $this->payments->getStatus($paymentId);
+        $status = strtoupper(trim((string) data_get($remote, 'data.status')));
+
+        if ($status === 'PAID') {
+            throw new RuntimeException('The previous Komerce payment is already paid; synchronize the order instead of creating another charge.');
+        }
+
+        if ($status === 'PENDING') {
+            $this->payments->cancel($paymentId, 'Customer requested new payment instructions');
+        } elseif (! in_array($status, ['EXPIRED', 'CANCELED'], true)) {
+            throw new RuntimeException('The previous Komerce payment has an unknown status and cannot be replaced safely.');
+        }
+
+        if ($transaction instanceof PaymentTransaction) {
+            $transaction->update(['status' => TransactionStatus::Failed]);
         }
     }
 
