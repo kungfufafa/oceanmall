@@ -730,9 +730,11 @@ const steps = [
                         <AuthTextField
                             id="phone_number"
                             v-model="addressForm.phone_number"
-                            label="Telepon (opsional)"
+                            label="Nomor telepon"
                             type="tel"
                             placeholder="08…"
+                            required
+                            :error="addressForm.errors.phone_number"
                         />
 
                         <div class="flex flex-col gap-1.5">
@@ -966,67 +968,31 @@ const steps = [
                                 {{ shippingForm.errors.service_code }}
                             </p>
 
-                            <RadioGroup
-                                v-model="selectedShippingServiceValue"
-                                class="flex flex-col gap-3"
+                        <RadioGroup
+                            v-model="selectedShippingServiceValue"
+                            class="flex flex-col gap-2"
+                        >
+                            <label
+                                v-for="option in deliveryOptions"
+                                :key="option.service_code"
+                                class="flex items-center justify-between p-3 border rounded-md cursor-pointer hover:bg-muted/50"
+                                :class="selectedShippingServiceValue === String(option.service_code) ? 'border-primary bg-primary/5' : 'border-border'"
                             >
-                                <SelectableCard
-                                    v-for="option in deliveryOptions"
-                                    :key="option.service_code"
-                                    :id="`shipping_${option.service_code}`"
-                                    :value="String(option.service_code)"
-                                    class="items-center p-4"
-                                >
-                                    <div
-                                        class="flex items-center justify-between gap-4"
-                                    >
-                                        <div class="flex items-start gap-3">
-                                            <img
-                                                v-if="option.carrier_logo"
-                                                :src="option.carrier_logo"
-                                                :alt="option.carrier_name ?? ''"
-                                                class="mt-0.5 size-6 rounded-full object-cover"
-                                            />
-                                            <div class="flex flex-col">
-                                                <span
-                                                    class="font-heading text-sm font-medium text-foreground"
-                                                    >{{
-                                                        formatCourierTitle(
-                                                            option,
-                                                        )
-                                                    }}</span
-                                                >
-                                                <span
-                                                    v-if="option.estimated_days"
-                                                    class="text-sm text-muted-foreground"
-                                                    >{{
-                                                        option.estimated_days
-                                                    }}
-                                                    hari pengiriman</span
-                                                >
-                                                <span
-                                                    v-else-if="
-                                                        option.description
-                                                    "
-                                                    class="text-sm text-muted-foreground"
-                                                    >{{
-                                                        option.description
-                                                    }}</span
-                                                >
-                                            </div>
-                                        </div>
-                                        <span
-                                            class="shrink-0 text-sm font-medium text-foreground"
-                                            >{{
-                                                formatMoney(
-                                                    option.amount,
-                                                    option.currency,
-                                                )
-                                            }}</span
-                                        >
+                                <div class="flex items-center gap-3">
+                                    <input
+                                        type="radio"
+                                        class="sr-only"
+                                        v-model="selectedShippingServiceValue"
+                                        :value="String(option.service_code)"
+                                    />
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-medium text-foreground">{{ formatCourierTitle(option) }}</span>
+                                        <span class="text-xs text-muted-foreground">{{ option.estimated_days ? option.estimated_days + ' hari' : '' }}</span>
                                     </div>
-                                </SelectableCard>
-                            </RadioGroup>
+                                </div>
+                                <span class="text-sm font-semibold">{{ formatMoney(option.amount, option.currency) }}</span>
+                            </label>
+                        </RadioGroup>
 
                             <div class="flex">
                                 <Button

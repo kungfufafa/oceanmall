@@ -69,16 +69,23 @@ return;
         >
             <Minus />
         </Button>
-        <span
-            :class="
-                cn(
-                    'min-w-8 text-center font-semibold text-foreground tabular-nums',
-                    size === 'sm' ? 'text-xs' : 'text-sm',
-                )
-            "
-        >
-            {{ modelValue }}
-        </span>
+        <input
+            :value="modelValue"
+            type="number"
+            :min="min"
+            :max="max ?? undefined"
+            :disabled="disabled"
+            class="w-12 text-center font-semibold text-foreground tabular-nums bg-transparent border-none focus:outline-none"
+            :class="size === 'sm' ? 'text-xs' : 'text-sm'"
+            @input="e => {
+                const val = parseInt((e.target as HTMLInputElement).value);
+                if (!isNaN(val) && val >= min && (max === null || val <= max)) {
+                    emit('update:modelValue', val);
+                } else if ((e.target as HTMLInputElement).value === '') {
+                    // keep or handle empty input? Let's keep existing value
+                }
+            }"
+        />
         <Button
             type="button"
             variant="ghost"

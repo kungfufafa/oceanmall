@@ -45,7 +45,7 @@ trait ProfileValidationRules
         return [
             'required',
             'string',
-            'email',
+            'email:rfc,dns', // Memastikan format email valid secara RFC dan mengecek apakah domain (DNS) emailnya nyata/aktif
             'max:255',
             $userId === null
                 ? Rule::unique(User::class)

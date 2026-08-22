@@ -161,10 +161,12 @@ class AppServiceProvider extends ServiceProvider
 
                 // Fallback: local public/images/couriers/
                 if (file_exists(public_path("images/couriers/{$slug}.svg"))) {
-                    return asset("images/couriers/{$slug}.svg");
+                    $mtime = filemtime(public_path("images/couriers/{$slug}.svg"));
+                    return asset("images/couriers/{$slug}.svg")."?v={$mtime}";
                 }
                 if (file_exists(public_path("images/couriers/{$slug}.png"))) {
-                    return asset("images/couriers/{$slug}.png");
+                    $mtime = filemtime(public_path("images/couriers/{$slug}.png"));
+                    return asset("images/couriers/{$slug}.png")."?v={$mtime}";
                 }
 
                 return null;
@@ -183,10 +185,12 @@ class AppServiceProvider extends ServiceProvider
                 $slug = str_replace(['komerce-va-', 'komerce-'], '', $slug);
 
                 if (file_exists(public_path("images/payments/{$slug}.svg"))) {
-                    return asset("images/payments/{$slug}.svg");
+                    $mtime = filemtime(public_path("images/payments/{$slug}.svg"));
+                    return asset("images/payments/{$slug}.svg")."?v={$mtime}";
                 }
                 if (file_exists(public_path("images/payments/{$slug}.png"))) {
-                    return asset("images/payments/{$slug}.png");
+                    $mtime = filemtime(public_path("images/payments/{$slug}.png"));
+                    return asset("images/payments/{$slug}.png")."?v={$mtime}";
                 }
 
                 return null;
