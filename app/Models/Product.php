@@ -20,7 +20,8 @@ final class Product extends Model
     protected function withCurrentPrices(Builder $query): Builder
     {
         return $query->with([
-            'prices' => fn ($q) => $q->whereRelation('currency', 'code', current_currency()),
+            'prices' => fn ($q) => $q->whereRelation('currency', 'code', current_currency())->orderBy('amount', 'asc'),
+            'variants.prices' => fn ($q) => $q->whereRelation('currency', 'code', current_currency()),
         ]);
     }
 }

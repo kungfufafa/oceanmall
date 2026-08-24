@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Shop\ProductController::index
-* @see app/Http/Controllers/Shop/ProductController.php:18
+* @see app/Http/Controllers/Shop/ProductController.php:22
 * @route '/shop'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::index
-* @see app/Http/Controllers/Shop/ProductController.php:18
+* @see app/Http/Controllers/Shop/ProductController.php:22
 * @route '/shop'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::index
-* @see app/Http/Controllers/Shop/ProductController.php:18
+* @see app/Http/Controllers/Shop/ProductController.php:22
 * @route '/shop'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::index
-* @see app/Http/Controllers/Shop/ProductController.php:18
+* @see app/Http/Controllers/Shop/ProductController.php:22
 * @route '/shop'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::index
-* @see app/Http/Controllers/Shop/ProductController.php:18
+* @see app/Http/Controllers/Shop/ProductController.php:22
 * @route '/shop'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::index
-* @see app/Http/Controllers/Shop/ProductController.php:18
+* @see app/Http/Controllers/Shop/ProductController.php:22
 * @route '/shop'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::index
-* @see app/Http/Controllers/Shop/ProductController.php:18
+* @see app/Http/Controllers/Shop/ProductController.php:22
 * @route '/shop'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ index.form = indexForm
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::show
-* @see app/Http/Controllers/Shop/ProductController.php:57
+* @see app/Http/Controllers/Shop/ProductController.php:93
 * @route '/shop/{product}'
 */
 export const show = (args: { product: string | { slug: string } } | [product: string | { slug: string } ] | string | { slug: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -97,7 +97,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::show
-* @see app/Http/Controllers/Shop/ProductController.php:57
+* @see app/Http/Controllers/Shop/ProductController.php:93
 * @route '/shop/{product}'
 */
 show.url = (args: { product: string | { slug: string } } | [product: string | { slug: string } ] | string | { slug: string }, options?: RouteQueryOptions) => {
@@ -130,7 +130,7 @@ show.url = (args: { product: string | { slug: string } } | [product: string | { 
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::show
-* @see app/Http/Controllers/Shop/ProductController.php:57
+* @see app/Http/Controllers/Shop/ProductController.php:93
 * @route '/shop/{product}'
 */
 show.get = (args: { product: string | { slug: string } } | [product: string | { slug: string } ] | string | { slug: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -140,7 +140,7 @@ show.get = (args: { product: string | { slug: string } } | [product: string | { 
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::show
-* @see app/Http/Controllers/Shop/ProductController.php:57
+* @see app/Http/Controllers/Shop/ProductController.php:93
 * @route '/shop/{product}'
 */
 show.head = (args: { product: string | { slug: string } } | [product: string | { slug: string } ] | string | { slug: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -150,7 +150,7 @@ show.head = (args: { product: string | { slug: string } } | [product: string | {
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::show
-* @see app/Http/Controllers/Shop/ProductController.php:57
+* @see app/Http/Controllers/Shop/ProductController.php:93
 * @route '/shop/{product}'
 */
 const showForm = (args: { product: string | { slug: string } } | [product: string | { slug: string } ] | string | { slug: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -160,7 +160,7 @@ const showForm = (args: { product: string | { slug: string } } | [product: strin
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::show
-* @see app/Http/Controllers/Shop/ProductController.php:57
+* @see app/Http/Controllers/Shop/ProductController.php:93
 * @route '/shop/{product}'
 */
 showForm.get = (args: { product: string | { slug: string } } | [product: string | { slug: string } ] | string | { slug: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -170,7 +170,7 @@ showForm.get = (args: { product: string | { slug: string } } | [product: string 
 
 /**
 * @see \App\Http\Controllers\Shop\ProductController::show
-* @see app/Http/Controllers/Shop/ProductController.php:57
+* @see app/Http/Controllers/Shop/ProductController.php:93
 * @route '/shop/{product}'
 */
 showForm.head = (args: { product: string | { slug: string } } | [product: string | { slug: string } ] | string | { slug: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

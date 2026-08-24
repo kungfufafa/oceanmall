@@ -1,220 +1,263 @@
 <script setup lang="ts">
-import { Link, usePage } from '@inertiajs/vue3';
-import { Menu, Search, ShoppingBag, User, X } from 'lucide-vue-next';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { Search, ShoppingCart, Bell, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import AnnouncementBar from '@/components/shop/announcement-bar.vue';
 import BrandIcon from '@/components/shop/brand-icon.vue';
-import Container from '@/components/shop/container.vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
 import { useShop } from '@/composables/useShop';
-import { dashboard, home, login, logout, register } from '@/routes';
+import { dashboard, home, login, register } from '@/routes';
+import { notifications as accountNotifications } from '@/routes/account';
 import * as shop from '@/routes/shop';
 import type { NavCategory } from '@/types/shop';
 
 const page = usePage();
 const { cartCount } = useShop();
 
-const mobileOpen = ref<boolean>(false);
-const currentUrl = computed<string>(() => page.url ?? '');
+const searchQuery = ref<string>('');
+
+const user = computed(() => page.props.auth.user);
+const unreadCount = computed(() =>
+    Number(page.props.notificationsUnreadCount ?? 0),
+);
 
 const navCategories = computed<NavCategory[]>(
     () => page.props.shop?.nav_categories ?? [],
 );
 
-function isActive(path: string): boolean {
-    if (path === '/')
-        return currentUrl.value === '/' || currentUrl.value === '';
-    return currentUrl.value.startsWith(path);
+const searchPlaceholder = computed<string>(() => {
+    const first = navCategories.value[0]?.name;
+
+    return first
+        ? `Cari brand, produk, atau ${first}…`
+        : 'Cari brand, produk, atau kategori…';
+});
+
+const hasQuery = computed(() => searchQuery.value.trim().length > 0);
+
+function submitSearch(): void {
+    const q = searchQuery.value.trim();
+    router.get(shop.search.url(), q ? { q } : {}, { preserveState: false });
 }
 
-function isCategoryActive(slug: string): boolean {
-    return currentUrl.value.startsWith(`/categories/${slug}`);
+function clearSearch(): void {
+    searchQuery.value = '';
 }
 </script>
 
 <template>
-    <header
-        class="sticky top-0 z-30 border-b border-zinc-200 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-zinc-900"
-    >
-        <AnnouncementBar
-            message="Summer Sale For All Swim Suits And Free Express Delivery - OFF 50%!"
-        />
-
-        <Container>
-            <div class="flex h-16 items-center justify-between">
-                <button
-                    type="button"
-                    class="-ml-2 rounded-md p-2 text-zinc-500 hover:text-zinc-900 lg:hidden dark:hover:text-white"
-                    aria-label="Open menu"
-                    @click="mobileOpen = !mobileOpen"
+    <header class="sticky top-0 z-40 bg-[var(--om-navy)]">
+        <!-- Mobile chrome -->
+        <div
+            class="flex items-center gap-2 px-3 lg:hidden"
+            :style="{
+                minHeight: 'var(--om-header-height)',
+                paddingTop: '0.5rem',
+                paddingBottom: '0.5rem',
+            }"
+        >
+            <form class="min-w-0 flex-1" @submit.prevent="submitSearch">
+                <label for="store-search-mobile" class="sr-only"
+                    >Cari produk</label
                 >
-                    <Menu
-                        v-if="!mobileOpen"
-                        class="size-5"
-                        aria-hidden="true"
-                    />
-                    <X v-else class="size-5" aria-hidden="true" />
-                </button>
-
-                <Link :href="home.url()" class="flex items-center gap-2">
-                    <BrandIcon
-                        class="size-8 fill-current text-black dark:text-white"
-                    />
-                    <span
-                        class="text-lg font-semibold tracking-tight text-zinc-900 dark:text-white"
+                <div
+                    class="flex items-center overflow-hidden rounded-md bg-card shadow-sm ring-1 ring-black/5"
+                >
+                    <div class="relative min-w-0 flex-1">
+                        <Search
+                            class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                        <Input
+                            id="store-search-mobile"
+                            v-model="searchQuery"
+                            type="search"
+                            :placeholder="searchPlaceholder"
+                            class="h-11 border-0 bg-transparent pr-10 pl-10 text-[13px] shadow-none focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                        />
+                        <Button
+                            v-if="hasQuery"
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            class="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground"
+                            aria-label="Hapus pencarian"
+                            @click="clearSearch"
+                        >
+                            <X stroke-width="2.5" />
+                        </Button>
+                    </div>
+                    <Button
+                        type="submit"
+                        size="icon"
+                        class="m-1 shrink-0 bg-[var(--om-navy)] hover:bg-[var(--om-navy-hover)]"
+                        aria-label="Cari"
                     >
-                        OceanMall
+                        <Search stroke-width="2.25" />
+                    </Button>
+                </div>
+            </form>
+
+            <Link
+                v-if="user"
+                :href="accountNotifications.url()"
+                class="relative flex size-11 items-center justify-center rounded-md text-primary-foreground transition hover:bg-primary-foreground/10"
+                aria-label="Notifikasi"
+            >
+                <Bell class="size-6" stroke-width="1.75" aria-hidden="true" />
+                <Badge
+                    v-if="unreadCount > 0"
+                    variant="count"
+                    class="absolute top-1 right-1"
+                >
+                    {{ unreadCount > 99 ? '99+' : unreadCount }}
+                </Badge>
+            </Link>
+
+            <Link
+                :href="shop.cart.url()"
+                class="relative flex size-11 items-center justify-center rounded-md text-primary-foreground transition hover:bg-primary-foreground/10"
+                aria-label="Keranjang"
+            >
+                <ShoppingCart
+                    class="size-6"
+                    stroke-width="1.75"
+                    aria-hidden="true"
+                />
+                <Badge
+                    v-if="cartCount > 0"
+                    variant="count"
+                    class="absolute top-1 right-1"
+                >
+                    {{ cartCount > 99 ? '99+' : cartCount }}
+                </Badge>
+            </Link>
+        </div>
+
+        <!-- Desktop -->
+        <div class="hidden lg:block">
+            <div class="mx-auto flex max-w-7xl items-center gap-6 px-6 py-4">
+                <Link
+                    :href="home.url()"
+                    class="inline-flex shrink-0 items-center gap-2.5 text-primary-foreground"
+                >
+                    <BrandIcon class="h-9 w-auto" />
+                    <span
+                        class="flex items-center text-[1.35rem] font-extrabold tracking-tight"
+                    >
+                        <span class="text-[#38BDF8]">OCEAN</span>
+                        <span class="text-white">MALL</span>
                     </span>
                 </Link>
 
-                <nav
-                    role="navigation"
-                    class="hidden items-center gap-6 lg:flex"
-                >
-                    <Link
-                        :href="home.url()"
-                        :class="[
-                            'text-sm transition',
-                            isActive('/') && !currentUrl.startsWith('/shop')
-                                ? 'font-medium text-zinc-900 dark:text-white'
-                                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white',
-                        ]"
+                <form class="min-w-0 flex-1" @submit.prevent="submitSearch">
+                    <label for="store-search-desktop" class="sr-only"
+                        >Cari produk</label
                     >
-                        Home
-                    </Link>
-                    <Link
-                        :href="shop.index.url()"
-                        :class="[
-                            'text-sm transition',
-                            currentUrl === '/shop' ||
-                            currentUrl.startsWith('/shop?')
-                                ? 'font-medium text-zinc-900 dark:text-white'
-                                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white',
-                        ]"
+                    <div
+                        class="flex items-center overflow-hidden rounded-md bg-card shadow-sm ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-primary-foreground/40"
                     >
-                        Shop
-                    </Link>
-                    <Link
-                        v-for="category in navCategories"
-                        :key="category.id"
-                        :href="shop.category.url({ category: category.slug })"
-                        :class="[
-                            'text-sm transition',
-                            isCategoryActive(category.slug)
-                                ? 'font-medium text-zinc-900 dark:text-white'
-                                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white',
-                        ]"
-                    >
-                        {{ category.name }}
-                    </Link>
-                </nav>
+                        <div class="relative min-w-0 flex-1">
+                            <Input
+                                id="store-search-desktop"
+                                v-model="searchQuery"
+                                type="search"
+                                :placeholder="searchPlaceholder"
+                                class="h-12 border-0 bg-transparent pr-11 pl-5 text-sm shadow-none focus-visible:ring-0 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
+                            />
+                            <Button
+                                v-if="hasQuery"
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                class="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground"
+                                aria-label="Hapus pencarian"
+                                @click="clearSearch"
+                            >
+                                <X stroke-width="2.5" />
+                            </Button>
+                        </div>
+                        <Button
+                            type="submit"
+                            size="icon"
+                            class="m-1.5 shrink-0 bg-[var(--om-navy)] hover:bg-[var(--om-navy-hover)]"
+                            aria-label="Cari"
+                        >
+                            <Search class="size-[18px]" stroke-width="2.25" />
+                        </Button>
+                    </div>
+                </form>
 
-                <div class="flex items-center gap-4">
+                <div class="flex shrink-0 items-center gap-3">
                     <Link
-                        :href="shop.search.url()"
-                        class="text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white"
-                        aria-label="Search"
+                        v-if="user"
+                        :href="accountNotifications.url()"
+                        class="relative flex size-10 items-center justify-center rounded-md text-primary-foreground transition hover:bg-primary-foreground/10"
+                        aria-label="Notifikasi"
                     >
-                        <Search class="size-5" aria-hidden="true" />
+                        <Bell
+                            class="size-6"
+                            stroke-width="1.75"
+                            aria-hidden="true"
+                        />
+                        <Badge
+                            v-if="unreadCount > 0"
+                            variant="count"
+                            class="absolute top-0.5 right-0.5"
+                        >
+                            {{ unreadCount > 99 ? '99+' : unreadCount }}
+                        </Badge>
                     </Link>
 
                     <Link
                         :href="shop.cart.url()"
-                        class="relative text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white"
-                        aria-label="Cart"
+                        class="relative flex size-10 items-center justify-center rounded-md text-primary-foreground transition hover:bg-primary-foreground/10"
+                        aria-label="Keranjang"
                     >
-                        <ShoppingBag class="size-5" aria-hidden="true" />
-                        <span
+                        <ShoppingCart
+                            class="size-6"
+                            stroke-width="1.75"
+                            aria-hidden="true"
+                        />
+                        <Badge
                             v-if="cartCount > 0"
-                            class="absolute -top-2 -right-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-zinc-900 px-1 text-[10px] font-medium text-white dark:bg-white dark:text-zinc-900"
+                            variant="count"
+                            class="absolute top-0.5 right-0.5"
                         >
-                            {{ cartCount }}
-                        </span>
+                            {{ cartCount > 99 ? '99+' : cartCount }}
+                        </Badge>
                     </Link>
 
-                    <Link
-                        v-if="page.props.auth.user"
-                        :href="dashboard.url()"
-                        class="hidden text-zinc-500 transition hover:text-zinc-900 lg:inline-flex dark:hover:text-white"
-                        aria-label="Account"
-                    >
-                        <User class="size-5" aria-hidden="true" />
-                    </Link>
-                    <Link
-                        v-else
-                        :href="login.url()"
-                        class="hidden text-zinc-500 transition hover:text-zinc-900 lg:inline-flex dark:hover:text-white"
-                        aria-label="Sign in"
-                    >
-                        <User class="size-5" aria-hidden="true" />
-                    </Link>
-                </div>
-            </div>
-        </Container>
+                    <Separator
+                        orientation="vertical"
+                        class="h-7 bg-primary-foreground/25"
+                    />
 
-        <div
-            v-if="mobileOpen"
-            class="border-t border-zinc-200 lg:hidden dark:border-zinc-700"
-        >
-            <div class="mx-auto max-w-7xl space-y-3 px-4 py-4 sm:px-6">
-                <Link
-                    :href="home.url()"
-                    class="block text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-                    @click="mobileOpen = false"
-                >
-                    Home
-                </Link>
-                <Link
-                    :href="shop.index.url()"
-                    class="block text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-                    @click="mobileOpen = false"
-                >
-                    Shop
-                </Link>
-                <Link
-                    v-for="category in navCategories"
-                    :key="category.id"
-                    :href="shop.category.url({ category: category.slug })"
-                    class="block text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-                    @click="mobileOpen = false"
-                >
-                    {{ category.name }}
-                </Link>
-
-                <div
-                    class="space-y-3 border-t border-zinc-200 pt-3 dark:border-zinc-700"
-                >
-                    <template v-if="page.props.auth.user">
-                        <Link
-                            :href="dashboard.url()"
-                            class="block text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-                            @click="mobileOpen = false"
+                    <template v-if="user">
+                        <Button
+                            as-child
+                            variant="outline"
+                            class="h-10 border-primary-foreground/80 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
                         >
-                            My account
-                        </Link>
-                        <form method="POST" :action="logout.url()">
-                            <button
-                                type="submit"
-                                class="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-                            >
-                                Log out
-                            </button>
-                        </form>
+                            <Link :href="dashboard.url()">Akun</Link>
+                        </Button>
                     </template>
                     <template v-else>
-                        <Link
-                            :href="login.url()"
-                            class="block text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-                            @click="mobileOpen = false"
+                        <Button
+                            as-child
+                            variant="outline"
+                            class="h-10 border-primary-foreground/80 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
                         >
-                            Log in
-                        </Link>
-                        <Link
-                            :href="register.url()"
-                            class="block text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-                            @click="mobileOpen = false"
+                            <Link :href="login.url()">Masuk</Link>
+                        </Button>
+                        <Button
+                            as-child
+                            class="h-10 bg-background text-[var(--om-navy)] hover:bg-muted"
                         >
-                            Create account
-                        </Link>
+                            <Link :href="register.url()">Daftar</Link>
+                        </Button>
                     </template>
                 </div>
             </div>

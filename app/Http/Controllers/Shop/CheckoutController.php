@@ -5,11 +5,18 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Shop;
 
 use App\Actions\Checkout\BuildShippingPackages;
+use App\Actions\Checkout\CreateKomercePayment;
 use App\Actions\Checkout\FetchDeliveryRates;
 use App\Actions\Checkout\FetchPaymentMethods;
+use App\Actions\Checkout\PersistUserShippingAddress;
 use App\Actions\CreateOrder;
+use App\Actions\Notify\NotifyOrderCustomer;
+use App\Actions\Warehouse\SuggestAllocation;
 use App\Actions\ZoneSessionManager;
 use App\CheckoutSession;
+use App\DTO\AllocationPlan;
+use App\DTO\ShipmentDraft;
+use App\Enums\OrderNotificationType;
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
@@ -21,8 +28,10 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Shopper\Cart\CartManager;
 use Shopper\Cart\CartSessionManager;
+use Shopper\Cart\Models\Cart;
 use Shopper\Core\Enum\AddressType;
 use Shopper\Core\Enum\PaymentStatus;
+use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Enum\TransactionType;
@@ -58,17 +67,62 @@ final class CheckoutController extends Controller
         $shippingOption = data_get($checkout, 'shipping_option.0');
         $payment = data_get($checkout, 'payment.0');
 
+        $persistAddress = resolve(PersistUserShippingAddress::class);
+
+        // Returning customers: reuse default saved address (incl. district)
+        // so they land on shipping rates instead of retyping the form.
+        if (! is_array($shippingAddress) || $shippingAddress === []) {
+            $user = Auth::user();
+            if ($user) {
+                $defaultAddress = $user->addresses()
+                    ->where('shipping_default', true)
+                    ->orderByDesc('updated_at')
+                    ->first()
+                    ?? $user->addresses()->orderByDesc('updated_at')->first();
+
+                if ($defaultAddress) {
+                    $applied = $persistAddress->toCheckoutShippingAddress($defaultAddress);
+                    if ($applied !== null) {
+                        session()->put(CheckoutSession::SHIPPING_ADDRESS, $applied);
+                        $shippingAddress = $applied;
+                        $checkout = session()->get(CheckoutSession::KEY, []);
+                    }
+                }
+            }
+        }
+
         $deliveryOptions = [];
+        $allocation = null;
+        $deliveryOptionsByShipment = [];
 
         if ($shippingAddress) {
             $packages = resolve(BuildShippingPackages::class)->handle();
-            $deliveryOptions = resolve(FetchDeliveryRates::class)->handle($shippingAddress, $packages);
+
+            [$allocation, $deliveryOptionsByShipment] = $this->resolveAllocationAndRates(
+                $cart,
+                $shippingAddress,
+                $packages,
+                $checkout,
+            );
+
+            if (count($deliveryOptionsByShipment) === 1) {
+                $deliveryOptions = reset($deliveryOptionsByShipment) ?: [];
+            } elseif (count($deliveryOptionsByShipment) === 0) {
+                $deliveryOptions = resolve(FetchDeliveryRates::class)->handle($shippingAddress, $packages);
+            }
         }
 
         $paymentOptions = [];
+        $countryId = data_get($shippingAddress, 'country_id')
+            ?? ZoneSessionManager::ensureSession()?->countryId;
 
-        if ($countryId = data_get($shippingAddress, 'country_id')) {
-            $paymentOptions = resolve(FetchPaymentMethods::class)->handle($countryId);
+        if ($countryId && is_array($shippingAddress) && ! data_get($shippingAddress, 'country_id')) {
+            $shippingAddress['country_id'] = $countryId;
+            session()->put(CheckoutSession::SHIPPING_ADDRESS, $shippingAddress);
+        }
+
+        if ($countryId) {
+            $paymentOptions = resolve(FetchPaymentMethods::class)->handle((int) $countryId);
         }
 
         $maxStep = match (true) {
@@ -81,27 +135,102 @@ final class CheckoutController extends Controller
         $step = min(max($requestedStep, 1), $maxStep);
 
         $stripeData = session()->get('stripe_payment');
+        $komercePayment = session()->get('komerce_payment');
+
+        $selectedByShipment = data_get($checkout, 'shipping_options_by_shipment', []);
+
+        $user = Auth::user();
 
         return Inertia::render('shop/checkout', [
             'cart' => $cart,
             'cartContext' => $context,
-            'savedAddresses' => Auth::user()?->addresses()->with('country')->get() ?? [],
+            'savedAddresses' => $user
+                ? $persistAddress->mapSavedAddressesForCheckout($user)
+                : [],
             'shippingAddress' => $shippingAddress,
             'deliveryOptions' => $deliveryOptions,
-            'selectedDeliveryOption' => $shippingOption['id'] ?? null,
+            'selectedDeliveryOption' => is_array($shippingOption)
+                ? ($shippingOption['id'] ?? $shippingOption[0]['id'] ?? null)
+                : null,
+            'allocation' => $allocation,
+            'deliveryOptionsByShipment' => $deliveryOptionsByShipment,
+            'selectedRatesByShipment' => collect($selectedByShipment)->map(
+                fn (mixed $rate): string => is_array($rate) ? (string) ($rate['service_code'] ?? '') : (string) $rate
+            )->all(),
             'paymentOptions' => $paymentOptions,
             'selectedPaymentMethod' => $payment['id'] ?? null,
             'step' => $step,
-            'stripeData' => $stripeData ? [
+            'stripeData' => $stripeData && config('shopper.payment.drivers.stripe.enabled', false) ? [
                 'client_secret' => $stripeData['client_secret'],
                 'publishable_key' => $stripeData['publishable_key'],
                 'return_url' => route('shop.checkout.stripe-return'),
             ] : null,
+            'komercePayment' => $komercePayment,
+            'komerceEnabled' => komerce_shipping_cost_enabled(),
+            'shippingRatesHint' => $this->shippingRatesHint(
+                is_array($shippingAddress) ? $shippingAddress : null,
+                $allocation,
+                $deliveryOptions,
+                $deliveryOptionsByShipment,
+            ),
+            'couponCode' => $cart->coupon_code,
         ]);
+    }
+
+    /**
+     * Actionable copy when step 2 has no courier options.
+     *
+     * @param  array<string, mixed>|null  $shippingAddress
+     * @param  list<array<string, mixed>>|null  $allocation
+     * @param  list<array<string, mixed>>  $deliveryOptions
+     * @param  array<int|string, list<array<string, mixed>>>  $deliveryOptionsByShipment
+     */
+    private function shippingRatesHint(
+        ?array $shippingAddress,
+        ?array $allocation,
+        array $deliveryOptions,
+        array $deliveryOptionsByShipment,
+    ): ?string {
+        if ($shippingAddress === null) {
+            return null;
+        }
+
+        $hasAnyRate = $deliveryOptions !== []
+            || collect($deliveryOptionsByShipment)->contains(fn (mixed $opts): bool => is_array($opts) && $opts !== []);
+
+        if ($hasAnyRate) {
+            return null;
+        }
+
+        if (! komerce_shipping_cost_enabled()) {
+            return __('Pengiriman Komerce/RajaOngkir belum dikonfigurasi (API key belum diisi di .env).');
+        }
+
+        if (blank(data_get($shippingAddress, 'rajaongkir_destination_id'))) {
+            return __('Kecamatan tujuan pengiriman belum dipilih. Silakan kembali ke langkah Alamat dan pilih kecamatan dari hasil pencarian otomatis.');
+        }
+
+        if ($allocation === null || $allocation === []) {
+            return __('Stok produk di keranjang tidak dapat dipenuhi oleh lokasi gudang toko saat ini.');
+        }
+
+        return __('Tidak ada opsi kurir yang tersedia untuk rute tujuan ini. Silakan periksa kembali kecamatan alamat pengiriman.');
     }
 
     public function saveShippingAddress(Request $request): RedirectResponse
     {
+        $destinationRule = komerce_shipping_cost_enabled()
+            ? ['required', 'string', 'max:50']
+            : ['nullable', 'string', 'max:50'];
+
+        // Coerce numeric destination ids from JSON/Inertia before string rules.
+        $request->merge([
+            'rajaongkir_destination_id' => $this->normalizeDestinationId(
+                $request->input('rajaongkir_destination_id') ?? $request->input('destination_id'),
+            ),
+            'destination_id' => $this->normalizeDestinationId($request->input('destination_id')),
+        ]);
+
         $data = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
@@ -111,10 +240,24 @@ final class CheckoutController extends Controller
             'city' => ['required', 'string', 'max:255'],
             'state' => ['nullable', 'string', 'max:255'],
             'phone_number' => ['nullable', 'string', 'max:20'],
+            'rajaongkir_destination_id' => $destinationRule,
+            'rajaongkir_destination_label' => ['nullable', 'string', 'max:255'],
+            'destination_id' => ['nullable', 'string', 'max:50'],
         ]);
 
-        $zone = ZoneSessionManager::getSession();
+        $zone = ZoneSessionManager::ensureSession();
         $data['country_id'] = $zone?->countryId;
+
+        $destinationId = $data['rajaongkir_destination_id'] ?? $data['destination_id'] ?? null;
+        if ($destinationId !== null && $destinationId !== '') {
+            $data['rajaongkir_destination_id'] = (string) $destinationId;
+        }
+
+        if (! $data['country_id']) {
+            return back()->withErrors([
+                'city' => 'Wilayah pengiriman belum tersedia. Muat ulang halaman lalu coba lagi.',
+            ]);
+        }
 
         session()->put(CheckoutSession::SHIPPING_ADDRESS, $data);
 
@@ -131,23 +274,48 @@ final class CheckoutController extends Controller
             ]);
         }
 
+        if ($user = Auth::user()) {
+            $saved = resolve(PersistUserShippingAddress::class)->handle($user, $data);
+            $data['saved_address_id'] = $saved->id;
+            session()->put(CheckoutSession::SHIPPING_ADDRESS, $data);
+        }
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Alamat pengiriman disimpan.',
+        ]);
+
         return redirect()->route('shop.checkout.index');
     }
 
     public function saveShippingOption(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'service_code' => ['required'],
-        ]);
-
         $shippingAddress = session()->get(CheckoutSession::SHIPPING_ADDRESS);
 
         if (! $shippingAddress) {
             return redirect()->route('shop.checkout.index');
         }
 
-        $packages = resolve(BuildShippingPackages::class)->handle();
-        $deliveryOptions = resolve(FetchDeliveryRates::class)->handle($shippingAddress, $packages);
+        if ($request->has('rates') && is_array($request->input('rates'))) {
+            return $this->saveShippingOptionsByShipment($request, $shippingAddress);
+        }
+
+        $data = $request->validate([
+            'service_code' => ['required'],
+        ]);
+
+        $allocationPlan = session()->get(CheckoutSession::ALLOCATION_PLAN);
+        $singleShipment = ($allocationPlan instanceof AllocationPlan && count($allocationPlan->shipments) === 1)
+            ? $allocationPlan->shipments[0]
+            : null;
+
+        $buildPackages = resolve(BuildShippingPackages::class);
+        $packages = $singleShipment !== null
+            ? $buildPackages->handleFromLines($singleShipment->lines)
+            : $buildPackages->handle();
+
+        $originInventoryId = $singleShipment?->inventory_id;
+        $deliveryOptions = resolve(FetchDeliveryRates::class)->handle($shippingAddress, $packages, $originInventoryId);
 
         $selected = collect($deliveryOptions)
             ->first(fn (array $option): bool => (string) $option['service_code'] === (string) $data['service_code']);
@@ -162,9 +330,106 @@ final class CheckoutController extends Controller
             'name' => $selected['service_name'],
             'price' => (int) $selected['amount'],
             'service_code' => $selected['service_code'],
+            'service_name' => $selected['service_name'],
             'carrier_code' => $selected['carrier_code'],
+            'carrier_name' => $selected['carrier_name'] ?? null,
+            'shipping_name' => $selected['carrier_name'] ?? null,
+            'shipping_cost' => (int) $selected['amount'],
+            'amount' => (int) $selected['amount'],
             'currency' => $selected['currency'],
             'estimated_days' => $selected['estimated_days'],
+        ]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Opsi pengiriman dipilih.',
+        ]);
+
+        return redirect()->route('shop.checkout.index');
+    }
+
+    /**
+     * Save per-shipment rates (multi-package path).
+     *
+     * @param  array<string, mixed>  $shippingAddress
+     */
+    private function saveShippingOptionsByShipment(Request $request, array $shippingAddress): RedirectResponse
+    {
+        $data = $request->validate([
+            'rates' => ['required', 'array'],
+            'rates.*' => ['required', 'string'],
+        ]);
+
+        $cart = resolve(CartSessionManager::class)->current();
+
+        if (! $cart) {
+            return redirect()->route('shop.cart');
+        }
+
+        $buildPackages = resolve(BuildShippingPackages::class);
+        $fetchRates = resolve(FetchDeliveryRates::class);
+
+        $allocationPlan = session()->get(CheckoutSession::ALLOCATION_PLAN);
+
+        if (! $allocationPlan instanceof AllocationPlan) {
+            try {
+                $allocationPlan = resolve(SuggestAllocation::class)->handle($cart, $shippingAddress);
+                session()->put(CheckoutSession::ALLOCATION_PLAN, $allocationPlan);
+            } catch (Throwable) {
+                return back()->withErrors(['rates' => __('Unable to determine shipment allocation.')]);
+            }
+        }
+
+        $selectedRates = [];
+        $totalPrice = 0;
+
+        foreach ($allocationPlan->shipments as $shipmentDraft) {
+            $inventoryId = $shipmentDraft->inventory_id;
+            $serviceCode = $data['rates'][$inventoryId] ?? $data['rates'][(string) $inventoryId] ?? null;
+
+            if (! $serviceCode) {
+                return back()->withErrors(['rates' => __('Please select a delivery option for all packages.')]);
+            }
+
+            $shipmentPackages = $buildPackages->handleFromLines($shipmentDraft->lines);
+            $options = $fetchRates->handle($shippingAddress, $shipmentPackages, $inventoryId);
+            $selected = collect($options)
+                ->first(fn (array $o): bool => (string) $o['service_code'] === (string) $serviceCode);
+
+            if (! $selected) {
+                return back()->withErrors(['rates' => __('Selected option is no longer available.')]);
+            }
+
+            $selectedRates[$inventoryId] = [
+                'id' => $selected['service_code'],
+                'service_code' => $selected['service_code'],
+                'carrier_code' => $selected['carrier_code'],
+                'carrier_name' => $selected['carrier_name'] ?? null,
+                'service_name' => $selected['service_name'],
+                'amount' => (int) $selected['amount'],
+                'currency' => $selected['currency'],
+                'estimated_days' => $selected['estimated_days'] ?? null,
+            ];
+
+            $totalPrice += (int) $selected['amount'];
+        }
+
+        session()->put(CheckoutSession::SHIPPING_OPTIONS_BY_SHIPMENT, $selectedRates);
+
+        session()->forget(CheckoutSession::SHIPPING_OPTION);
+        session()->push(CheckoutSession::SHIPPING_OPTION, [
+            'id' => 'split-shipment',
+            'name' => 'Split shipment',
+            'price' => $totalPrice,
+            'service_code' => 'split-shipment',
+            'carrier_code' => 'multi',
+            'currency' => 'IDR',
+            'estimated_days' => null,
+        ]);
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Opsi pengiriman dipilih.',
         ]);
 
         return redirect()->route('shop.checkout.index');
@@ -180,7 +445,7 @@ final class CheckoutController extends Controller
             'payment_method_id' => ['required', 'integer'],
         ]);
 
-        [$selectedMethod, $error] = $this->resolveSelectedMethod($data['payment_method_id']);
+        [$selectedMethod, $error] = $this->resolveSelectedMethod((int) $data['payment_method_id']);
 
         if ($error) {
             return $error;
@@ -242,7 +507,7 @@ final class CheckoutController extends Controller
     }
 
     /**
-     * COD path: places the order immediately. Stripe path uses stripeReturn instead.
+     * COD / Komerce path: places the order immediately. Stripe path uses stripeReturn instead.
      */
     public function placeOrder(Request $request): RedirectResponse
     {
@@ -250,7 +515,7 @@ final class CheckoutController extends Controller
             'payment_method_id' => ['required', 'integer'],
         ]);
 
-        [$selectedMethod, $error] = $this->resolveSelectedMethod($data['payment_method_id']);
+        [$selectedMethod, $error] = $this->resolveSelectedMethod((int) $data['payment_method_id']);
 
         if ($error) {
             return $error;
@@ -263,8 +528,13 @@ final class CheckoutController extends Controller
         session()->forget(CheckoutSession::PAYMENT);
         session()->push(CheckoutSession::PAYMENT, $selectedMethod);
 
+        if (($selectedMethod['driver'] ?? null) === 'komerce') {
+            return $this->placeKomerceOrder($selectedMethod);
+        }
+
         try {
             $order = resolve(CreateOrder::class)->handle();
+            resolve(NotifyOrderCustomer::class)->handle($order, OrderNotificationType::AwaitingPayment);
             $result = resolve(PaymentProcessingService::class)->initiate($order);
 
             session()->forget(CheckoutSession::KEY);
@@ -282,6 +552,44 @@ final class CheckoutController extends Controller
             return redirect()->route('shop.checkout.success', ['order' => $order->id]);
         } catch (Throwable $e) {
             report($e);
+
+            return back()->withErrors(['order' => __('An error occurred while placing your order. Please try again.')]);
+        }
+    }
+
+    /**
+     * Create Komerce VA/QRIS charge after order creation, store instructions in session.
+     *
+     * @param  array<string, mixed>  $selectedMethod
+     */
+    private function placeKomerceOrder(array $selectedMethod): RedirectResponse
+    {
+        $order = null;
+
+        try {
+            $order = resolve(CreateOrder::class)->handle();
+            resolve(NotifyOrderCustomer::class)->handle($order, OrderNotificationType::AwaitingPayment);
+            $instructions = resolve(CreateKomercePayment::class)->handle($order, $selectedMethod);
+
+            session()->forget(CheckoutSession::KEY);
+            session()->put('komerce_payment', $instructions);
+
+            resolve(CartSessionManager::class)->forget();
+
+            return redirect()->route('shop.checkout.success', ['order' => $order->id]);
+        } catch (Throwable $e) {
+            report($e);
+
+            if ($order !== null) {
+                // Order owns reserved stock — clear cart/checkout so the customer
+                // retries payment on the account order instead of re-ordering.
+                session()->forget(CheckoutSession::KEY);
+                resolve(CartSessionManager::class)->forget();
+
+                return redirect()
+                    ->route('account.orders.show', ['order' => $order->id])
+                    ->with('error', __('Your order was placed but payment setup failed. You can retry payment from this order page.'));
+            }
 
             return back()->withErrors(['order' => __('An error occurred while placing your order. Please try again.')]);
         }
@@ -345,6 +653,7 @@ final class CheckoutController extends Controller
 
                 return $order;
             });
+            resolve(NotifyOrderCustomer::class)->handle($order, OrderNotificationType::Paid);
         } catch (Throwable $e) {
             report($e);
 
@@ -358,18 +667,74 @@ final class CheckoutController extends Controller
     }
 
     /**
+     * Run SuggestAllocation, store plan in session, return [allocationArray, deliveryOptionsByShipment].
+     *
+     * @param  array<string, mixed>  $shippingAddress
+     * @param  array<int, mixed>  $packages
+     * @param  array<string, mixed>  $checkout
+     * @return array{0: array<string, mixed>|null, 1: array<int|string, array<int, array<string, mixed>>>}
+     */
+    private function resolveAllocationAndRates(
+        Cart $cart,
+        array $shippingAddress,
+        array $packages,
+        array $checkout,
+    ): array {
+        try {
+            $plan = resolve(SuggestAllocation::class)->handle($cart, $shippingAddress);
+        } catch (Throwable) {
+            return [null, []];
+        }
+
+        session()->put(CheckoutSession::ALLOCATION_PLAN, $plan);
+
+        $allocationArray = array_map(
+            static fn (ShipmentDraft $draft): array => [
+                'inventory_id' => $draft->inventory_id,
+                'lines' => $draft->lines,
+            ],
+            $plan->shipments,
+        );
+
+        $inventoryIds = array_column($allocationArray, 'inventory_id');
+        $inventories = Inventory::query()
+            ->whereIn('id', $inventoryIds)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($allocationArray as &$draft) {
+            $inv = $inventories->get($draft['inventory_id']);
+            $draft['inventory_name'] = $inv?->getAttribute('name') ?? (string) $draft['inventory_id'];
+        }
+        unset($draft);
+
+        $fetchRates = resolve(FetchDeliveryRates::class);
+        $buildPackages = resolve(BuildShippingPackages::class);
+        $deliveryOptionsByShipment = [];
+
+        foreach ($plan->shipments as $shipmentDraft) {
+            $shipmentPackages = $buildPackages->handleFromLines($shipmentDraft->lines);
+            $rates = $fetchRates->handle($shippingAddress, $shipmentPackages, $shipmentDraft->inventory_id);
+            $deliveryOptionsByShipment[$shipmentDraft->inventory_id] = $rates;
+        }
+
+        return [$allocationArray, $deliveryOptionsByShipment];
+    }
+
+    /**
      * @return array{0: array<string, mixed>|null, 1: RedirectResponse|null}
      */
     private function resolveSelectedMethod(int $paymentMethodId): array
     {
         $shippingAddress = session()->get(CheckoutSession::SHIPPING_ADDRESS);
-        $countryId = data_get($shippingAddress, 'country_id');
+        $countryId = data_get($shippingAddress, 'country_id')
+            ?? ZoneSessionManager::ensureSession()?->countryId;
 
         if (! $countryId) {
             return [null, redirect()->route('shop.checkout.index')];
         }
 
-        $paymentOptions = resolve(FetchPaymentMethods::class)->handle($countryId);
+        $paymentOptions = resolve(FetchPaymentMethods::class)->handle((int) $countryId);
         $selected = collect($paymentOptions)
             ->first(fn (array $method): bool => $method['id'] === $paymentMethodId);
 
@@ -446,5 +811,20 @@ final class CheckoutController extends Controller
         } catch (Throwable) {
             return null;
         }
+    }
+
+    private function normalizeDestinationId(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_int($value) || is_float($value) || is_string($value)) {
+            $normalized = trim((string) $value);
+
+            return $normalized === '' ? null : $normalized;
+        }
+
+        return null;
     }
 }

@@ -36,6 +36,64 @@ final class ZoneSessionManager
             ->firstWhere('countryCode', $countryCode);
     }
 
+    /**
+     * Ensure a shipping zone is selected. OceanMall is Indonesia-first — if the
+     * visitor never picked a country, default to the store country (or ID).
+     *
+     * Unlike setSessionForCountryCode(), this does not wipe checkout state.
+     */
+    public static function ensureSession(?string $fallbackCountryCode = null): ?CountryByZoneData
+    {
+        if ($existing = self::getSession()) {
+            return $existing;
+        }
+
+        $countries = resolve(GetCountriesByZone::class)->handle();
+
+        if ($countries->isEmpty()) {
+            return null;
+        }
+
+        $fallbackCountryCode ??= self::defaultCountryCode();
+
+        $zone = $countries->firstWhere('countryCode', $fallbackCountryCode)
+            ?? $countries->first();
+
+        if (! $zone instanceof CountryByZoneData) {
+            return null;
+        }
+
+        self::setSession($zone);
+
+        $cart = resolve(CartSessionManager::class)->current();
+
+        if ($cart && $cart->zone_id !== $zone->zoneId) {
+            $cart->update([
+                'zone_id' => $zone->zoneId,
+                'currency_code' => $zone->currencyCode,
+            ]);
+        }
+
+        return $zone;
+    }
+
+    private static function defaultCountryCode(): string
+    {
+        $countryId = shopper_setting('country_id');
+
+        if ($countryId) {
+            $code = \Shopper\Core\Models\Country::query()
+                ->whereKey($countryId)
+                ->value('cca2');
+
+            if (is_string($code) && $code !== '') {
+                return $code;
+            }
+        }
+
+        return 'ID';
+    }
+
     public static function setSessionForCountryCode(string $countryCode): ?CountryByZoneData
     {
         $zone = resolve(GetCountriesByZone::class)

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Form } from '@inertiajs/vue3';
-import { Eye, EyeOff, LockKeyhole, RefreshCw } from 'lucide-vue-next';
+import { Eye, EyeOff, RefreshCw } from 'lucide-vue-next';
 import { nextTick, onMounted, ref, useTemplateRef } from 'vue';
 import AlertError from '@/components/alert-error.vue';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useTwoFactorAuth } from '@/composables/useTwoFactorAuth';
 import { regenerateRecoveryCodes } from '@/routes/two-factor';
 
@@ -39,27 +40,28 @@ onMounted(async () => {
 </script>
 
 <template>
-    <Card class="w-full">
-        <CardHeader>
-            <CardTitle class="flex gap-3">
-                <LockKeyhole class="size-4" />2FA recovery codes
-            </CardTitle>
-            <CardDescription>
-                Recovery codes let you regain access if you lose your 2FA
-                device. Store them in a secure password manager.
+    <Card class="w-full shadow-none">
+        <CardHeader class="pb-0">
+            <CardTitle class="text-[13px]">Kode pemulihan 2FA</CardTitle>
+            <CardDescription class="leading-5">
+                Simpan di tempat aman. Dipakai kalau HP autentikator hilang.
             </CardDescription>
         </CardHeader>
-        <CardContent>
-            <div
-                class="flex flex-col gap-3 select-none sm:flex-row sm:items-center sm:justify-between"
-            >
-                <Button @click="toggleRecoveryCodesVisibility" class="w-fit">
-                    <component
-                        :is="isRecoveryCodesVisible ? EyeOff : Eye"
-                        class="size-4"
-                    />
-                    {{ isRecoveryCodesVisible ? 'Hide' : 'View' }} recovery
-                    codes
+
+        <CardContent class="flex flex-col gap-3 pt-3">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="xl"
+                    @click="toggleRecoveryCodesVisibility"
+                >
+                    <component :is="isRecoveryCodesVisible ? EyeOff : Eye" />
+                    {{
+                        isRecoveryCodesVisible
+                            ? 'Sembunyikan kode'
+                            : 'Lihat kode pemulihan'
+                    }}
                 </Button>
 
                 <Form
@@ -71,36 +73,42 @@ onMounted(async () => {
                     #default="{ processing }"
                 >
                     <Button
-                        variant="secondary"
                         type="submit"
+                        variant="outline"
+                        size="xl"
                         :disabled="processing"
                     >
-                        <RefreshCw /> Regenerate codes
+                        <RefreshCw />
+                        Buat ulang kode
                     </Button>
                 </Form>
             </div>
+
             <div
                 :class="[
-                    'relative overflow-hidden transition-all duration-300',
+                    'overflow-hidden transition-all duration-300',
                     isRecoveryCodesVisible
                         ? 'h-auto opacity-100'
                         : 'h-0 opacity-0',
                 ]"
             >
-                <div v-if="errors?.length" class="mt-6">
+                <div v-if="errors?.length" class="mt-1">
                     <AlertError :errors="errors" />
                 </div>
-                <div v-else class="mt-3 space-y-3">
+                <div v-else class="flex flex-col gap-2">
                     <div
                         ref="recoveryCodeSectionRef"
-                        class="grid gap-1 rounded-lg bg-muted p-4 font-mono text-sm"
+                        class="grid gap-1 rounded-md bg-muted p-3 font-mono text-[13px] text-foreground"
                     >
-                        <div v-if="!recoveryCodesList.length" class="space-y-2">
-                            <div
+                        <div
+                            v-if="!recoveryCodesList.length"
+                            class="flex flex-col gap-2"
+                        >
+                            <Skeleton
                                 v-for="n in 8"
                                 :key="n"
-                                class="h-4 animate-pulse rounded bg-muted-foreground/20"
-                            ></div>
+                                class="h-4 w-full"
+                            />
                         </div>
                         <div
                             v-else
@@ -110,11 +118,14 @@ onMounted(async () => {
                             {{ code }}
                         </div>
                     </div>
-                    <p class="text-xs text-muted-foreground select-none">
-                        Each recovery code can be used once to access your
-                        account and will be removed after use. If you need more,
-                        click
-                        <span class="font-bold">Regenerate codes</span> above.
+                    <p
+                        class="text-sm leading-5 text-muted-foreground select-none"
+                    >
+                        Tiap kode hanya bisa dipakai sekali. Butuh yang baru?
+                        Klik
+                        <span class="font-semibold text-foreground"
+                            >Buat ulang kode</span
+                        >.
                     </p>
                 </div>
             </div>

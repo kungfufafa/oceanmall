@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 40" role="img" aria-label="SiCepat Ekspres">
+  <rect x="2" y="6" width="22" height="22" rx="3" transform="rotate(-12 13 17)" fill="#E31E24"/>
+  <path d="M14 10 L9 18 H13.5 L11 28 L20 16 H15.5 Z" fill="#FFFFFF"/>
+  <text x="32" y="24" fill="#E31E24" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="18" font-weight="900" letter-spacing="-0.5">SICEPAT</text>
+  <text x="32" y="35" fill="#E31E24" font-family="Arial, Helvetica, sans-serif" font-size="8" font-weight="700" font-style="italic" letter-spacing="1">EKSPRES</text>
+</svg>

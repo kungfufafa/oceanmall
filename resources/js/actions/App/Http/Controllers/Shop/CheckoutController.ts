@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::index
-* @see app/Http/Controllers/Shop/CheckoutController.php:37
+* @see app/Http/Controllers/Shop/CheckoutController.php:46
 * @route '/checkout'
 */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::index
-* @see app/Http/Controllers/Shop/CheckoutController.php:37
+* @see app/Http/Controllers/Shop/CheckoutController.php:46
 * @route '/checkout'
 */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::index
-* @see app/Http/Controllers/Shop/CheckoutController.php:37
+* @see app/Http/Controllers/Shop/CheckoutController.php:46
 * @route '/checkout'
 */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::index
-* @see app/Http/Controllers/Shop/CheckoutController.php:37
+* @see app/Http/Controllers/Shop/CheckoutController.php:46
 * @route '/checkout'
 */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::index
-* @see app/Http/Controllers/Shop/CheckoutController.php:37
+* @see app/Http/Controllers/Shop/CheckoutController.php:46
 * @route '/checkout'
 */
 const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => (
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::index
-* @see app/Http/Controllers/Shop/CheckoutController.php:37
+* @see app/Http/Controllers/Shop/CheckoutController.php:46
 * @route '/checkout'
 */
 indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -65,7 +65,7 @@ indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::index
-* @see app/Http/Controllers/Shop/CheckoutController.php:37
+* @see app/Http/Controllers/Shop/CheckoutController.php:46
 * @route '/checkout'
 */
 indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ index.form = indexForm
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::saveShippingAddress
-* @see app/Http/Controllers/Shop/CheckoutController.php:103
+* @see app/Http/Controllers/Shop/CheckoutController.php:220
 * @route '/checkout/shipping-address'
 */
 export const saveShippingAddress = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -97,7 +97,7 @@ saveShippingAddress.definition = {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::saveShippingAddress
-* @see app/Http/Controllers/Shop/CheckoutController.php:103
+* @see app/Http/Controllers/Shop/CheckoutController.php:220
 * @route '/checkout/shipping-address'
 */
 saveShippingAddress.url = (options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ saveShippingAddress.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::saveShippingAddress
-* @see app/Http/Controllers/Shop/CheckoutController.php:103
+* @see app/Http/Controllers/Shop/CheckoutController.php:220
 * @route '/checkout/shipping-address'
 */
 saveShippingAddress.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -116,7 +116,7 @@ saveShippingAddress.post = (options?: RouteQueryOptions): RouteDefinition<'post'
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::saveShippingAddress
-* @see app/Http/Controllers/Shop/CheckoutController.php:103
+* @see app/Http/Controllers/Shop/CheckoutController.php:220
 * @route '/checkout/shipping-address'
 */
 const saveShippingAddressForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -126,7 +126,7 @@ const saveShippingAddressForm = (options?: RouteQueryOptions): RouteFormDefiniti
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::saveShippingAddress
-* @see app/Http/Controllers/Shop/CheckoutController.php:103
+* @see app/Http/Controllers/Shop/CheckoutController.php:220
 * @route '/checkout/shipping-address'
 */
 saveShippingAddressForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -138,7 +138,7 @@ saveShippingAddress.form = saveShippingAddressForm
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::saveShippingOption
-* @see app/Http/Controllers/Shop/CheckoutController.php:137
+* @see app/Http/Controllers/Shop/CheckoutController.php:291
 * @route '/checkout/shipping-option'
 */
 export const saveShippingOption = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -153,7 +153,7 @@ saveShippingOption.definition = {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::saveShippingOption
-* @see app/Http/Controllers/Shop/CheckoutController.php:137
+* @see app/Http/Controllers/Shop/CheckoutController.php:291
 * @route '/checkout/shipping-option'
 */
 saveShippingOption.url = (options?: RouteQueryOptions) => {
@@ -162,7 +162,7 @@ saveShippingOption.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::saveShippingOption
-* @see app/Http/Controllers/Shop/CheckoutController.php:137
+* @see app/Http/Controllers/Shop/CheckoutController.php:291
 * @route '/checkout/shipping-option'
 */
 saveShippingOption.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -172,7 +172,7 @@ saveShippingOption.post = (options?: RouteQueryOptions): RouteDefinition<'post'>
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::saveShippingOption
-* @see app/Http/Controllers/Shop/CheckoutController.php:137
+* @see app/Http/Controllers/Shop/CheckoutController.php:291
 * @route '/checkout/shipping-option'
 */
 const saveShippingOptionForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -182,7 +182,7 @@ const saveShippingOptionForm = (options?: RouteQueryOptions): RouteFormDefinitio
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::saveShippingOption
-* @see app/Http/Controllers/Shop/CheckoutController.php:137
+* @see app/Http/Controllers/Shop/CheckoutController.php:291
 * @route '/checkout/shipping-option'
 */
 saveShippingOptionForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -194,7 +194,7 @@ saveShippingOption.form = saveShippingOptionForm
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::preparePayment
-* @see app/Http/Controllers/Shop/CheckoutController.php:177
+* @see app/Http/Controllers/Shop/CheckoutController.php:442
 * @route '/checkout/prepare-payment'
 */
 export const preparePayment = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -209,7 +209,7 @@ preparePayment.definition = {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::preparePayment
-* @see app/Http/Controllers/Shop/CheckoutController.php:177
+* @see app/Http/Controllers/Shop/CheckoutController.php:442
 * @route '/checkout/prepare-payment'
 */
 preparePayment.url = (options?: RouteQueryOptions) => {
@@ -218,7 +218,7 @@ preparePayment.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::preparePayment
-* @see app/Http/Controllers/Shop/CheckoutController.php:177
+* @see app/Http/Controllers/Shop/CheckoutController.php:442
 * @route '/checkout/prepare-payment'
 */
 preparePayment.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -228,7 +228,7 @@ preparePayment.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => 
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::preparePayment
-* @see app/Http/Controllers/Shop/CheckoutController.php:177
+* @see app/Http/Controllers/Shop/CheckoutController.php:442
 * @route '/checkout/prepare-payment'
 */
 const preparePaymentForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -238,7 +238,7 @@ const preparePaymentForm = (options?: RouteQueryOptions): RouteFormDefinition<'p
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::preparePayment
-* @see app/Http/Controllers/Shop/CheckoutController.php:177
+* @see app/Http/Controllers/Shop/CheckoutController.php:442
 * @route '/checkout/prepare-payment'
 */
 preparePaymentForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -250,7 +250,7 @@ preparePayment.form = preparePaymentForm
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::placeOrder
-* @see app/Http/Controllers/Shop/CheckoutController.php:247
+* @see app/Http/Controllers/Shop/CheckoutController.php:512
 * @route '/checkout/place-order'
 */
 export const placeOrder = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -265,7 +265,7 @@ placeOrder.definition = {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::placeOrder
-* @see app/Http/Controllers/Shop/CheckoutController.php:247
+* @see app/Http/Controllers/Shop/CheckoutController.php:512
 * @route '/checkout/place-order'
 */
 placeOrder.url = (options?: RouteQueryOptions) => {
@@ -274,7 +274,7 @@ placeOrder.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::placeOrder
-* @see app/Http/Controllers/Shop/CheckoutController.php:247
+* @see app/Http/Controllers/Shop/CheckoutController.php:512
 * @route '/checkout/place-order'
 */
 placeOrder.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -284,7 +284,7 @@ placeOrder.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::placeOrder
-* @see app/Http/Controllers/Shop/CheckoutController.php:247
+* @see app/Http/Controllers/Shop/CheckoutController.php:512
 * @route '/checkout/place-order'
 */
 const placeOrderForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -294,7 +294,7 @@ const placeOrderForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::placeOrder
-* @see app/Http/Controllers/Shop/CheckoutController.php:247
+* @see app/Http/Controllers/Shop/CheckoutController.php:512
 * @route '/checkout/place-order'
 */
 placeOrderForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -306,7 +306,7 @@ placeOrder.form = placeOrderForm
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::stripeReturn
-* @see app/Http/Controllers/Shop/CheckoutController.php:293
+* @see app/Http/Controllers/Shop/CheckoutController.php:601
 * @route '/checkout/stripe-return'
 */
 export const stripeReturn = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -321,7 +321,7 @@ stripeReturn.definition = {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::stripeReturn
-* @see app/Http/Controllers/Shop/CheckoutController.php:293
+* @see app/Http/Controllers/Shop/CheckoutController.php:601
 * @route '/checkout/stripe-return'
 */
 stripeReturn.url = (options?: RouteQueryOptions) => {
@@ -330,7 +330,7 @@ stripeReturn.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::stripeReturn
-* @see app/Http/Controllers/Shop/CheckoutController.php:293
+* @see app/Http/Controllers/Shop/CheckoutController.php:601
 * @route '/checkout/stripe-return'
 */
 stripeReturn.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -340,7 +340,7 @@ stripeReturn.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::stripeReturn
-* @see app/Http/Controllers/Shop/CheckoutController.php:293
+* @see app/Http/Controllers/Shop/CheckoutController.php:601
 * @route '/checkout/stripe-return'
 */
 stripeReturn.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -350,7 +350,7 @@ stripeReturn.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::stripeReturn
-* @see app/Http/Controllers/Shop/CheckoutController.php:293
+* @see app/Http/Controllers/Shop/CheckoutController.php:601
 * @route '/checkout/stripe-return'
 */
 const stripeReturnForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -360,7 +360,7 @@ const stripeReturnForm = (options?: RouteQueryOptions): RouteFormDefinition<'get
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::stripeReturn
-* @see app/Http/Controllers/Shop/CheckoutController.php:293
+* @see app/Http/Controllers/Shop/CheckoutController.php:601
 * @route '/checkout/stripe-return'
 */
 stripeReturnForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -370,7 +370,7 @@ stripeReturnForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'>
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutController::stripeReturn
-* @see app/Http/Controllers/Shop/CheckoutController.php:293
+* @see app/Http/Controllers/Shop/CheckoutController.php:601
 * @route '/checkout/stripe-return'
 */
 stripeReturnForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

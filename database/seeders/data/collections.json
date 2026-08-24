@@ -1,0 +1,134 @@
+[
+  {
+    "name": "Produk Terbaru",
+    "slug": "new-arrivals",
+    "description": "<p>Handphone dan aksesoris rilis terbaru dari distribusi resmi OCEANMALL.</p>",
+    "type": "auto",
+    "match_conditions": "any",
+    "image": "new-arrivals.jpg",
+    "rules": [
+      {
+        "rule": "product_created_at",
+        "operator": "less_than",
+        "value": "2026-02-28"
+      }
+    ]
+  },
+  {
+    "name": "Promo & Diskon",
+    "slug": "sales-promotions",
+    "description": "<p>Produk dengan harga promo dan diskon spesial.</p>",
+    "type": "auto",
+    "match_conditions": null,
+    "image": "sales-promotions.jpg",
+    "rules": []
+  },
+  {
+    "name": "Terlaris",
+    "slug": "best-sellers",
+    "description": "<p>Smartphone dan aksesoris paling laris di toko OCEANMALL.</p>",
+    "type": "auto",
+    "match_conditions": "any",
+    "image": "best-sellers.jpg",
+    "rules": [
+      {
+        "rule": "product_sales_count",
+        "operator": "greater_than",
+        "value": "10"
+      }
+    ]
+  },
+  {
+    "name": "Stok Tersedia",
+    "slug": "in-stock",
+    "description": "<p>Produk dengan stok ready di gudang Cirebon.</p>",
+    "type": "auto",
+    "match_conditions": "any",
+    "image": "in-stock.jpg",
+    "rules": [
+      {
+        "rule": "inventory_stock",
+        "operator": "greater_than",
+        "value": "5"
+      }
+    ]
+  },
+  {
+    "name": "Produk Unggulan",
+    "slug": "featured-products",
+    "description": "<p>Pilihan unggulan dari tim OCEANMALL.</p>",
+    "type": "auto",
+    "match_conditions": "any",
+    "image": "featured-products.jpg",
+    "rules": [
+      {
+        "rule": "product_featured",
+        "operator": "equals_to",
+        "value": "0"
+      }
+    ]
+  },
+  {
+    "name": "Realme Collection",
+    "slug": "realme-collection",
+    "description": "<p>Lini lengkap smartphone dan aksesoris Realme resmi.</p>",
+    "type": "auto",
+    "match_conditions": null,
+    "image": "featured-products.jpg",
+    "rules": []
+  },
+  {
+    "name": "Aksesoris Wajib",
+    "slug": "must-have-accessories",
+    "description": "<p>Case, tempered glass, dan charger yang wajib dibeli bersama handphone baru.</p>",
+    "type": "auto",
+    "match_conditions": null,
+    "image": "gift-ideas.jpg",
+    "rules": []
+  },
+  {
+    "name": "Harga Hemat",
+    "slug": "budget-friendly",
+    "description": "<p>Smartphone dan aksesoris di bawah Rp 2 juta.</p>",
+    "type": "auto",
+    "match_conditions": "any",
+    "image": "budget-friendly.jpg",
+    "rules": [
+      {
+        "rule": "product_price",
+        "operator": "less_than",
+        "value": "2000000"
+      }
+    ]
+  },
+  {
+    "name": "Premium",
+    "slug": "premium",
+    "description": "<p>Flagship smartphone dengan spesifikasi terbaik.</p>",
+    "type": "auto",
+    "match_conditions": "any",
+    "image": "premium.jpg",
+    "rules": [
+      {
+        "rule": "product_price",
+        "operator": "greater_than",
+        "value": "2000000"
+      }
+    ]
+  },
+  {
+    "name": "Rating Tertinggi",
+    "slug": "top-rated",
+    "description": "<p>Produk dengan rating 4 bintang ke atas dari pelanggan.</p>",
+    "type": "auto",
+    "match_conditions": "any",
+    "image": "top-rated.jpg",
+    "rules": [
+      {
+        "rule": "product_rating",
+        "operator": "greater_than",
+        "value": "3"
+      }
+    ]
+  }
+]

@@ -18,19 +18,22 @@ const { currency, taxLabel } = useShop();
 
 const textSize = computed<string>(() => {
     return {
-        lg: 'text-2xl',
-        md: 'text-lg',
-        sm: 'text-sm',
+        lg: 'text-xl',
+        md: 'text-base',
+        sm: 'text-[13px]',
     }[props.size];
 });
 
 const percentage = computed<number | null>(() => {
     if (
-        !props.price?.compare_amount ||
+        !props.price ||
+        props.price.amount === null ||
+        !props.price.compare_amount ||
         props.price.compare_amount <= props.price.amount
     ) {
         return null;
     }
+
     return Math.round(
         ((props.price.compare_amount - props.price.amount) /
             props.price.compare_amount) *
@@ -41,33 +44,26 @@ const percentage = computed<number | null>(() => {
 
 <template>
     <div :class="textSize">
-        <template v-if="price">
+        <template v-if="price && price.amount !== null">
             <p class="flex items-center gap-2">
-                <span class="font-semibold text-zinc-900 dark:text-white">{{
+                <span class="storefront-price">{{
                     formatMoney(price.amount, currency)
                 }}</span>
-                <span v-if="taxLabel" class="text-xs text-zinc-500">{{
+                <span v-if="taxLabel" class="text-xs text-muted-foreground">{{
                     taxLabel
                 }}</span>
             </p>
 
             <p
                 v-if="percentage"
-                class="mt-0.5 flex items-center gap-1.5 sm:mt-0 sm:inline-flex"
+                class="mt-0.5 text-[11px] text-muted-foreground line-through"
             >
-                <span class="sr-only">Original:</span>
-                <span class="text-zinc-400 line-through">{{
-                    formatMoney(price.compare_amount ?? 0, currency)
-                }}</span>
-                <span
-                    class="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
-                >
-                    -{{ percentage }}%
-                </span>
+                <span class="sr-only">Harga asli:</span>
+                {{ formatMoney(price.compare_amount ?? 0, currency) }}
             </p>
         </template>
-        <p v-else class="font-semibold text-zinc-900 dark:text-white">
-            Price unavailable
+        <p v-else class="text-[13px] font-semibold text-muted-foreground">
+            Harga belum tersedia
         </p>
     </div>
 </template>

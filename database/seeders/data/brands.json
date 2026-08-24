@@ -1,0 +1,56 @@
+[
+  {
+    "name": "Realme",
+    "slug": "realme",
+    "description": "Merek smartphone global dengan performa tinggi dan harga terjangkau. Produk unggulan distribusi OCEANMALL.",
+    "website": "https://www.realme.com/id",
+    "is_enabled": true,
+    "position": 1,
+    "image": "realme.png"
+  },
+  {
+    "name": "Tecno",
+    "slug": "tecno",
+    "description": "Brand smartphone inovatif dengan kamera canggih dan desain modern untuk pasar Indonesia.",
+    "website": "https://www.tecno-mobile.com/id",
+    "is_enabled": true,
+    "position": 2,
+    "image": "tecno.png"
+  },
+  {
+    "name": "Itel",
+    "slug": "itel",
+    "description": "Smartphone entry-level berkualitas dengan fitur lengkap dan daya tahan baterai optimal.",
+    "website": "https://www.itel-life.com/id",
+    "is_enabled": true,
+    "position": 3,
+    "image": "itel.png"
+  },
+  {
+    "name": "ZTE",
+    "slug": "zte",
+    "description": "Produsen perangkat telekomunikasi global dengan lini smartphone dan perangkat jaringan terpercaya.",
+    "website": "https://www.zte.com.cn/global",
+    "is_enabled": true,
+    "position": 4,
+    "image": "zte.png"
+  },
+  {
+    "name": "Oraimo",
+    "slug": "oraimo",
+    "description": "Merek aksesoris gadget premium — earphone, power bank, dan charger untuk gaya hidup digital.",
+    "website": "https://oraimo.com/id",
+    "is_enabled": true,
+    "position": 5,
+    "image": "oraimo.png"
+  },
+  {
+    "name": "Baseus",
+    "slug": "baseus",
+    "description": "Aksesoris mobile dan charging solution berkualitas untuk kebutuhan sehari-hari.",
+    "website": "https://www.baseus.com",
+    "is_enabled": true,
+    "position": 6,
+    "image": "baseus.png"
+  }
+]

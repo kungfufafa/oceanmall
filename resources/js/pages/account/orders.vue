@@ -3,8 +3,12 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { ShoppingBag } from 'lucide-vue-next';
 import { computed } from 'vue';
 import OrderStatusBadge from '@/components/account/order-status-badge.vue';
+import EmptyState from '@/components/shop/empty-state.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { formatMoney } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { orders as accountOrders } from '@/routes/account';
 import { show as ordersShow } from '@/routes/account/orders';
 import * as shop from '@/routes/shop';
@@ -58,9 +62,9 @@ const props = defineProps<{
 }>();
 
 const tabs = [
-    { value: 'all', label: 'Orders' },
-    { value: 'not-shipped', label: 'Not Yet Shipped' },
-    { value: 'cancelled', label: 'Cancelled Orders' },
+    { value: 'all', label: 'Semua' },
+    { value: 'not-shipped', label: 'Belum dikirim' },
+    { value: 'cancelled', label: 'Dibatalkan' },
 ];
 
 const activeTab = computed<string>(() => props.filters.tab || 'all');
@@ -73,15 +77,12 @@ function changeTab(value: string): void {
     );
 }
 
-function formatDate(value: string, format: 'short' | 'long' = 'long'): string {
-    const date = new Date(value);
-    return format === 'short'
-        ? date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })
-        : date.toLocaleDateString('en-US', {
-              month: 'short',
-              day: '2-digit',
-              year: 'numeric',
-          });
+function formatDate(value: string): string {
+    return new Date(value).toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    });
 }
 
 function itemThumbnail(item: OrderItem): string | null {
@@ -89,166 +90,108 @@ function itemThumbnail(item: OrderItem): string | null {
 }
 
 function shippingLabel(order: Order): string {
-    const date = formatDate(order.updated_at, 'short');
-    if (order.shipping_status === 'delivered') return `Delivered ${date}`;
+    if (order.shipping_status === 'delivered') {
+return 'Terkirim';
+}
+
     if (
         order.shipping_status === 'shipped' ||
         order.shipping_status === 'partially_shipped'
-    )
-        return `Shipped ${date}`;
+    ) {
+        return 'Dalam pengiriman';
+    }
+
     if (
         order.shipping_status === 'returned' ||
         order.shipping_status === 'partially_returned'
-    )
-        return 'Returned';
-    if (order.status === 'cancelled') return 'Cancelled';
-    if (order.status === 'completed') return `Completed ${date}`;
-    return 'Processing';
+    ) {
+        return 'Dikembalikan';
+    }
+
+    if (order.status === 'cancelled') {
+return 'Dibatalkan';
+}
+
+    if (order.status === 'completed') {
+return 'Selesai';
+}
+
+    return 'Diproses';
 }
 </script>
 
 <template>
-    <Head title="Your Orders" />
-
-    <div class="flex items-center gap-3">
-        <h1
-            class="font-heading text-2xl font-bold text-zinc-900 dark:text-white"
-        >
-            Your Orders
-        </h1>
-        <span
-            v-if="orders.total > 0"
-            class="inline-flex items-center justify-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-        >
-            {{ orders.total }}
-        </span>
-    </div>
-
-    <div class="mt-6 flex items-center justify-between">
-        <div
-            class="flex items-center gap-1 rounded-lg border border-zinc-200 p-1 dark:border-zinc-700"
-        >
-            <button
-                v-for="tab in tabs"
-                :key="tab.value"
-                type="button"
-                :class="[
-                    'rounded-md px-3 py-1.5 text-sm font-medium transition',
-                    activeTab === tab.value
-                        ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                        : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
-                ]"
-                @click="changeTab(tab.value)"
-            >
-                {{ tab.label }}
-            </button>
-        </div>
-    </div>
+    <Head title="Pesanan" />
 
     <div
-        v-if="!orders.data.length"
-        class="mt-12 flex flex-col items-center justify-center text-center"
+        class="flex [scrollbar-width:none] gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden"
     >
-        <ShoppingBag
-            class="size-12 text-zinc-300 dark:text-zinc-600"
-            aria-hidden="true"
-        />
-        <h3 class="mt-4 text-sm font-medium text-zinc-900 dark:text-white">
-            No orders found
-        </h3>
-        <p class="mt-1 text-sm text-zinc-500">
-            Your orders will appear here once you make a purchase.
-        </p>
-        <Link :href="shop.index.url()" class="mt-6">
-            <Button>Start Shopping</Button>
-        </Link>
+        <Badge
+            v-for="tab in tabs"
+            :key="tab.value"
+            as="button"
+            type="button"
+            :variant="activeTab === tab.value ? 'default' : 'secondary'"
+            :class="
+                cn(
+                    'shrink-0 cursor-pointer px-3 py-1.5 text-[12px] font-semibold',
+                    activeTab !== tab.value &&
+                        'bg-muted text-muted-foreground hover:bg-muted/80',
+                )
+            "
+            @click="changeTab(tab.value)"
+        >
+            {{ tab.label }}
+        </Badge>
     </div>
 
-    <template v-else>
-        <div class="mt-6 space-y-6">
-            <div
-                v-for="order in orders.data"
-                :key="order.id"
-                class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700"
-            >
+    <EmptyState
+        v-if="!orders.data.length"
+        title="Belum ada pesanan"
+        description="Pesananmu akan muncul di sini setelah checkout."
+        :icon="ShoppingBag"
+        class="mt-10"
+    >
+        <template #action>
+            <Button as-child size="xl">
+                <Link :href="shop.index.url()"> Belanja sekarang </Link>
+            </Button>
+        </template>
+    </EmptyState>
+
+    <ul v-else class="mt-4 flex flex-col gap-3">
+        <li v-for="order in orders.data" :key="order.id">
+            <Card class="gap-0 overflow-hidden py-0 shadow-none">
                 <div
-                    class="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 bg-zinc-50 px-5 py-4 dark:border-zinc-700 dark:bg-zinc-800/50"
+                    class="flex items-center justify-between gap-3 border-b border-border bg-muted/50 px-3.5 py-2.5"
                 >
-                    <div class="flex flex-wrap items-center gap-8 text-sm">
-                        <div>
-                            <dt class="text-xs text-zinc-500">Order placed</dt>
-                            <dd
-                                class="mt-0.5 font-medium text-zinc-900 dark:text-white"
-                            >
-                                {{ formatDate(order.created_at) }}
-                            </dd>
-                        </div>
-                        <div>
-                            <dt class="text-xs text-zinc-500">Total</dt>
-                            <dd
-                                class="mt-0.5 font-medium text-zinc-900 dark:text-white"
-                            >
-                                {{
-                                    formatMoney(
-                                        order.price_amount,
-                                        order.currency_code,
-                                    )
-                                }}
-                            </dd>
-                        </div>
-                        <div v-if="order.shipping_address" class="max-w-xs">
-                            <dt class="text-xs text-zinc-500">Ship to</dt>
-                            <dd
-                                class="mt-0.5 font-medium text-zinc-900 dark:text-white"
-                            >
-                                <span>{{
-                                    order.shipping_address.street_address
-                                }}</span>
-                                <span class="text-xs font-normal text-zinc-700">
-                                    <span
-                                        v-if="
-                                            order.shipping_address.postal_code
-                                        "
-                                        >{{
-                                            order.shipping_address.postal_code
-                                        }}
-                                    </span>
-                                    <span v-if="order.shipping_address.city">{{
-                                        order.shipping_address.city
-                                    }}</span>
-                                    <span
-                                        v-if="
-                                            order.shipping_address.country_name
-                                        "
-                                        >,
-                                        {{
-                                            order.shipping_address.country_name
-                                        }}</span
-                                    >
-                                </span>
-                            </dd>
-                        </div>
+                    <div class="min-w-0">
+                        <p class="text-[13px] font-semibold text-foreground">
+                            #{{ order.number }}
+                        </p>
+                        <p class="mt-0.5 text-xs text-muted-foreground">
+                            {{ formatDate(order.created_at) }} ·
+                            {{
+                                formatMoney(
+                                    order.price_amount,
+                                    order.currency_code,
+                                )
+                            }}
+                        </p>
                     </div>
-                    <div class="flex flex-col items-end gap-1.5 text-sm">
-                        <span class="font-medium text-zinc-900 dark:text-white"
-                            >Order #{{ order.number }}</span
-                        >
-                        <Link
-                            :href="ordersShow.url(order.id)"
-                            class="text-sm font-medium text-zinc-900 hover:underline dark:text-white"
-                        >
-                            View order details
-                        </Link>
-                    </div>
+                    <Link
+                        :href="ordersShow.url(order.id)"
+                        class="om-action-primary shrink-0"
+                    >
+                        Detail
+                    </Link>
                 </div>
 
-                <div class="px-5 py-4">
-                    <div class="flex flex-wrap items-center gap-3">
-                        <h3
-                            class="font-heading text-base font-semibold text-zinc-900 dark:text-white"
-                        >
+                <CardContent class="px-3.5 py-3">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-[13px] font-semibold text-foreground">
                             {{ shippingLabel(order) }}
-                        </h3>
+                        </p>
                         <template v-if="order.status === 'cancelled'">
                             <OrderStatusBadge
                                 :status="order.status"
@@ -267,14 +210,14 @@ function shippingLabel(order: Order): string {
                         </template>
                     </div>
 
-                    <div class="mt-4 space-y-4">
+                    <div class="mt-3 flex flex-col gap-2.5">
                         <div
                             v-for="item in order.items"
                             :key="item.id"
-                            class="flex gap-4"
+                            class="flex gap-3"
                         >
                             <div
-                                class="size-24 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ring-1 ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700"
+                                class="size-14 shrink-0 overflow-hidden rounded-md bg-muted"
                             >
                                 <img
                                     v-if="itemThumbnail(item)"
@@ -292,24 +235,18 @@ function shippingLabel(order: Order): string {
                                             product: item.product.slug,
                                         })
                                     "
-                                    class="line-clamp-2 font-heading text-sm font-medium text-zinc-900 hover:underline dark:text-white"
+                                    class="line-clamp-2 text-[13px] font-medium text-foreground"
                                 >
                                     {{ item.name }}
                                 </Link>
                                 <p
                                     v-else
-                                    class="line-clamp-2 font-heading text-sm font-medium text-zinc-900 dark:text-white"
+                                    class="line-clamp-2 text-[13px] font-medium text-foreground"
                                 >
                                     {{ item.name }}
                                 </p>
-                                <p
-                                    v-if="item.sku"
-                                    class="mt-0.5 text-xs text-zinc-500"
-                                >
-                                    SKU: {{ item.sku }}
-                                </p>
-                                <p class="mt-1 text-sm text-zinc-500">
-                                    Qty: {{ item.quantity }} ·
+                                <p class="mt-0.5 text-sm text-muted-foreground">
+                                    {{ item.quantity }}×
                                     {{
                                         formatMoney(
                                             item.unit_price_amount,
@@ -318,40 +255,33 @@ function shippingLabel(order: Order): string {
                                     }}
                                 </p>
                             </div>
-                            <p
-                                class="shrink-0 text-sm font-medium text-zinc-900 dark:text-white"
-                            >
-                                {{
-                                    formatMoney(
-                                        item.unit_price_amount * item.quantity,
-                                        order.currency_code,
-                                    )
-                                }}
-                            </p>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
+                </CardContent>
+            </Card>
+        </li>
+    </ul>
 
-        <nav
-            v-if="orders.last_page > 1"
-            class="mt-8 flex justify-center gap-1"
-            aria-label="Pagination"
-        >
-            <Link
-                v-for="link in orders.links"
-                :key="link.label"
-                :href="link.url ?? '#'"
-                :class="[
-                    'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-3 text-sm transition',
+    <nav
+        v-if="orders.last_page > 1"
+        class="mt-6 flex justify-center gap-1"
+        aria-label="Pagination"
+    >
+        <Link
+            v-for="link in orders.links"
+            :key="link.label"
+            :href="link.url ?? '#'"
+            :class="
+                cn(
+                    'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2.5 text-[13px]',
                     link.active
-                        ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                        : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground',
                     link.url === null && 'pointer-events-none opacity-40',
-                ]"
-                v-html="link.label"
-            />
-        </nav>
-    </template>
+                )
+            "
+        >
+            <span v-html="link.label" />
+        </Link>
+    </nav>
 </template>

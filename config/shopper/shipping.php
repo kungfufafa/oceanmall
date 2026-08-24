@@ -71,6 +71,34 @@ return [
             ],
         ],
 
+        /*
+         | RajaOngkir Shipping Cost API V2 — real-time domestic rates.
+         | Credentials stay in config/komerce.php so Cost and Delivery keys
+         | cannot be mixed. Enablement is also set at runtime in AppServiceProvider.
+         */
+        'rajaongkir' => [
+            'enabled' => env('KOMERCE_SHIPPING_COST_API_KEY') !== null
+                && env('KOMERCE_SHIPPING_COST_API_KEY') !== '',
+            'sandbox' => false,
+            'credentials' => [
+                'api_key' => env('KOMERCE_SHIPPING_COST_API_KEY'),
+                'base_url' => env('RAJAONGKIR_COST_BASE_URL', 'https://rajaongkir.komerce.id'),
+            ],
+        ],
+
+        /*
+         | Komerce Shipping Delivery — AWB, pickup, label, tracking.
+         */
+        'komerce' => [
+            'enabled' => env('KOMERCE_SHIPPING_DELIVERY_API_KEY') !== null
+                && env('KOMERCE_SHIPPING_DELIVERY_API_KEY') !== '',
+            'sandbox' => true,
+            'credentials' => [
+                'api_key' => env('KOMERCE_SHIPPING_DELIVERY_API_KEY'),
+                'base_url' => env('RAJAONGKIR_DELIVERY_BASE_URL', 'https://api-sandbox.collaborator.komerce.id'),
+            ],
+        ],
+
     ],
 
     /*

@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { Search } from 'lucide-vue-next';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
+import EmptyState from '@/components/shop/empty-state.vue';
+import FilterSelect from '@/components/shop/filter-select.vue';
+import PagePagination from '@/components/shop/page-pagination.vue';
 import ProductCard from '@/components/shop/product-card.vue';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { stripHtml } from '@/lib/format';
 import { home } from '@/routes';
 import * as shop from '@/routes/shop';
@@ -31,6 +28,15 @@ const props = defineProps<{
 
 const sort = ref<string>(props.filters.sort);
 
+const sortOptions = [
+    { value: 'latest', label: 'Terbaru' },
+    { value: 'name', label: 'Nama' },
+];
+
+const description = computed(() =>
+    props.collection.description ? stripHtml(props.collection.description) : '',
+);
+
 watch(sort, (value) => {
     router.get(
         shop.collection.url({ collection: props.collection.slug }),
@@ -43,66 +49,65 @@ watch(sort, (value) => {
 <template>
     <Head :title="collection.name" />
 
-    <Container class="py-8 sm:py-12">
-        <nav
-            class="mb-8 flex items-center gap-2 text-sm text-zinc-500"
-            aria-label="Breadcrumb"
-        >
-            <Link
-                :href="home.url()"
-                class="transition hover:text-zinc-900 dark:hover:text-white"
-                >Home</Link
-            >
-            <span>/</span>
-            <span class="text-zinc-900 dark:text-white">{{
-                collection.name
-            }}</span>
-        </nav>
+    <AppPageHeader
+        class="lg:hidden"
+        :title="collection.name"
+        :back-href="home.url()"
+        max-width-class="max-w-7xl"
+    >
+        <template #end>
+            <label class="sr-only" for="collection-sort">Urutkan</label>
+            <FilterSelect
+                id="collection-sort"
+                v-model="sort"
+                :options="sortOptions"
+                placeholder="Urutkan"
+                class="mr-1 max-w-[7.5rem] truncate"
+            />
+        </template>
+    </AppPageHeader>
 
-        <div
-            class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-        >
-            <div>
+    <Container class="pt-3 pb-8 lg:pt-6">
+        <div class="mb-4 hidden items-end justify-between gap-4 lg:flex">
+            <div class="min-w-0">
                 <h1
-                    class="font-heading text-3xl font-bold text-zinc-900 dark:text-white"
+                    class="text-lg font-semibold tracking-tight text-foreground"
                 >
                     {{ collection.name }}
                 </h1>
                 <p
-                    v-if="collection.description"
-                    class="mt-2 max-w-2xl text-sm text-zinc-500"
+                    v-if="description"
+                    class="mt-1 line-clamp-2 text-sm text-muted-foreground"
                 >
-                    {{ stripHtml(collection.description) }}
+                    {{ description }}
                 </p>
             </div>
-
-            <Select v-model="sort">
-                <SelectTrigger class="w-auto" aria-label="Sort">
-                    <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="latest">Newest</SelectItem>
-                    <SelectItem value="name">Name</SelectItem>
-                </SelectContent>
-            </Select>
-        </div>
-
-        <div
-            v-if="!products.data.length"
-            class="mt-16 flex flex-col items-center justify-center text-center"
-        >
-            <Search
-                class="size-12 text-zinc-300 dark:text-zinc-600"
-                aria-hidden="true"
+            <label class="sr-only" for="collection-sort-desktop">Urutkan</label>
+            <FilterSelect
+                id="collection-sort-desktop"
+                v-model="sort"
+                :options="sortOptions"
+                placeholder="Urutkan"
+                class="shrink-0"
             />
-            <h3 class="mt-4 text-sm font-medium text-zinc-900 dark:text-white">
-                No products in this collection
-            </h3>
         </div>
+
+        <p
+            v-if="description"
+            class="mb-4 line-clamp-2 text-sm text-muted-foreground lg:hidden"
+        >
+            {{ description }}
+        </p>
+
+        <EmptyState
+            v-if="!products.data.length"
+            title="Tidak ada produk"
+            :icon="Search"
+        />
 
         <template v-else>
             <div
-                class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:gap-x-6"
+                class="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
             >
                 <ProductCard
                     v-for="product in products.data"
@@ -111,25 +116,10 @@ watch(sort, (value) => {
                 />
             </div>
 
-            <nav
+            <PagePagination
                 v-if="products.last_page > 1"
-                class="mt-8 flex justify-center gap-1"
-                aria-label="Pagination"
-            >
-                <Link
-                    v-for="link in products.links"
-                    :key="link.label"
-                    :href="link.url ?? '#'"
-                    :class="[
-                        'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-3 text-sm transition',
-                        link.active
-                            ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                            : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
-                        link.url === null && 'pointer-events-none opacity-40',
-                    ]"
-                    v-html="link.label"
-                />
-            </nav>
+                :links="products.links"
+            />
         </template>
     </Container>
 </template>

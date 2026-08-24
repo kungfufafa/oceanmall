@@ -1,23 +1,42 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { Check, ChevronRight, Lock, ShoppingBag } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
-import Card from '@/components/shop/card.vue';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
+import AuthTextField from '@/components/auth/auth-text-field.vue';
+import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
-import StripePaymentForm from '@/components/shop/stripe-payment-form.vue';
+import CouponField from '@/components/shop/coupon-field.vue';
+import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
+import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
+import SelectableCard from '@/components/shop/selectable-card.vue';
+import ShipmentRatePicker from '@/components/shop/shipment-rate-picker.vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
 import { useShop } from '@/composables/useShop';
 import { formatMoney } from '@/lib/format';
+import { cart as cartRoute } from '@/routes/shop';
 import * as checkout from '@/routes/shop/checkout';
-import type {
-    Address,
-    Cart,
-    CartContext,
-    DeliveryOption,
-    PaymentMethod,
-} from '@/types/shop';
+import type { Address, Cart, CartContext, DeliveryOption } from '@/types/shop';
+
+const StripePaymentForm = defineAsyncComponent(
+    () => import('@/components/shop/stripe-payment-form.vue'),
+);
+
+type ShipmentPackage = {
+    inventory_id: number;
+    inventory_name: string;
+    lines: Array<{
+        purchasable_type: string;
+        purchasable_id: number;
+        qty: number;
+    }>;
+};
 
 type ShippingAddressForm = {
     first_name: string;
@@ -28,20 +47,42 @@ type ShippingAddressForm = {
     city: string;
     state: string;
     phone_number: string;
+    rajaongkir_destination_id: string;
+    rajaongkir_destination_label: string;
+};
+
+type SavedCheckoutAddress = Address & {
+    rajaongkir_destination_id?: string | null;
+    rajaongkir_destination_label?: string | null;
+};
+
+type DestinationResult = {
+    id: string;
+    label: string;
+    province_name: string | null;
+    city_name: string | null;
+    district_name: string | null;
+    subdistrict_name: string | null;
+    zip_code: string | null;
 };
 
 const props = defineProps<{
     cart: Cart;
     cartContext: CartContext;
-    savedAddresses: Address[];
+    savedAddresses: SavedCheckoutAddress[];
     shippingAddress: ShippingAddressForm | null;
     deliveryOptions: DeliveryOption[];
     selectedDeliveryOption: string | number | null;
+    allocation: ShipmentPackage[] | null;
+    deliveryOptionsByShipment: Record<number | string, DeliveryOption[]>;
+    selectedRatesByShipment: Record<number | string, string>;
     paymentOptions: Array<{
         id: number;
         title: string;
         driver: string;
         logo?: string | null;
+        channel_code?: string | null;
+        payment_type?: string | null;
     }>;
     selectedPaymentMethod: number | null;
     step: 1 | 2 | 3;
@@ -50,19 +91,49 @@ const props = defineProps<{
         publishable_key: string;
         return_url: string;
     } | null;
+    komercePayment: KomercePaymentInstructions | null;
+    komerceEnabled: boolean;
+    shippingRatesHint?: string | null;
+    couponCode?: string | null;
 }>();
 
-const { currency, taxLabel, zone } = useShop();
+const { currency, taxLabel } = useShop();
 
 const step = computed<1 | 2 | 3>(() => props.step);
 
 const maxStep = computed<1 | 2 | 3>(() => {
-    if (props.selectedDeliveryOption !== null) return 3;
-    if (props.shippingAddress) return 2;
+    if (props.selectedDeliveryOption !== null) {
+        return 3;
+    }
+
+    if (props.shippingAddress) {
+        return 2;
+    }
+
     return 1;
 });
 
 const selectedAddressId = ref<number | null>(null);
+
+const selectedSavedAddressValue = computed<string>({
+    get: () =>
+        selectedAddressId.value != null ? String(selectedAddressId.value) : '',
+    set: (value) => {
+        if (!value) {
+            clearAddress();
+
+            return;
+        }
+
+        const address = props.savedAddresses.find(
+            (item) => String(item.id) === value,
+        );
+
+        if (address) {
+            selectAddress(address);
+        }
+    },
+});
 
 const addressForm = useForm<ShippingAddressForm>({
     first_name: props.shippingAddress?.first_name ?? '',
@@ -73,14 +144,219 @@ const addressForm = useForm<ShippingAddressForm>({
     city: props.shippingAddress?.city ?? '',
     state: props.shippingAddress?.state ?? '',
     phone_number: props.shippingAddress?.phone_number ?? '',
+    rajaongkir_destination_id:
+        props.shippingAddress?.rajaongkir_destination_id ?? '',
+    rajaongkir_destination_label:
+        props.shippingAddress?.rajaongkir_destination_label ?? '',
 });
 
-const shippingForm = useForm<{ service_code: string }>({
-    service_code: props.selectedDeliveryOption ?? '',
+const destinationQuery = ref(
+    props.shippingAddress?.rajaongkir_destination_label ?? '',
+);
+const destinationResults = ref<DestinationResult[]>([]);
+const destinationSearching = ref(false);
+const destinationSearchError = ref<string | null>(null);
+let destinationSearchTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(destinationQuery, (value) => {
+    if (destinationSearchTimer) {
+        clearTimeout(destinationSearchTimer);
+    }
+
+    if (!props.komerceEnabled || value.trim().length < 2) {
+        destinationResults.value = [];
+        destinationSearchError.value = null;
+
+        return;
+    }
+
+    // Keep selected label when it matches the selected id's label.
+    if (
+        addressForm.rajaongkir_destination_id &&
+        value === addressForm.rajaongkir_destination_label
+    ) {
+        return;
+    }
+
+    destinationSearchTimer = setTimeout(() => {
+        void searchDestinations(value.trim());
+    }, 300);
 });
+
+async function searchDestinations(query: string): Promise<void> {
+    destinationSearching.value = true;
+    destinationSearchError.value = null;
+
+    try {
+        const response = await fetch(
+            `/checkout/destinations?q=${encodeURIComponent(query)}&limit=10`,
+            {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            },
+        );
+
+        if (!response.ok) {
+            throw new Error('Destination search failed');
+        }
+
+        const payload = (await response.json()) as {
+            data?: DestinationResult[];
+        };
+        destinationResults.value = Array.isArray(payload.data)
+            ? payload.data
+            : [];
+    } catch {
+        destinationResults.value = [];
+        destinationSearchError.value = 'Tidak dapat mencari tujuan saat ini.';
+    } finally {
+        destinationSearching.value = false;
+    }
+}
+
+function formatCourierTitle(option: DeliveryOption): string {
+    const carrier =
+        option.carrier_name ||
+        (option.carrier_code ? option.carrier_code.toUpperCase() : '');
+
+    if (!carrier) {
+return option.service_name;
+}
+
+    if (option.service_name.toLowerCase().includes(carrier.toLowerCase())) {
+        return option.service_name;
+    }
+
+    return `${carrier} - ${option.service_name}`;
+}
+
+function selectDestination(result: DestinationResult): void {
+    addressForm.rajaongkir_destination_id = String(result.id);
+    addressForm.rajaongkir_destination_label = result.label;
+    destinationQuery.value = result.label;
+    destinationResults.value = [];
+    addressForm.clearErrors('rajaongkir_destination_id', 'postal_code', 'city', 'state');
+
+    // Always sync city/zip from RajaOngkir so typed placeholders don't
+    // leave the form looking filled while Inertia still posts blanks.
+    if (result.province_name) {
+        addressForm.state = result.province_name;
+    }
+
+    if (result.city_name) {
+        addressForm.city = result.city_name;
+    }
+
+    if (result.zip_code) {
+        addressForm.postal_code = result.zip_code;
+    }
+}
+
+function clearDestination(): void {
+    addressForm.rajaongkir_destination_id = '';
+    addressForm.rajaongkir_destination_label = '';
+    destinationQuery.value = '';
+    destinationResults.value = [];
+    addressForm.state = '';
+    addressForm.city = '';
+    addressForm.postal_code = '';
+}
+
+const shippingForm = useForm<{ service_code: string }>({
+    service_code:
+        props.selectedDeliveryOption !== null
+            ? String(props.selectedDeliveryOption)
+            : '',
+});
+
+const selectedShippingServiceValue = computed<string>({
+    get: () => shippingForm.service_code,
+    set: (value) => {
+        shippingForm.service_code = value;
+    },
+});
+
+const isMultiPackage = computed<boolean>(
+    () => (props.allocation?.length ?? 0) > 1,
+);
+
+const ratesByShipment = ref<Record<number | string, string>>({
+    ...props.selectedRatesByShipment,
+});
+
+const multiShippingTotal = computed<number>(() => {
+    let sum = 0;
+
+    for (const pkg of props.allocation ?? []) {
+        const code = ratesByShipment.value[pkg.inventory_id];
+
+        if (!code) {
+continue;
+}
+
+        const options = props.deliveryOptionsByShipment[pkg.inventory_id] ?? [];
+        const opt = options.find(
+            (o) => String(o.service_code) === String(code),
+        );
+
+        if (opt) {
+sum += opt.amount;
+}
+    }
+
+    return sum;
+});
+
+const multiShippingCurrency = computed<string>(() => {
+    for (const pkg of props.allocation ?? []) {
+        const code = ratesByShipment.value[pkg.inventory_id];
+
+        if (!code) {
+continue;
+}
+
+        const options = props.deliveryOptionsByShipment[pkg.inventory_id] ?? [];
+        const opt = options.find(
+            (o) => String(o.service_code) === String(code),
+        );
+
+        if (opt?.currency) {
+return opt.currency;
+}
+    }
+
+    return 'IDR';
+});
+
+const allPackagesSelected = computed<boolean>(() =>
+    (props.allocation ?? []).every((pkg) =>
+        Boolean(ratesByShipment.value[pkg.inventory_id]),
+    ),
+);
+
+function submitMultiShipping(): void {
+    router.post(
+        checkout.shippingOption.url(),
+        { rates: ratesByShipment.value },
+        { preserveScroll: true },
+    );
+}
 
 const paymentForm = useForm<{ payment_method_id: number | null }>({
     payment_method_id: props.selectedPaymentMethod ?? null,
+});
+
+const selectedPaymentMethodValue = computed<string>({
+    get: () =>
+        paymentForm.payment_method_id === null
+            ? ''
+            : String(paymentForm.payment_method_id),
+    set: (value) => {
+        paymentForm.payment_method_id = value ? Number(value) : null;
+    },
 });
 
 const selectedDelivery = computed<DeliveryOption | null>(
@@ -100,13 +376,24 @@ const currentPaymentMethod = computed(
 const isStripeSelected = computed<boolean>(
     () => currentPaymentMethod.value?.driver === 'stripe',
 );
+const isKomerceSelected = computed<boolean>(
+    () => currentPaymentMethod.value?.driver === 'komerce',
+);
+const canPlaceOrder = computed<boolean>(
+    () =>
+        Boolean(currentPaymentMethod.value) &&
+        !isStripeSelected.value &&
+        (!isKomerceSelected.value || !props.komercePayment),
+);
 const preparingStripe = ref<boolean>(false);
 const stripeMounted = ref<boolean>(false);
 
 watch(
     () => isStripeSelected.value && Boolean(props.stripeData),
     (active) => {
-        if (active) stripeMounted.value = true;
+        if (active) {
+            stripeMounted.value = true;
+        }
     },
     { immediate: true },
 );
@@ -114,9 +401,15 @@ watch(
 watch(
     () => paymentForm.payment_method_id,
     (id) => {
-        if (!id) return;
+        if (!id) {
+            return;
+        }
+
         const method = props.paymentOptions.find((m) => m.id === id) ?? null;
-        if (!method) return;
+
+        if (!method) {
+            return;
+        }
 
         if (method.driver === 'stripe' && !props.stripeData) {
             preparingStripe.value = true;
@@ -134,13 +427,16 @@ watch(
 
 const total = computed<number>(() => {
     const sub = props.cartContext?.total ?? 0;
-    const delivery = selectedDelivery.value?.amount ?? 0;
+    const delivery = isMultiPackage.value
+        ? multiShippingTotal.value
+        : (selectedDelivery.value?.amount ?? 0);
+
     return sub + delivery;
 });
 
-function selectAddress(address: Address): void {
+function selectAddress(address: SavedCheckoutAddress): void {
     selectedAddressId.value = address.id;
-    addressForm.first_name = address.first_name;
+    addressForm.first_name = address.first_name ?? '';
     addressForm.last_name = address.last_name;
     addressForm.street_address = address.street_address;
     addressForm.street_address_plus = address.street_address_plus ?? '';
@@ -148,6 +444,37 @@ function selectAddress(address: Address): void {
     addressForm.city = address.city;
     addressForm.state = address.state ?? '';
     addressForm.phone_number = address.phone_number ?? '';
+
+    const destinationId = String(
+        address.rajaongkir_destination_id ?? '',
+    ).trim();
+    const destinationLabel = String(
+        address.rajaongkir_destination_label ?? '',
+    ).trim();
+
+    if (destinationId !== '') {
+        addressForm.rajaongkir_destination_id = destinationId;
+        addressForm.rajaongkir_destination_label = destinationLabel;
+        destinationQuery.value = destinationLabel || destinationId;
+        destinationResults.value = [];
+        addressForm.clearErrors('rajaongkir_destination_id');
+        // One tap: reuse street + district and jump to courier rates.
+        submitAddress();
+
+        return;
+    }
+
+    // Legacy saved addresses without district — prompt search.
+    addressForm.rajaongkir_destination_id = '';
+    addressForm.rajaongkir_destination_label = '';
+    destinationQuery.value = [address.city, address.postal_code]
+        .filter(Boolean)
+        .join(' ');
+    destinationResults.value = [];
+
+    if (destinationQuery.value.trim().length >= 2) {
+        void searchDestinations(destinationQuery.value.trim());
+    }
 }
 
 function clearAddress(): void {
@@ -156,8 +483,14 @@ function clearAddress(): void {
 }
 
 function goToStep(target: 1 | 2 | 3): void {
-    if (target === step.value) return;
-    if (target > maxStep.value) return;
+    if (target === step.value) {
+        return;
+    }
+
+    if (target > maxStep.value) {
+        return;
+    }
+
     router.get(
         checkout.index.url(),
         { step: target },
@@ -166,7 +499,31 @@ function goToStep(target: 1 | 2 | 3): void {
 }
 
 function submitAddress(): void {
-    addressForm.post(checkout.shippingAddress.url(), { preserveScroll: true });
+    if (
+        props.komerceEnabled &&
+        !String(addressForm.rajaongkir_destination_id ?? '').trim()
+    ) {
+        addressForm.setError(
+            'rajaongkir_destination_id',
+            'Pilih kecamatan dari daftar pencarian.',
+        );
+
+        return;
+    }
+
+    addressForm
+        .transform((data) => ({
+            ...data,
+            rajaongkir_destination_id: String(
+                data.rajaongkir_destination_id ?? '',
+            ).trim(),
+            rajaongkir_destination_label: String(
+                data.rajaongkir_destination_label ?? '',
+            ).trim(),
+            postal_code: String(data.postal_code ?? '').trim(),
+            city: String(data.city ?? '').trim(),
+        }))
+        .post(checkout.shippingAddress.url(), { preserveScroll: true });
 }
 
 function submitShipping(): void {
@@ -188,18 +545,25 @@ function lineName(line: Cart['lines'][number]): string {
 }
 
 const steps = [
-    { n: 1, label: 'Shipping' },
-    { n: 2, label: 'Delivery' },
-    { n: 3, label: 'Payment' },
+    { n: 1, label: 'Alamat' },
+    { n: 2, label: 'Ongkir' },
+    { n: 3, label: 'Pembayaran' },
 ] as const;
 </script>
 
 <template>
     <Head title="Checkout" />
 
+    <AppPageHeader
+        class="lg:hidden"
+        title="Checkout"
+        :back-href="cartRoute.url()"
+        max-width-class="max-w-7xl"
+    />
+
     <Container class="py-8 sm:py-12">
         <h1
-            class="font-heading text-2xl font-bold text-zinc-900 dark:text-white"
+            class="hidden text-lg font-semibold tracking-tight text-foreground lg:block"
         >
             Checkout
         </h1>
@@ -211,41 +575,42 @@ const steps = [
                     :key="s.n"
                     class="flex items-center gap-2"
                 >
-                    <button
+                    <Button
                         type="button"
+                        variant="ghost"
                         :disabled="s.n > maxStep"
+                        class="h-auto gap-2 px-0 text-sm font-medium"
                         :class="[
-                            'flex items-center gap-2 text-sm font-medium transition',
                             step === s.n
-                                ? 'text-zinc-900 dark:text-white'
+                                ? 'text-primary hover:text-primary'
                                 : maxStep > s.n
-                                  ? 'text-green-600'
-                                  : 'text-zinc-400 dark:text-zinc-500',
+                                  ? 'text-green-600 hover:text-green-600'
+                                  : 'text-muted-foreground',
                         ]"
                         @click="goToStep(s.n as 1 | 2 | 3)"
                     >
-                        <span
-                            :class="[
-                                'flex size-7 items-center justify-center rounded-full text-xs font-bold',
+                        <Badge
+                            :variant="
                                 step === s.n
-                                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                                    ? 'default'
                                     : step > s.n
-                                      ? 'bg-green-100 text-green-600'
-                                      : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500',
-                            ]"
+                                      ? 'success'
+                                      : 'secondary'
+                            "
+                            class="size-7 shrink-0 justify-center rounded-full p-0 text-xs font-bold"
                         >
                             <Check
                                 v-if="step > s.n"
-                                class="size-4"
+                                class="size-3.5"
                                 aria-hidden="true"
                             />
                             <template v-else>{{ s.n }}</template>
-                        </span>
+                        </Badge>
                         {{ s.label }}
-                    </button>
+                    </Button>
                     <ChevronRight
                         v-if="i < steps.length - 1"
-                        class="size-4 text-zinc-300 dark:text-zinc-600"
+                        class="size-4 text-muted-foreground/50"
                         aria-hidden="true"
                     />
                 </li>
@@ -257,305 +622,404 @@ const steps = [
                 <template v-if="step === 1">
                     <div v-if="savedAddresses.length" class="mb-8">
                         <h2
-                            class="text-lg font-semibold text-zinc-900 dark:text-white"
+                            class="text-base font-semibold tracking-tight text-foreground"
                         >
-                            Saved Addresses
+                            Alamat tersimpan
                         </h2>
-                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                            <button
+                        <p class="mt-1 text-[11px] text-muted-foreground">
+                            Ketuk sekali untuk pakai lagi — district tersimpan
+                            ikut dipakai.
+                        </p>
+                        <RadioGroup
+                            v-model="selectedSavedAddressValue"
+                            class="mt-4 grid gap-3 sm:grid-cols-2"
+                        >
+                            <SelectableCard
                                 v-for="address in savedAddresses"
                                 :key="address.id"
-                                type="button"
-                                :class="[
-                                    'rounded-xl text-left transition',
-                                    selectedAddressId === address.id
-                                        ? 'ring-2 ring-zinc-900 dark:ring-white'
-                                        : 'ring-1 ring-zinc-200 hover:ring-zinc-400 dark:ring-zinc-700 dark:hover:ring-zinc-500',
-                                ]"
-                                @click="selectAddress(address)"
+                                :id="`saved_address_${address.id}`"
+                                :value="String(address.id)"
                             >
-                                <Card>
-                                    <p
-                                        class="text-sm font-medium text-zinc-900 dark:text-white"
-                                    >
-                                        {{ address.first_name }}
-                                        {{ address.last_name }}
-                                    </p>
-                                    <p class="mt-1 text-xs text-zinc-500">
-                                        {{ address.street_address }},
-                                        {{ address.city }}
-                                        {{ address.postal_code }}
-                                    </p>
-                                    <p class="text-xs text-zinc-500">
-                                        {{ address.country?.name }}
-                                    </p>
-                                    <span
-                                        v-if="address.shipping_default"
-                                        class="mt-2 inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                                    >
-                                        Default
-                                    </span>
-                                </Card>
-                            </button>
-                        </div>
+                                <p class="text-sm font-medium text-foreground">
+                                    {{ address.first_name }}
+                                    {{ address.last_name }}
+                                </p>
+                                <p class="mt-1 text-xs text-muted-foreground">
+                                    {{ address.street_address }},
+                                    {{ address.city }}
+                                    {{ address.postal_code }}
+                                </p>
+                                <p
+                                    v-if="address.rajaongkir_destination_label"
+                                    class="mt-1 text-[11px] text-emerald-700"
+                                >
+                                    {{ address.rajaongkir_destination_label }}
+                                </p>
+                                <p class="text-xs text-muted-foreground">
+                                    {{ address.country?.name }}
+                                </p>
+                                <Badge
+                                    v-if="address.shipping_default"
+                                    variant="secondary"
+                                    class="mt-2"
+                                >
+                                    Utama
+                                </Badge>
+                            </SelectableCard>
+                        </RadioGroup>
 
-                        <button
+                        <Button
                             v-if="selectedAddressId"
                             type="button"
-                            class="mt-3 text-sm text-zinc-500 underline transition hover:text-zinc-900 dark:hover:text-white"
+                            variant="link"
+                            size="sm"
+                            class="mt-3 h-auto px-0 text-muted-foreground"
                             @click="clearAddress"
                         >
-                            Use a new address instead
-                        </button>
+                            Pakai alamat lain
+                        </Button>
 
-                        <hr
-                            class="my-6 border-zinc-200/60 dark:border-zinc-700/60"
-                        />
+                        <Separator class="my-6" />
                     </div>
 
-                    <form class="space-y-5" @submit.prevent="submitAddress">
+                    <form
+                        class="flex flex-col gap-5"
+                        @submit.prevent="submitAddress"
+                    >
                         <h2
-                            class="text-lg font-semibold text-zinc-900 dark:text-white"
+                            class="text-base font-semibold tracking-tight text-foreground"
                         >
-                            Shipping Address
+                            Alamat pengiriman
                         </h2>
 
                         <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-2">
-                                <Label for="first_name">First name</Label>
-                                <Input
-                                    id="first_name"
-                                    v-model="addressForm.first_name"
-                                />
-                                <p
-                                    v-if="addressForm.errors.first_name"
-                                    class="text-xs text-red-600"
-                                >
-                                    {{ addressForm.errors.first_name }}
-                                </p>
-                            </div>
-                            <div class="space-y-2">
-                                <Label for="last_name">Last name</Label>
-                                <Input
-                                    id="last_name"
-                                    v-model="addressForm.last_name"
-                                />
-                                <p
-                                    v-if="addressForm.errors.last_name"
-                                    class="text-xs text-red-600"
-                                >
-                                    {{ addressForm.errors.last_name }}
-                                </p>
-                            </div>
+                            <AuthTextField
+                                id="first_name"
+                                v-model="addressForm.first_name"
+                                label="Nama depan"
+                                placeholder="Nama depan"
+                                :error="addressForm.errors.first_name"
+                                required
+                            />
+                            <AuthTextField
+                                id="last_name"
+                                v-model="addressForm.last_name"
+                                label="Nama belakang"
+                                placeholder="Nama belakang"
+                                :error="addressForm.errors.last_name"
+                                required
+                            />
                         </div>
 
-                        <div class="space-y-2">
-                            <Label for="street_address">Address</Label>
-                            <Input
-                                id="street_address"
-                                v-model="addressForm.street_address"
-                            />
+                        <AuthTextField
+                            id="street_address"
+                            v-model="addressForm.street_address"
+                            label="Alamat"
+                            placeholder="Jl. contoh no. 1"
+                            :error="addressForm.errors.street_address"
+                            required
+                        />
+
+                        <AuthTextField
+                            id="street_address_plus"
+                            v-model="addressForm.street_address_plus"
+                            label="Apartemen, blok, dll. (opsional)"
+                            placeholder="Blok / unit (opsional)"
+                        />
+
+                        <AuthTextField
+                            id="phone_number"
+                            v-model="addressForm.phone_number"
+                            label="Nomor telepon"
+                            type="tel"
+                            placeholder="08…"
+                            required
+                            :error="addressForm.errors.phone_number"
+                        />
+
+                        <div class="flex flex-col gap-1.5">
+                            <Label for="destination_search">
+                                Kecamatan pengiriman
+                                <span class="text-red-500">*</span>
+                            </Label>
                             <p
-                                v-if="addressForm.errors.street_address"
+                                class="text-[11px] leading-snug text-muted-foreground"
+                            >
+                                Ketik nama kecamatan / kota, lalu pilih dari
+                                daftar supaya ongkir akurat.
+                            </p>
+                            <div class="relative">
+                                <Input
+                                    id="destination_search"
+                                    v-model="destinationQuery"
+                                    type="search"
+                                    autocomplete="off"
+                                    class="h-[var(--om-control-height)] w-full pr-14 text-[13px] [&::-webkit-search-cancel-button]:hidden"
+                                    :placeholder="
+                                        komerceEnabled
+                                            ? 'Contoh: Kedawung Cirebon'
+                                            : 'Opsional saat Komerce dinonaktifkan'
+                                    "
+                                    @focus="
+                                        destinationQuery.trim().length >= 2 &&
+                                        searchDestinations(
+                                            destinationQuery.trim(),
+                                        )
+                                    "
+                                />
+                                <Button
+                                    v-if="addressForm.rajaongkir_destination_id"
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    class="absolute inset-y-0 right-2 h-auto px-2 text-xs text-muted-foreground"
+                                    @click="clearDestination"
+                                >
+                                    Ganti
+                                </Button>
+                                <Card
+                                    v-if="destinationResults.length"
+                                    class="absolute z-20 mt-1 max-h-56 w-full gap-0 overflow-auto rounded-md py-0 shadow-sm"
+                                >
+                                    <CardContent class="p-0">
+                                        <Button
+                                            v-for="result in destinationResults"
+                                            :key="result.id"
+                                            type="button"
+                                            variant="ghost"
+                                            class="h-auto w-full justify-start rounded-none px-3 py-2.5 text-left text-[13px] font-normal"
+                                            @click="selectDestination(result)"
+                                        >
+                                            {{ result.label }}
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                            <p
+                                v-if="destinationSearching"
+                                class="text-xs text-muted-foreground"
+                            >
+                                Mencari…
+                            </p>
+                            <p
+                                v-else-if="destinationSearchError"
                                 class="text-xs text-red-600"
                             >
-                                {{ addressForm.errors.street_address }}
+                                {{ destinationSearchError }}
+                            </p>
+                            <Alert
+                                v-else-if="
+                                    addressForm.rajaongkir_destination_id
+                                "
+                                variant="success"
+                                class="py-2"
+                            >
+                                <AlertDescription
+                                    class="text-[12px] text-current"
+                                >
+                                    ✓
+                                    {{
+                                        addressForm.rajaongkir_destination_label ||
+                                        destinationQuery
+                                    }}
+                                </AlertDescription>
+                            </Alert>
+                            <p
+                                v-else-if="komerceEnabled"
+                                class="text-xs text-amber-700"
+                            >
+                                Wajib pilih dari daftar pencarian (jangan ketik
+                                manual saja).
+                            </p>
+                            <p
+                                v-if="
+                                    addressForm.errors.rajaongkir_destination_id
+                                "
+                                class="text-xs text-red-600"
+                            >
+                                {{
+                                    addressForm.errors.rajaongkir_destination_id
+                                }}
                             </p>
                         </div>
 
-                        <div class="space-y-2">
-                            <Label for="street_address_plus"
-                                >Apartment, suite, etc. (optional)</Label
-                            >
-                            <Input
-                                id="street_address_plus"
-                                v-model="addressForm.street_address_plus"
+                        <div class="grid grid-cols-3 gap-4">
+                            <AuthTextField
+                                id="state"
+                                v-model="addressForm.state"
+                                label="Provinsi"
+                                placeholder="Pilih dari kecamatan"
+                                :error="addressForm.errors.state"
+                                readonly
+                                required
                             />
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-2">
-                                <Label for="city">City</Label>
-                                <Input id="city" v-model="addressForm.city" />
-                                <p
-                                    v-if="addressForm.errors.city"
-                                    class="text-xs text-red-600"
-                                >
-                                    {{ addressForm.errors.city }}
-                                </p>
-                            </div>
-                            <div class="space-y-2">
-                                <Label for="postal_code">Postal code</Label>
-                                <Input
-                                    id="postal_code"
-                                    v-model="addressForm.postal_code"
-                                />
-                                <p
-                                    v-if="addressForm.errors.postal_code"
-                                    class="text-xs text-red-600"
-                                >
-                                    {{ addressForm.errors.postal_code }}
-                                </p>
-                            </div>
-                            <div class="space-y-2">
-                                <Label for="state">State / Province</Label>
-                                <Input id="state" v-model="addressForm.state" />
-                                <p
-                                    v-if="addressForm.errors.state"
-                                    class="text-xs text-red-600"
-                                >
-                                    {{ addressForm.errors.state }}
-                                </p>
-                            </div>
-                            <div class="space-y-2">
-                                <Label for="country">Country</Label>
-                                <Input
-                                    id="country"
-                                    :value="zone?.country_name ?? ''"
-                                    readonly
-                                />
-                            </div>
-                        </div>
-
-                        <div class="space-y-2">
-                            <Label for="phone_number">Phone (optional)</Label>
-                            <Input
-                                id="phone_number"
-                                v-model="addressForm.phone_number"
-                                type="tel"
+                            <AuthTextField
+                                id="city"
+                                v-model="addressForm.city"
+                                label="Kota"
+                                placeholder="Pilih dari kecamatan"
+                                :error="addressForm.errors.city"
+                                readonly
+                                required
+                            />
+                            <AuthTextField
+                                id="postal_code"
+                                v-model="addressForm.postal_code"
+                                label="Kode pos"
+                                placeholder="Pilih dari kecamatan"
+                                :error="addressForm.errors.postal_code"
+                                readonly
+                                required
                             />
                         </div>
 
                         <div class="flex">
                             <Button
                                 type="submit"
-                                :disabled="addressForm.processing"
+                                size="xl"
+                                :disabled="
+                                    addressForm.processing ||
+                                    (komerceEnabled &&
+                                        !addressForm.rajaongkir_destination_id)
+                                "
                             >
-                                Continue to Delivery
+                                Lanjut ke pengiriman
                             </Button>
                         </div>
                     </form>
                 </template>
 
                 <template v-else-if="step === 2">
-                    <div v-if="!deliveryOptions.length">
-                        <div
-                            class="flex items-center gap-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700"
-                        >
-                            <ShoppingBag
-                                class="size-5 text-zinc-400"
-                                aria-hidden="true"
+                    <template v-if="isMultiPackage">
+                        <div class="flex flex-col gap-5">
+                            <h2
+                                class="text-base font-semibold tracking-tight text-foreground"
+                            >
+                                Metode pengiriman
+                            </h2>
+
+                            <Alert v-if="shippingRatesHint" variant="warning">
+                                <AlertDescription class="text-sm text-current">
+                                    {{ shippingRatesHint }}
+                                </AlertDescription>
+                            </Alert>
+
+                            <ShipmentRatePicker
+                                v-model="ratesByShipment"
+                                :packages="allocation!"
+                                :delivery-options-by-shipment="
+                                    deliveryOptionsByShipment
+                                "
+                                :empty-hint="shippingRatesHint"
                             />
-                            <p class="text-sm text-zinc-600 dark:text-zinc-400">
-                                No delivery option available for your address.
-                            </p>
+
+                            <div class="flex">
+                                <Button
+                                    type="button"
+                                    size="xl"
+                                    :disabled="!allPackagesSelected"
+                                    @click="submitMultiShipping"
+                                >
+                                    Lanjut ke pembayaran
+                                </Button>
+                            </div>
                         </div>
-                        <button
-                            type="button"
-                            class="mt-4 text-sm text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white"
-                            @click="goToStep(1)"
-                        >
-                            ← Return to shipping
-                        </button>
-                    </div>
+                    </template>
 
-                    <form
-                        v-else
-                        class="space-y-5"
-                        @submit.prevent="submitShipping"
-                    >
-                        <h2
-                            class="text-lg font-semibold text-zinc-900 dark:text-white"
-                        >
-                            Delivery Method
-                        </h2>
-                        <p
-                            v-if="shippingForm.errors.service_code"
-                            class="text-xs text-red-600"
-                        >
-                            {{ shippingForm.errors.service_code }}
-                        </p>
+                    <template v-else>
+                        <div v-if="!deliveryOptions.length">
+                            <Alert variant="warning">
+                                <ShoppingBag
+                                    class="size-5"
+                                    aria-hidden="true"
+                                />
+                                <AlertDescription class="text-sm text-current">
+                                    {{
+                                        shippingRatesHint ||
+                                        'Tidak ada opsi pengiriman untuk alamatmu.'
+                                    }}
+                                </AlertDescription>
+                            </Alert>
+                            <Button
+                                type="button"
+                                variant="link"
+                                size="sm"
+                                class="mt-4 h-auto px-0 text-muted-foreground"
+                                @click="goToStep(1)"
+                            >
+                                ← Kembali ke alamat
+                            </Button>
+                        </div>
 
-                        <div class="flex flex-col gap-3">
+                        <form
+                            v-else
+                            class="flex flex-col gap-5"
+                            @submit.prevent="submitShipping"
+                        >
+                            <h2
+                                class="text-base font-semibold tracking-tight text-foreground"
+                            >
+                                Metode pengiriman
+                            </h2>
+                            <p
+                                v-if="shippingForm.errors.service_code"
+                                class="text-xs text-red-600"
+                            >
+                                {{ shippingForm.errors.service_code }}
+                            </p>
+
+                        <RadioGroup
+                            v-model="selectedShippingServiceValue"
+                            class="flex flex-col gap-2"
+                        >
                             <label
                                 v-for="option in deliveryOptions"
                                 :key="option.service_code"
-                                :class="[
-                                    'flex cursor-pointer items-center justify-between gap-4 rounded-xl p-4 transition',
-                                    shippingForm.service_code ===
-                                    option.service_code
-                                        ? 'ring-2 ring-zinc-900 dark:ring-white'
-                                        : 'ring-1 ring-zinc-200 hover:ring-zinc-300 dark:ring-zinc-700',
-                                ]"
+                                class="flex items-center justify-between p-3 border rounded-md cursor-pointer hover:bg-muted/50"
+                                :class="selectedShippingServiceValue === String(option.service_code) ? 'border-primary bg-primary/5' : 'border-border'"
                             >
-                                <input
-                                    v-model="shippingForm.service_code"
-                                    type="radio"
-                                    :value="option.service_code"
-                                    name="service_code"
-                                    class="sr-only"
-                                />
-                                <div class="flex items-start gap-3">
-                                    <img
-                                        v-if="option.carrier_logo"
-                                        :src="option.carrier_logo"
-                                        :alt="option.carrier_name ?? ''"
-                                        class="mt-0.5 size-6 rounded-full object-cover"
+                                <div class="flex items-center gap-3">
+                                    <input
+                                        type="radio"
+                                        class="sr-only"
+                                        v-model="selectedShippingServiceValue"
+                                        :value="String(option.service_code)"
                                     />
                                     <div class="flex flex-col">
-                                        <span
-                                            class="font-heading text-sm font-medium text-zinc-900 dark:text-white"
-                                            >{{ option.service_name }}</span
-                                        >
-                                        <span
-                                            v-if="option.estimated_days"
-                                            class="text-sm text-zinc-500"
-                                            >{{ option.estimated_days }} days
-                                            delivery</span
-                                        >
-                                        <span
-                                            v-else-if="option.description"
-                                            class="text-sm text-zinc-500"
-                                            >{{ option.description }}</span
-                                        >
+                                        <span class="text-sm font-medium text-foreground">{{ formatCourierTitle(option) }}</span>
+                                        <span class="text-xs text-muted-foreground">{{ option.estimated_days ? option.estimated_days + ' hari' : '' }}</span>
                                     </div>
                                 </div>
-                                <span
-                                    class="text-sm font-medium text-zinc-900 dark:text-white"
-                                    >{{
-                                        formatMoney(
-                                            option.amount,
-                                            option.currency,
-                                        )
-                                    }}</span
-                                >
+                                <span class="text-sm font-semibold">{{ formatMoney(option.amount, option.currency) }}</span>
                             </label>
-                        </div>
+                        </RadioGroup>
 
-                        <div class="flex">
-                            <Button
-                                type="submit"
-                                :disabled="
-                                    !shippingForm.service_code ||
-                                    shippingForm.processing
-                                "
-                            >
-                                Continue to Payment
-                            </Button>
-                        </div>
-                    </form>
+                            <div class="flex">
+                                <Button
+                                    type="submit"
+                                    size="xl"
+                                    :disabled="
+                                        !shippingForm.service_code ||
+                                        shippingForm.processing
+                                    "
+                                >
+                                    Lanjut ke pembayaran
+                                </Button>
+                            </div>
+                        </form>
+                    </template>
                 </template>
 
                 <template v-else>
-                    <div class="space-y-5">
+                    <div class="flex flex-col gap-5">
                         <div>
                             <h2
-                                class="text-lg font-semibold text-zinc-900 dark:text-white"
+                                class="text-base font-semibold tracking-tight text-foreground"
                             >
-                                Payment Method
+                                Metode pembayaran
                             </h2>
-                            <p class="text-sm text-zinc-500">
-                                All transactions are secure and encrypted.
+                            <p class="text-sm text-muted-foreground">
+                                Semua transaksi aman dan terenkripsi.
                             </p>
                         </div>
 
@@ -568,78 +1032,51 @@ const steps = [
 
                         <p
                             v-if="!paymentOptions.length"
-                            class="text-sm text-zinc-600 dark:text-zinc-400"
+                            class="text-sm text-muted-foreground"
                         >
-                            No payment methods available for your region.
+                            Tidak ada metode pembayaran untuk wilayahmu.
                         </p>
 
                         <template v-else>
-                            <div class="flex flex-col gap-1">
-                                <label
+                            <RadioGroup
+                                v-model="selectedPaymentMethodValue"
+                                class="flex flex-col gap-1"
+                            >
+                                <SelectableCard
                                     v-for="method in paymentOptions"
                                     :key="method.id"
-                                    :class="[
-                                        'group flex cursor-pointer items-center justify-between gap-6 rounded-lg px-3 py-3 transition',
-                                        paymentForm.payment_method_id ===
-                                        method.id
-                                            ? 'bg-zinc-100 dark:bg-zinc-800'
-                                            : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/40',
-                                    ]"
+                                    :id="`payment_method_${method.id}`"
+                                    :value="String(method.id)"
+                                    class="items-center px-3 py-3"
                                 >
-                                    <div class="flex items-center gap-3">
+                                    <div
+                                        class="flex items-center justify-between gap-6"
+                                    >
                                         <span
-                                            :class="[
-                                                'inline-flex size-4 items-center justify-center rounded-full border-2 transition',
-                                                paymentForm.payment_method_id ===
-                                                method.id
-                                                    ? 'border-zinc-900 dark:border-white'
-                                                    : 'border-zinc-300 dark:border-zinc-600',
-                                            ]"
-                                        >
-                                            <span
-                                                v-if="
-                                                    paymentForm.payment_method_id ===
-                                                    method.id
-                                                "
-                                                class="size-2 rounded-full bg-zinc-900 dark:bg-white"
-                                            />
-                                        </span>
-                                        <input
-                                            v-model="
-                                                paymentForm.payment_method_id
-                                            "
-                                            type="radio"
-                                            :value="method.id"
-                                            name="payment_method_id"
-                                            class="sr-only"
-                                        />
-                                        <span
-                                            class="text-sm font-medium text-zinc-900 dark:text-white"
+                                            class="text-sm font-medium text-foreground"
                                             >{{ method.title }}</span
                                         >
+                                        <img
+                                            v-if="method.logo"
+                                            :src="method.logo!"
+                                            :alt="method.title"
+                                            class="h-5 w-auto object-cover"
+                                        />
                                     </div>
-                                    <img
-                                        v-if="method.logo"
-                                        :src="method.logo!"
-                                        :alt="method.title"
-                                        class="h-5 w-auto object-cover"
-                                    />
-                                </label>
-                            </div>
+                                </SelectableCard>
+                            </RadioGroup>
 
                             <div
-                                v-show="isStripeSelected && stripeData"
-                                class="space-y-4 pt-2"
+                                v-if="isStripeSelected && stripeData"
+                                class="flex flex-col gap-4 pt-2"
                             >
                                 <div class="flex items-center gap-3">
                                     <h3
-                                        class="text-xs font-medium tracking-wider text-zinc-500 uppercase"
+                                        class="text-xs font-medium tracking-wider text-muted-foreground uppercase"
                                     >
-                                        Card details
+                                        Detail kartu
                                     </h3>
-                                    <span
-                                        class="h-px flex-1 bg-zinc-200 dark:bg-zinc-700"
-                                    />
+                                    <Separator class="flex-1" />
                                 </div>
 
                                 <StripePaymentForm
@@ -654,21 +1091,28 @@ const steps = [
                                 />
                             </div>
 
-                            <template
-                                v-if="currentPaymentMethod && !isStripeSelected"
+                            <div
+                                v-if="isKomerceSelected && komercePayment"
+                                class="pt-2"
                             >
-                                <div
-                                    class="flex flex-col gap-3 border-t border-zinc-200 pt-5 dark:border-zinc-700"
-                                >
+                                <KomercePaymentPanel
+                                    :payment="komercePayment"
+                                />
+                            </div>
+
+                            <template v-if="canPlaceOrder">
+                                <div class="flex flex-col gap-3 pt-2">
+                                    <Separator />
                                     <div
                                         class="flex items-center justify-between gap-4"
                                     >
                                         <div class="flex flex-col">
-                                            <span class="text-xs text-zinc-500"
+                                            <span
+                                                class="text-xs text-muted-foreground"
                                                 >Total {{ taxLabel }}</span
                                             >
                                             <span
-                                                class="text-lg font-semibold text-zinc-900 dark:text-white"
+                                                class="text-lg font-semibold text-foreground"
                                                 >{{
                                                     formatMoney(total, currency)
                                                 }}</span
@@ -676,24 +1120,27 @@ const steps = [
                                         </div>
                                         <Button
                                             type="button"
+                                            size="xl"
                                             :disabled="paymentForm.processing"
                                             @click="placeOrder"
                                         >
                                             {{
                                                 paymentForm.processing
-                                                    ? 'Processing...'
-                                                    : 'Place my order'
+                                                    ? 'Memproses…'
+                                                    : isKomerceSelected
+                                                      ? 'Bayar sekarang'
+                                                      : 'Buat pesanan'
                                             }}
                                         </Button>
                                     </div>
                                     <p
-                                        class="inline-flex items-center gap-1.5 text-xs text-zinc-500"
+                                        class="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
                                     >
                                         <Lock
                                             class="size-3"
                                             aria-hidden="true"
                                         />
-                                        Secure &amp; encrypted
+                                        Aman &amp; terenkripsi
                                     </p>
                                 </div>
                             </template>
@@ -704,12 +1151,12 @@ const steps = [
                                     !stripeData &&
                                     preparingStripe
                                 "
-                                class="flex items-center gap-2 pt-3 text-sm text-zinc-500"
+                                class="flex items-center gap-2 pt-3 text-sm text-muted-foreground"
                             >
                                 <span
-                                    class="inline-block size-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-white"
+                                    class="inline-block size-4 animate-spin rounded-full border-2 border-border border-t-foreground"
                                 />
-                                Preparing secure payment form...
+                                Menyiapkan formulir pembayaran…
                             </div>
                         </template>
                     </div>
@@ -717,123 +1164,161 @@ const steps = [
             </div>
 
             <div class="mt-8 lg:col-span-5 lg:mt-0">
-                <Card class="p-6">
-                    <h2
-                        class="font-heading text-lg font-semibold text-zinc-900 dark:text-white"
-                    >
-                        Order Summary
-                    </h2>
-
-                    <ul
-                        v-if="cart"
-                        role="list"
-                        class="mt-4 divide-y divide-zinc-200 dark:divide-zinc-700"
-                    >
-                        <li
-                            v-for="line in cart.lines"
-                            :key="line.id"
-                            class="flex gap-3 py-3"
+                <Card
+                    class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none lg:sticky lg:top-6"
+                >
+                    <CardHeader class="gap-1 p-6 pb-0">
+                        <CardTitle
+                            class="text-base font-semibold tracking-tight"
                         >
-                            <div
-                                class="size-14 shrink-0 overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-800"
+                            Ringkasan pesanan
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent class="p-6">
+                        <ul
+                            v-if="cart"
+                            role="list"
+                            class="mt-4 divide-y divide-border"
+                        >
+                            <li
+                                v-for="line in cart.lines"
+                                :key="line.id"
+                                class="flex gap-3 py-3"
                             >
-                                <img
-                                    v-if="lineImage(line)"
-                                    :src="lineImage(line)!"
-                                    :alt="lineName(line)"
-                                    class="size-full object-cover"
-                                />
-                            </div>
-                            <div class="flex flex-1 justify-between">
-                                <div>
+                                <div
+                                    class="size-14 shrink-0 overflow-hidden rounded-md bg-muted"
+                                >
+                                    <img
+                                        v-if="lineImage(line)"
+                                        :src="lineImage(line)!"
+                                        :alt="lineName(line)"
+                                        class="size-full object-cover"
+                                    />
+                                </div>
+                                <div class="flex flex-1 justify-between">
+                                    <div>
+                                        <p
+                                            class="text-sm font-medium text-foreground"
+                                        >
+                                            {{ lineName(line) }}
+                                        </p>
+                                        <p
+                                            class="text-xs text-muted-foreground"
+                                        >
+                                            Jml: {{ line.quantity }}
+                                        </p>
+                                    </div>
                                     <p
-                                        class="text-sm font-medium text-zinc-900 dark:text-white"
+                                        class="text-sm font-medium text-foreground"
                                     >
-                                        {{ lineName(line) }}
-                                    </p>
-                                    <p class="text-xs text-zinc-500">
-                                        Qty: {{ line.quantity }}
+                                        {{
+                                            formatMoney(
+                                                line.unit_price_amount *
+                                                    line.quantity,
+                                                currency,
+                                            )
+                                        }}
                                     </p>
                                 </div>
-                                <p
-                                    class="text-sm font-medium text-zinc-900 dark:text-white"
-                                >
-                                    {{
-                                        formatMoney(
-                                            line.unit_price_amount *
-                                                line.quantity,
-                                            currency,
-                                        )
-                                    }}
-                                </p>
+                            </li>
+                        </ul>
+
+                        <Separator class="mt-4" />
+
+                        <div
+                            class="mt-4 flex flex-col gap-3 text-sm text-muted-foreground"
+                        >
+                            <div class="border-b border-border pb-3">
+                                <CouponField :coupon-code="couponCode" />
                             </div>
-                        </li>
-                    </ul>
 
-                    <dl
-                        class="mt-4 space-y-3 border-t border-zinc-200 pt-4 text-sm text-zinc-500 dark:border-zinc-700"
-                    >
-                        <div
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700"
-                        >
-                            <dt>Tax</dt>
-                            <dd class="text-base text-zinc-900 dark:text-white">
-                                {{
-                                    formatMoney(
-                                        cartContext?.taxTotal ?? 0,
-                                        currency,
-                                    )
-                                }}
-                            </dd>
-                        </div>
-
-                        <div
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700"
-                        >
-                            <dt>Delivery</dt>
-                            <dd class="text-base text-zinc-900 dark:text-white">
-                                <template v-if="selectedDelivery">{{
-                                    selectedDelivery.amount > 0
-                                        ? formatMoney(
-                                              selectedDelivery.amount,
-                                              selectedDelivery.currency,
-                                          )
-                                        : 'Free'
-                                }}</template>
-                                <template v-else
-                                    >Calculated at next step</template
+                            <dl class="flex flex-col gap-3">
+                                <div
+                                    class="flex items-center justify-between border-b border-border pb-3"
                                 >
-                            </dd>
-                        </div>
+                                    <dt>Pajak</dt>
+                                    <dd class="text-base text-foreground">
+                                        {{
+                                            formatMoney(
+                                                cartContext?.taxTotal ?? 0,
+                                                currency,
+                                            )
+                                        }}
+                                    </dd>
+                                </div>
 
-                        <div
-                            v-if="cartContext && cartContext.discountTotal > 0"
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700"
-                        >
-                            <dt>Discount</dt>
-                            <dd class="text-emerald-600">
-                                −{{
-                                    formatMoney(
-                                        cartContext.discountTotal,
-                                        currency,
-                                    )
-                                }}
-                            </dd>
-                        </div>
+                                <div
+                                    class="flex items-center justify-between border-b border-border pb-3"
+                                >
+                                    <dt>Ongkir</dt>
+                                    <dd class="text-base text-foreground">
+                                        <template
+                                            v-if="
+                                                isMultiPackage &&
+                                                allPackagesSelected
+                                            "
+                                            >{{
+                                                multiShippingTotal > 0
+                                                    ? formatMoney(
+                                                          multiShippingTotal,
+                                                          multiShippingCurrency,
+                                                      )
+                                                    : 'Gratis'
+                                            }}</template
+                                        >
+                                        <template
+                                            v-else-if="selectedDelivery"
+                                            >{{
+                                                selectedDelivery.amount > 0
+                                                    ? formatMoney(
+                                                          selectedDelivery.amount,
+                                                          selectedDelivery.currency,
+                                                      )
+                                                    : 'Gratis'
+                                            }}</template
+                                        >
+                                        <template v-else
+                                            >Dihitung di langkah
+                                            berikutnya</template
+                                        >
+                                    </dd>
+                                </div>
 
-                        <div class="flex items-center justify-between pt-1">
-                            <dt
-                                class="text-base font-semibold text-zinc-900 dark:text-white"
-                            >
-                                Total {{ taxLabel }}
-                            </dt>
-                            <dd
-                                class="text-base font-semibold text-zinc-900 dark:text-white"
-                            >
-                                {{ formatMoney(total, currency) }}
-                            </dd>
+                                <div
+                                    v-if="
+                                        cartContext &&
+                                        cartContext.discountTotal > 0
+                                    "
+                                    class="flex items-center justify-between border-b border-border pb-3"
+                                >
+                                    <dt>Diskon</dt>
+                                    <dd class="text-emerald-600">
+                                        −{{
+                                            formatMoney(
+                                                cartContext.discountTotal,
+                                                currency,
+                                            )
+                                        }}
+                                    </dd>
+                                </div>
+
+                                <div
+                                    class="flex items-center justify-between pt-1"
+                                >
+                                    <dt
+                                        class="text-base font-semibold text-foreground"
+                                    >
+                                        Total {{ taxLabel }}
+                                    </dt>
+                                    <dd
+                                        class="text-base font-semibold text-foreground"
+                                    >
+                                        {{ formatMoney(total, currency) }}
+                                    </dd>
+                                </div>
+                            </dl>
                         </div>
-                    </dl>
+                    </CardContent>
                 </Card>
             </div>
         </div>

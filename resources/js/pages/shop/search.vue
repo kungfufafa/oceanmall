@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { Search as SearchIcon } from 'lucide-vue-next';
 import { ref, watch } from 'vue';
+import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
+import EmptyState from '@/components/shop/empty-state.vue';
+import PagePagination from '@/components/shop/page-pagination.vue';
 import ProductCard from '@/components/shop/product-card.vue';
-import { Input } from '@/components/ui/input';
+import SearchField from '@/components/shop/search-field.vue';
+import { home } from '@/routes';
 import { search as searchRoute } from '@/routes/shop';
 import type { Product } from '@/types/shop';
 
@@ -37,62 +41,49 @@ watch(search, (value) => {
 </script>
 
 <template>
-    <Head title="Search" />
+    <Head title="Cari" />
 
-    <Container class="py-8 sm:py-12">
-        <div class="mx-auto max-w-xl text-center">
-            <h1
-                class="font-heading text-2xl font-bold text-zinc-900 dark:text-white"
-            >
-                Search
-            </h1>
-            <div class="relative mt-6">
-                <SearchIcon
-                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400"
-                    aria-hidden="true"
-                />
-                <Input
-                    v-model="search"
-                    type="search"
-                    placeholder="Search for products..."
-                    autofocus
-                    aria-label="Search"
-                    class="pl-9"
-                />
-            </div>
-        </div>
+    <AppPageHeader
+        class="lg:hidden"
+        title="Cari"
+        :back-href="home.url()"
+        max-width-class="max-w-7xl"
+    />
 
-        <div class="mt-10">
-            <p
+    <Container class="py-6 sm:py-10">
+        <h1
+            class="hidden text-lg font-semibold tracking-tight text-foreground lg:block"
+        >
+            Cari
+        </h1>
+        <label class="sr-only" for="shop-search">Cari</label>
+        <SearchField
+            id="shop-search"
+            v-model="search"
+            placeholder="Cari produk..."
+            class="mt-0 max-w-xl lg:mt-6"
+        />
+
+        <div class="mt-8">
+            <EmptyState
                 v-if="products === null"
-                class="text-center text-sm text-zinc-500"
-            >
-                Type at least 2 characters to search.
-            </p>
+                title="Mulai pencarian"
+                description="Ketik minimal 2 karakter untuk mencari."
+                :icon="SearchIcon"
+                class="py-10"
+            />
 
-            <div
+            <EmptyState
                 v-else-if="!products.data.length"
-                class="flex flex-col items-center justify-center py-16 text-center"
-            >
-                <SearchIcon
-                    class="size-12 text-zinc-300 dark:text-zinc-600"
-                    aria-hidden="true"
-                />
-                <h3
-                    class="mt-4 text-sm font-semibold text-zinc-900 dark:text-white"
-                >
-                    No results found
-                </h3>
-                <p class="mt-1 text-sm text-zinc-500">
-                    Try a different search term.
-                </p>
-            </div>
+                title="Tidak ada hasil"
+                description="Coba kata kunci lain."
+                :icon="SearchIcon"
+            />
 
             <template v-else>
-                <p class="mb-6 text-sm text-zinc-500">
-                    {{ products.total }}
-                    {{ products.total === 1 ? 'result' : 'results' }} for "<span
-                        class="font-medium text-zinc-900 dark:text-white"
+                <p class="mb-6 text-sm text-muted-foreground">
+                    {{ products.total }} hasil untuk "<span
+                        class="font-medium text-foreground"
                         >{{ query }}</span
                     >"
                 </p>
@@ -107,26 +98,11 @@ watch(search, (value) => {
                     />
                 </div>
 
-                <nav
+                <PagePagination
                     v-if="products.last_page > 1"
-                    class="mt-8 flex justify-center gap-1"
-                    aria-label="Pagination"
-                >
-                    <Link
-                        v-for="link in products.links"
-                        :key="link.label"
-                        :href="link.url ?? '#'"
-                        :class="[
-                            'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-3 text-sm transition',
-                            link.active
-                                ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                                : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
-                            link.url === null &&
-                                'pointer-events-none opacity-40',
-                        ]"
-                        v-html="link.label"
-                    />
-                </nav>
+                    :links="products.links"
+                    class="mt-8"
+                />
             </template>
         </div>
     </Container>

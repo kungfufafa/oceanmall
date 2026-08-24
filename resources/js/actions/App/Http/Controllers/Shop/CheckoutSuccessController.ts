@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Shop\CheckoutSuccessController::__invoke
-* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:14
+* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:17
 * @route '/checkout/success/{order}'
 */
 const CheckoutSuccessController = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ CheckoutSuccessController.definition = {
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutSuccessController::__invoke
-* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:14
+* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:17
 * @route '/checkout/success/{order}'
 */
 CheckoutSuccessController.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ CheckoutSuccessController.url = (args: { order: number | { id: number } } | [ord
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutSuccessController::__invoke
-* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:14
+* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:17
 * @route '/checkout/success/{order}'
 */
 CheckoutSuccessController.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -59,7 +59,7 @@ CheckoutSuccessController.get = (args: { order: number | { id: number } } | [ord
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutSuccessController::__invoke
-* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:14
+* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:17
 * @route '/checkout/success/{order}'
 */
 CheckoutSuccessController.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -69,7 +69,7 @@ CheckoutSuccessController.head = (args: { order: number | { id: number } } | [or
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutSuccessController::__invoke
-* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:14
+* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:17
 * @route '/checkout/success/{order}'
 */
 const CheckoutSuccessControllerForm = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ const CheckoutSuccessControllerForm = (args: { order: number | { id: number } } 
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutSuccessController::__invoke
-* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:14
+* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:17
 * @route '/checkout/success/{order}'
 */
 CheckoutSuccessControllerForm.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -89,7 +89,7 @@ CheckoutSuccessControllerForm.get = (args: { order: number | { id: number } } | 
 
 /**
 * @see \App\Http\Controllers\Shop\CheckoutSuccessController::__invoke
-* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:14
+* @see app/Http/Controllers/Shop/CheckoutSuccessController.php:17
 * @route '/checkout/success/{order}'
 */
 CheckoutSuccessControllerForm.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

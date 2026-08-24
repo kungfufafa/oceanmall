@@ -9,32 +9,32 @@ import type { ShopSharedProps } from '@/types/shop';
  * Used by the storefront header, zone selector and cart badge.
  */
 export function useShop() {
-  const page = usePage<{ shop: ShopSharedProps }>();
+    const page = usePage<{ shop: ShopSharedProps }>();
 
-  const shop = computed<ShopSharedProps>(() => page.props.shop);
-  const cartCount = computed<number>(() => shop.value.cart_count);
-  const currency = computed<string>(() => shop.value.currency);
-  const currentZone = computed(() => shop.value.zone);
-  const channels = computed(() => shop.value.channels);
-  const availableZones = computed(() => shop.value.available_zones);
-  const taxLabel = computed<string>(() => shop.value.tax_label);
+    const shop = computed<ShopSharedProps>(() => page.props.shop);
+    const cartCount = computed<number>(() => shop.value.cart_count);
+    const currency = computed<string>(() => shop.value.currency);
+    const currentZone = computed(() => shop.value.zone);
+    const channels = computed(() => shop.value.channels);
+    const availableZones = computed(() => shop.value.available_zones);
+    const taxLabel = computed<string>(() => shop.value.tax_label);
 
-  function changeZone(countryCode: string): void {
-    router.patch(
-      zone.update.url(),
-      { country_code: countryCode },
-      { preserveScroll: true, preserveState: true },
-    );
-  }
+    function changeZone(countryCode: string): void {
+        router.patch(
+            zone.update.url(),
+            { country_code: countryCode },
+            { preserveScroll: true, preserveState: true },
+        );
+    }
 
-  return {
-    shop,
-    cartCount,
-    currency,
-    zone: currentZone,
-    channels,
-    availableZones,
-    taxLabel,
-    changeZone,
-  };
+    return {
+        shop,
+        cartCount,
+        currency,
+        zone: currentZone,
+        channels,
+        availableZones,
+        taxLabel,
+        changeZone,
+    };
 }

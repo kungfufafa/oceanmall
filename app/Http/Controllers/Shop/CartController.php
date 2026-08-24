@@ -32,6 +32,7 @@ final class CartController extends Controller
         return Inertia::render('shop/cart', [
             'cart' => $cart,
             'cartContext' => $context,
+            'couponCode' => $cart?->coupon_code,
         ]);
     }
 
@@ -49,14 +50,33 @@ final class CartController extends Controller
             : null;
 
         try {
-            resolve(AddToCart::class)->handle($product, $variant, $data['quantity'] ?? 1);
+            resolve(AddToCart::class)->handle(
+                $product,
+                $variant,
+                (int) ($data['quantity'] ?? 1),
+            );
         } catch (InsufficientStockException) {
-            return back()->withErrors(['cart' => __('Insufficient stock available.')]);
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Stok tidak mencukupi.',
+            ]);
+
+            return back()->withErrors(['cart' => 'Stok tidak mencukupi.']);
+        } catch (\InvalidArgumentException $e) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors(['cart' => $e->getMessage()]);
         }
 
         $this->invalidateCheckoutSession();
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => __('Product added to cart!')]);
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Produk ditambahkan ke keranjang.',
+        ]);
 
         return back();
     }
@@ -73,9 +93,25 @@ final class CartController extends Controller
             return back();
         }
 
-        resolve(CartManager::class)->update($cart, $line, ['quantity' => $data['quantity']]);
+        try {
+            resolve(CartManager::class)->update($cart, $line, [
+                'quantity' => (int) $data['quantity'],
+            ]);
+        } catch (InsufficientStockException) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => 'Stok tidak mencukupi.',
+            ]);
+
+            return back()->withErrors(['cart' => 'Stok tidak mencukupi.']);
+        }
 
         $this->invalidateCheckoutSession();
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Jumlah produk diperbarui.',
+        ]);
 
         return back();
     }
@@ -92,6 +128,11 @@ final class CartController extends Controller
 
         $this->invalidateCheckoutSession();
 
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Produk dihapus dari keranjang.',
+        ]);
+
         return back();
     }
 
@@ -106,6 +147,11 @@ final class CartController extends Controller
         resolve(CartManager::class)->clear($cart);
 
         $this->invalidateCheckoutSession();
+
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Keranjang dikosongkan.',
+        ]);
 
         return back();
     }

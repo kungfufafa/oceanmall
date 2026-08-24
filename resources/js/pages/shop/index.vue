@@ -1,22 +1,23 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { Search } from 'lucide-vue-next';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
+import EmptyState from '@/components/shop/empty-state.vue';
+import FilterSelect from '@/components/shop/filter-select.vue';
+import PagePagination from '@/components/shop/page-pagination.vue';
 import ProductCard from '@/components/shop/product-card.vue';
-import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import SearchField from '@/components/shop/search-field.vue';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { home } from '@/routes';
 import * as shop from '@/routes/shop';
-import type { Category, Product } from '@/types/shop';
+import type { Brand, Category, Product } from '@/types/shop';
 
 type Paginated<T> = {
     data: T[];
+    total: number;
     current_page: number;
     last_page: number;
     links: Array<{ url: string | null; label: string; active: boolean }>;
@@ -25,202 +26,249 @@ type Paginated<T> = {
 type Filters = {
     search: string;
     category: number | null;
+    brand: number | null;
     sort: string;
 };
 
 const props = defineProps<{
     products: Paginated<Product>;
     categories: Pick<Category, 'id' | 'name' | 'slug'>[];
+    brands: Pick<Brand, 'id' | 'name' | 'slug'>[];
     filters: Filters;
 }>();
 
 const search = ref<string>(props.filters.search);
 const sort = ref<string>(props.filters.sort);
+const brand = ref<string>(
+    props.filters.brand !== null ? String(props.filters.brand) : '',
+);
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
+const brandOptions = computed(() => [
+    { value: '', label: 'Semua merek' },
+    ...props.brands.map((item) => ({
+        value: String(item.id),
+        label: item.name,
+    })),
+]);
+
+const sortOptions = [
+    { value: 'latest', label: 'Terbaru' },
+    { value: 'name', label: 'Nama A–Z' },
+    { value: 'price_asc', label: 'Harga terendah' },
+    { value: 'price_desc', label: 'Harga tertinggi' },
+];
+
+const hasActiveFilters = computed(
+    () =>
+        Boolean(props.filters.search) ||
+        props.filters.category !== null ||
+        props.filters.brand !== null,
+);
+
+watch(
+    () => props.filters.brand,
+    (value) => {
+        brand.value = value !== null ? String(value) : '';
+    },
+);
+
+watch(
+    () => props.filters.sort,
+    (value) => {
+        sort.value = value;
+    },
+);
+
+watch(
+    () => props.filters.search,
+    (value) => {
+        search.value = value;
+    },
+);
+
 watch(sort, (value) => {
-    router.get(
-        shop.index.url(),
-        { ...props.filters, sort: value },
-        { preserveState: true, preserveScroll: true, replace: true },
-    );
+    if (value === props.filters.sort) {
+return;
+}
+
+    applyFilters({ sort: value });
+});
+
+watch(brand, (value) => {
+    const next = value === '' ? null : Number(value);
+
+    if (next === props.filters.brand) {
+return;
+}
+
+    applyFilters({ brand: next });
 });
 
 watch(search, (value) => {
-    if (searchTimer) clearTimeout(searchTimer);
+    if (searchTimer) {
+clearTimeout(searchTimer);
+}
+
     searchTimer = setTimeout(() => {
-        router.get(
-            shop.index.url(),
-            { ...props.filters, search: value },
-            { preserveState: true, preserveScroll: true, replace: true },
-        );
+        if (value === props.filters.search) {
+return;
+}
+
+        applyFilters({ search: value });
     }, 300);
 });
 
-function filterByCategory(categoryId: number | null): void {
+function applyFilters(patch: Partial<Filters>): void {
+    const next = {
+        search:
+            patch.search !== undefined ? patch.search : props.filters.search,
+        category:
+            patch.category !== undefined
+                ? patch.category
+                : props.filters.category,
+        brand: patch.brand !== undefined ? patch.brand : props.filters.brand,
+        sort: patch.sort !== undefined ? patch.sort : props.filters.sort,
+    };
+
     router.get(
         shop.index.url(),
-        { ...props.filters, category: categoryId },
+        {
+            search: next.search || undefined,
+            category: next.category ?? undefined,
+            brand: next.brand ?? undefined,
+            sort: next.sort,
+        },
+        { preserveState: true, preserveScroll: true, replace: true },
+    );
+}
+
+function filterByCategory(categoryId: number | null): void {
+    applyFilters({ category: categoryId });
+}
+
+function clearFilters(): void {
+    search.value = '';
+    brand.value = '';
+    router.get(
+        shop.index.url(),
+        { sort: props.filters.sort },
         { preserveState: true, preserveScroll: true, replace: true },
     );
 }
 </script>
 
 <template>
-    <Head title="Shop" />
+    <Head title="Belanja" />
 
-    <Container class="py-8 sm:py-12">
-        <div
-            class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+    <AppPageHeader
+        class="lg:hidden"
+        title="Belanja"
+        :back-href="home.url()"
+        max-width-class="max-w-7xl"
+    />
+
+    <Container class="pt-3 pb-8 lg:pt-6">
+        <div class="mb-4 hidden lg:block">
+            <h1 class="text-lg font-semibold tracking-tight text-foreground">
+                Belanja
+            </h1>
+        </div>
+
+        <SearchField v-model="search" placeholder="Cari di katalog…" />
+
+        <Tabs
+            v-if="categories.length"
+            :model-value="
+                filters.category === null ? 'all' : String(filters.category)
+            "
+            class="mt-3"
+            @update:model-value="
+                (v) => filterByCategory(v === 'all' ? null : Number(v))
+            "
         >
-            <div>
-                <h1
-                    class="font-heading text-2xl font-bold text-zinc-900 dark:text-white"
+            <TabsList
+                class="h-auto w-full [scrollbar-width:none] justify-start gap-1 overflow-x-auto rounded-none border-b border-border bg-transparent p-0 [&::-webkit-scrollbar]:hidden"
+                aria-label="Kategori"
+            >
+                <TabsTrigger
+                    value="all"
+                    class="shrink-0 rounded-none border-b-2 border-transparent px-2 pb-2.5 text-[13px] font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
                 >
-                    Shop
-                </h1>
-                <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                    Browse our entire collection
-                </p>
-            </div>
+                    Semua
+                </TabsTrigger>
+                <TabsTrigger
+                    v-for="cat in categories"
+                    :key="cat.id"
+                    :value="String(cat.id)"
+                    class="shrink-0 rounded-none border-b-2 border-transparent px-2 pb-2.5 text-[13px] font-semibold text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                >
+                    {{ cat.name }}
+                </TabsTrigger>
+            </TabsList>
+        </Tabs>
 
-            <Select v-model="sort">
-                <SelectTrigger class="w-auto" aria-label="Sort">
-                    <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="latest">Newest</SelectItem>
-                    <SelectItem value="name">Name</SelectItem>
-                </SelectContent>
-            </Select>
+        <!-- One compact toolbar: merek + sort + count -->
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+            <label class="sr-only" for="shop-brand">Merek</label>
+            <FilterSelect
+                id="shop-brand"
+                v-model="brand"
+                :options="brandOptions"
+                placeholder="Merek"
+            />
+
+            <label class="sr-only" for="shop-sort">Urutkan</label>
+            <FilterSelect
+                id="shop-sort"
+                v-model="sort"
+                :options="sortOptions"
+                placeholder="Urutkan"
+            />
+
+            <p class="ml-auto text-[12px] text-muted-foreground">
+                <span class="font-semibold text-foreground">{{
+                    products.total
+                }}</span>
+                produk
+                <Button
+                    v-if="hasActiveFilters"
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    class="ml-2 h-auto px-0 text-[12px] font-semibold"
+                    @click="clearFilters"
+                >
+                    Reset
+                </Button>
+            </p>
         </div>
 
-        <div class="mt-8 lg:grid lg:grid-cols-4 lg:gap-x-8">
-            <aside class="hidden lg:block">
-                <div class="mb-6">
-                    <label for="shop-search" class="sr-only">Search</label>
-                    <div class="relative">
-                        <Search
-                            class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400"
-                            aria-hidden="true"
-                        />
-                        <Input
-                            id="shop-search"
-                            v-model="search"
-                            type="search"
-                            placeholder="Search products..."
-                            class="pl-9"
-                        />
-                    </div>
-                </div>
+        <EmptyState
+            v-if="!products.data.length"
+            title="Produk tidak ditemukan"
+            description="Coba ubah pencarian atau filter."
+            :icon="Search"
+            :action-label="hasActiveFilters ? 'Reset filter' : undefined"
+            @action="clearFilters"
+        />
 
-                <div>
-                    <h3
-                        class="text-sm font-semibold text-zinc-900 dark:text-white"
-                    >
-                        Categories
-                    </h3>
-                    <ul role="list" class="mt-3 space-y-2">
-                        <li>
-                            <button
-                                type="button"
-                                :class="[
-                                    'text-sm transition',
-                                    filters.category === null
-                                        ? 'font-medium text-zinc-900 dark:text-white'
-                                        : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white',
-                                ]"
-                                @click="filterByCategory(null)"
-                            >
-                                All
-                            </button>
-                        </li>
-                        <li v-for="cat in categories" :key="cat.id">
-                            <button
-                                type="button"
-                                :class="[
-                                    'text-sm transition',
-                                    filters.category === cat.id
-                                        ? 'font-medium text-zinc-900 dark:text-white'
-                                        : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-white',
-                                ]"
-                                @click="filterByCategory(cat.id)"
-                            >
-                                {{ cat.name }}
-                            </button>
-                        </li>
-                    </ul>
-                </div>
-            </aside>
-
-            <div class="lg:col-span-3">
-                <div class="mb-6 lg:hidden">
-                    <div class="relative">
-                        <Search
-                            class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400"
-                            aria-hidden="true"
-                        />
-                        <Input
-                            v-model="search"
-                            type="search"
-                            placeholder="Search products..."
-                            class="pl-9"
-                        />
-                    </div>
-                </div>
-
-                <div
-                    v-if="!products.data.length"
-                    class="flex flex-col items-center justify-center py-16 text-center"
-                >
-                    <Search
-                        class="size-12 text-zinc-300 dark:text-zinc-600"
-                        aria-hidden="true"
-                    />
-                    <h3
-                        class="mt-4 text-sm font-semibold text-zinc-900 dark:text-white"
-                    >
-                        No products found
-                    </h3>
-                    <p class="mt-1 text-sm text-zinc-500">
-                        Try adjusting your search or filters.
-                    </p>
-                </div>
-
-                <template v-else>
-                    <div
-                        class="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-6"
-                    >
-                        <ProductCard
-                            v-for="product in products.data"
-                            :key="product.id"
-                            :product="product"
-                        />
-                    </div>
-
-                    <nav
-                        v-if="products.last_page > 1"
-                        class="mt-8 flex justify-center gap-1"
-                        aria-label="Pagination"
-                    >
-                        <Link
-                            v-for="link in products.links"
-                            :key="link.label"
-                            :href="link.url ?? '#'"
-                            :class="[
-                                'inline-flex h-9 min-w-9 items-center justify-center rounded-md px-3 text-sm transition',
-                                link.active
-                                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                                    : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
-                                link.url === null &&
-                                    'pointer-events-none opacity-40',
-                            ]"
-                            v-html="link.label"
-                        />
-                    </nav>
-                </template>
+        <template v-else>
+            <div
+                class="mt-4 grid grid-cols-2 gap-x-2.5 gap-y-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
+            >
+                <ProductCard
+                    v-for="product in products.data"
+                    :key="product.id"
+                    :product="product"
+                />
             </div>
-        </div>
+
+            <PagePagination
+                v-if="products.last_page > 1"
+                :links="products.links"
+            />
+        </template>
     </Container>
 </template>

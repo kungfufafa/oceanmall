@@ -83,7 +83,7 @@ return [
     |
     */
 
-    'favicon' => null,
+    'favicon' => '/images/logo-icon.png',
 
     /*
     |--------------------------------------------------------------------------
@@ -129,6 +129,7 @@ return [
     */
 
     'locales' => [
+        'id' => ['label' => 'Bahasa Indonesia', 'flag' => 'id'],
         'en' => ['label' => 'English', 'flag' => 'gb'],
         'fr' => ['label' => 'Français', 'flag' => 'fr'],
     ],

@@ -1,4 +1,5 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
+import fulfillment from './fulfillment'
 /**
 * @see \Shopper\Livewire\Pages\Order\Index::__invoke
 * @see vendor/shopper/framework/src/Livewire/Pages/Order/Index.php:7
@@ -81,8 +82,8 @@ indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 index.form = indexForm
 
 /**
-* @see \Shopper\Livewire\Pages\Order\Shipments::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Order/Shipments.php:7
+* @see \App\Livewire\Shopper\Pages\OrderShipments::__invoke
+* @see app/Livewire/Shopper/Pages/OrderShipments.php:7
 * @route '/cpanel/orders/shipments'
 */
 export const shipments = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -96,8 +97,8 @@ shipments.definition = {
 } satisfies RouteDefinition<["get","head"]>
 
 /**
-* @see \Shopper\Livewire\Pages\Order\Shipments::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Order/Shipments.php:7
+* @see \App\Livewire\Shopper\Pages\OrderShipments::__invoke
+* @see app/Livewire/Shopper/Pages/OrderShipments.php:7
 * @route '/cpanel/orders/shipments'
 */
 shipments.url = (options?: RouteQueryOptions) => {
@@ -105,8 +106,8 @@ shipments.url = (options?: RouteQueryOptions) => {
 }
 
 /**
-* @see \Shopper\Livewire\Pages\Order\Shipments::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Order/Shipments.php:7
+* @see \App\Livewire\Shopper\Pages\OrderShipments::__invoke
+* @see app/Livewire/Shopper/Pages/OrderShipments.php:7
 * @route '/cpanel/orders/shipments'
 */
 shipments.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -115,8 +116,8 @@ shipments.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 
 /**
-* @see \Shopper\Livewire\Pages\Order\Shipments::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Order/Shipments.php:7
+* @see \App\Livewire\Shopper\Pages\OrderShipments::__invoke
+* @see app/Livewire/Shopper/Pages/OrderShipments.php:7
 * @route '/cpanel/orders/shipments'
 */
 shipments.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -125,8 +126,8 @@ shipments.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 })
 
 /**
-* @see \Shopper\Livewire\Pages\Order\Shipments::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Order/Shipments.php:7
+* @see \App\Livewire\Shopper\Pages\OrderShipments::__invoke
+* @see app/Livewire/Shopper/Pages/OrderShipments.php:7
 * @route '/cpanel/orders/shipments'
 */
 const shipmentsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -135,8 +136,8 @@ const shipmentsForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> 
 })
 
 /**
-* @see \Shopper\Livewire\Pages\Order\Shipments::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Order/Shipments.php:7
+* @see \App\Livewire\Shopper\Pages\OrderShipments::__invoke
+* @see app/Livewire/Shopper/Pages/OrderShipments.php:7
 * @route '/cpanel/orders/shipments'
 */
 shipmentsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -145,8 +146,8 @@ shipmentsForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =>
 })
 
 /**
-* @see \Shopper\Livewire\Pages\Order\Shipments::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Order/Shipments.php:7
+* @see \App\Livewire\Shopper\Pages\OrderShipments::__invoke
+* @see app/Livewire/Shopper/Pages/OrderShipments.php:7
 * @route '/cpanel/orders/shipments'
 */
 shipmentsForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -346,6 +347,7 @@ const orders = {
     shipments: Object.assign(shipments, shipments),
     abandonedCarts: Object.assign(abandonedCarts, abandonedCarts),
     detail: Object.assign(detail, detail),
+    fulfillment: Object.assign(fulfillment, fulfillment),
 }
 
 export default orders

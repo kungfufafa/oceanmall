@@ -18,4 +18,6 @@ return [
     |
     */
 
+    'komerce-rajaongkir' => true,
+
 ];

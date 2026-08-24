@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { Minus, Plus, ShoppingBag } from 'lucide-vue-next';
+import { ShoppingBag, Trash2 } from 'lucide-vue-next';
+import { computed } from 'vue';
+import AppPageHeader from '@/components/shop/app-page-header.vue';
 import Container from '@/components/shop/container.vue';
+import CouponField from '@/components/shop/coupon-field.vue';
+import EmptyState from '@/components/shop/empty-state.vue';
+import QtyStepper from '@/components/shop/qty-stepper.vue';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { useCart } from '@/composables/useCart';
 import { useShop } from '@/composables/useShop';
 import { formatMoney } from '@/lib/format';
@@ -10,296 +17,334 @@ import * as shop from '@/routes/shop';
 import * as checkout from '@/routes/shop/checkout';
 import type { Cart, CartContext, Product } from '@/types/shop';
 
-defineProps<{
+const props = defineProps<{
     cart: Cart | null;
     cartContext: CartContext | null;
+    couponCode?: string | null;
 }>();
 
 const page = usePage();
 const { currency, taxLabel } = useShop();
 const cartActions = useCart();
 
+const isEmpty = computed(() => !props.cart || !props.cart.lines.length);
+
+const itemCount = computed(
+    () => props.cart?.lines.reduce((sum, line) => sum + line.quantity, 0) ?? 0,
+);
+
+const totalAmount = computed(
+    () =>
+        (props.cartContext?.subtotal ?? 0) -
+        (props.cartContext?.discountTotal ?? 0),
+);
+
 function productSlug(
     purchasable: Cart['lines'][number]['purchasable'],
 ): string | null {
-    if ('slug' in purchasable && purchasable.slug) {
+    if ('slug' in purchasable && typeof purchasable.slug === 'string') {
         return purchasable.slug;
     }
+
     if (
         'product' in purchasable &&
-        (purchasable as { product?: Product }).product?.slug
+        typeof (purchasable as { product?: Product }).product?.slug === 'string'
     ) {
         return (purchasable as { product: Product }).product.slug;
     }
+
     return null;
 }
 
+function lineName(purchasable: Cart['lines'][number]['purchasable']): string {
+    return 'name' in purchasable ? purchasable.name : '';
+}
+
 function confirmClear(): void {
-    if (window.confirm('Are you sure you want to clear your cart?')) {
+    if (window.confirm('Yakin ingin mengosongkan keranjang?')) {
         cartActions.clear();
     }
 }
 </script>
 
 <template>
-    <Head title="Cart" />
+    <Head title="Keranjang" />
 
-    <Container class="py-8 sm:py-12">
-        <h1
-            class="font-heading text-2xl font-bold text-zinc-900 dark:text-white"
-        >
-            Shopping Cart
-        </h1>
+    <AppPageHeader
+        class="lg:hidden"
+        title="Keranjang"
+        :end-label="isEmpty ? undefined : 'Kosongkan'"
+        end-tone="muted"
+        @end-click="confirmClear"
+    >
+        <template #title>
+            Keranjang
+            <span v-if="!isEmpty" class="font-medium text-muted-foreground">
+                ({{ itemCount }})
+            </span>
+        </template>
+    </AppPageHeader>
 
-        <div
-            v-if="!cart || !cart.lines.length"
-            class="mt-16 flex flex-col items-center justify-center text-center"
-        >
-            <ShoppingBag
-                class="size-16 text-zinc-300 dark:text-zinc-600"
-                aria-hidden="true"
-            />
-            <h2
-                class="mt-4 text-lg font-semibold text-zinc-900 dark:text-white"
+    <Container class="pb-8 lg:py-8">
+        <div class="hidden items-center justify-between lg:flex">
+            <h1 class="text-lg font-semibold tracking-tight text-foreground">
+                Keranjang
+                <span v-if="!isEmpty" class="font-medium text-muted-foreground">
+                    ({{ itemCount }})
+                </span>
+            </h1>
+            <Button
+                v-if="!isEmpty"
+                type="button"
+                variant="ghost"
+                size="sm"
+                class="h-auto px-0 text-muted-foreground"
+                @click="confirmClear"
             >
-                Your cart is empty
-            </h2>
-            <p class="mt-1 text-sm text-zinc-500">
-                Start shopping to add items to your cart.
-            </p>
-            <Link :href="shop.index.url()" class="mt-6">
-                <Button>Continue Shopping</Button>
-            </Link>
+                Kosongkan
+            </Button>
         </div>
 
-        <div v-else class="mt-8 lg:grid lg:grid-cols-12 lg:gap-x-12">
-            <div class="lg:col-span-7">
-                <ul
-                    role="list"
-                    class="divide-y divide-zinc-200 dark:divide-zinc-700"
-                >
-                    <li
-                        v-for="line in cart.lines"
-                        :key="line.id"
-                        class="flex gap-4 py-6"
-                    >
-                        <div
-                            class="size-20 shrink-0 overflow-hidden rounded-lg bg-zinc-100 sm:size-24 dark:bg-zinc-800"
-                        >
-                            <img
-                                v-if="line.purchasable.thumbnail"
-                                :src="line.purchasable.thumbnail"
-                                :alt="
-                                    'name' in line.purchasable
-                                        ? line.purchasable.name
-                                        : ''
-                                "
-                                class="size-full object-cover object-center"
-                            />
-                        </div>
+        <EmptyState
+            v-if="isEmpty"
+            title="Keranjang masih kosong"
+            description="Yuk belanja dulu, produkmu muncul di sini."
+            :icon="ShoppingBag"
+            class="py-20"
+        >
+            <template #action>
+                <Button as-child size="xl">
+                    <Link :href="shop.index.url()"> Belanja sekarang </Link>
+                </Button>
+            </template>
+        </EmptyState>
 
-                        <div class="flex flex-1 flex-col justify-between">
-                            <div class="flex justify-between gap-3">
-                                <div>
-                                    <h3
-                                        class="text-sm font-medium text-zinc-900 dark:text-white"
-                                    >
-                                        <Link
-                                            v-if="productSlug(line.purchasable)"
-                                            :href="
-                                                shop.product.url({
-                                                    product: productSlug(
+        <div v-else class="lg:mt-6 lg:grid lg:grid-cols-12 lg:gap-x-12">
+            <Card
+                class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none lg:col-span-7"
+            >
+                <CardContent class="p-0">
+                    <ul role="list" class="divide-y divide-border">
+                        <li
+                            v-for="line in cart!.lines"
+                            :key="line.id"
+                            class="flex gap-3 p-4"
+                        >
+                            <div
+                                class="size-16 shrink-0 overflow-hidden rounded-md bg-muted sm:size-[72px]"
+                            >
+                                <img
+                                    v-if="line.purchasable.thumbnail"
+                                    :src="line.purchasable.thumbnail"
+                                    :alt="lineName(line.purchasable)"
+                                    class="size-full object-cover object-center"
+                                />
+                            </div>
+
+                            <div class="min-w-0 flex-1">
+                                <div
+                                    class="flex items-start justify-between gap-2"
+                                >
+                                    <div class="min-w-0">
+                                        <h3
+                                            class="line-clamp-2 text-[13px] leading-snug font-medium text-foreground"
+                                        >
+                                            <Link
+                                                v-if="
+                                                    productSlug(
                                                         line.purchasable,
-                                                    ) as string,
-                                                })
-                                            "
-                                            class="hover:underline"
+                                                    )
+                                                "
+                                                :href="
+                                                    shop.product.url({
+                                                        product: productSlug(
+                                                            line.purchasable,
+                                                        ) as string,
+                                                    })
+                                                "
+                                            >
+                                                {{ lineName(line.purchasable) }}
+                                            </Link>
+                                            <template v-else>
+                                                {{ lineName(line.purchasable) }}
+                                            </template>
+                                        </h3>
+                                        <p
+                                            class="mt-0.5 text-[12px] text-muted-foreground"
                                         >
                                             {{
-                                                'name' in line.purchasable
-                                                    ? line.purchasable.name
-                                                    : ''
+                                                formatMoney(
+                                                    line.unit_price_amount,
+                                                    currency,
+                                                )
                                             }}
-                                        </Link>
-                                        <template v-else>{{
-                                            'name' in line.purchasable
-                                                ? line.purchasable.name
-                                                : ''
-                                        }}</template>
-                                    </h3>
-                                    <p class="mt-0.5 text-sm text-zinc-500">
+                                        </p>
+                                    </div>
+
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        class="shrink-0 text-muted-foreground"
+                                        aria-label="Hapus"
+                                        @click="cartActions.remove(line.id)"
+                                    >
+                                        <Trash2
+                                            class="size-4"
+                                            stroke-width="1.75"
+                                        />
+                                    </Button>
+                                </div>
+
+                                <div
+                                    class="mt-2.5 flex items-center justify-between gap-3"
+                                >
+                                    <QtyStepper
+                                        :model-value="line.quantity"
+                                        :min="1"
+                                        size="sm"
+                                        @update:model-value="
+                                            cartActions.update(line.id, $event)
+                                        "
+                                    />
+
+                                    <p
+                                        class="text-[13px] font-bold text-[var(--om-navy)]"
+                                    >
                                         {{
                                             formatMoney(
-                                                line.unit_price_amount,
+                                                line.unit_price_amount *
+                                                    line.quantity,
                                                 currency,
                                             )
                                         }}
                                     </p>
                                 </div>
-                                <p
-                                    class="text-sm font-medium text-zinc-900 dark:text-white"
-                                >
+                            </div>
+                        </li>
+                    </ul>
+                </CardContent>
+            </Card>
+
+            <aside class="mt-6 lg:col-span-5 lg:mt-0">
+                <Card
+                    class="gap-0 rounded-md border-border bg-card py-0 text-card-foreground shadow-none lg:sticky lg:top-6"
+                >
+                    <CardHeader class="gap-1 p-4 pb-0">
+                        <CardTitle class="text-[14px]">Ringkasan</CardTitle>
+                    </CardHeader>
+                    <CardContent class="flex flex-col gap-3 p-4">
+                        <CouponField :coupon-code="couponCode" />
+                        <dl class="flex flex-col gap-2 text-[13px]">
+                            <div
+                                class="flex justify-between text-muted-foreground"
+                            >
+                                <dt>Subtotal {{ taxLabel }}</dt>
+                                <dd class="font-medium text-foreground">
                                     {{
                                         formatMoney(
-                                            line.unit_price_amount *
-                                                line.quantity,
+                                            cartContext?.subtotal ?? 0,
                                             currency,
                                         )
                                     }}
-                                </p>
+                                </dd>
                             </div>
-
-                            <div class="mt-2 flex items-center justify-between">
-                                <div
-                                    class="flex items-center rounded-lg border border-zinc-300 dark:border-zinc-600"
-                                >
-                                    <button
-                                        type="button"
-                                        class="px-2 py-1 text-zinc-500 hover:text-zinc-900 disabled:opacity-40 dark:hover:text-white"
-                                        :disabled="line.quantity <= 1"
-                                        aria-label="Decrease"
-                                        @click="
-                                            cartActions.update(
-                                                line.id,
-                                                line.quantity - 1,
-                                            )
-                                        "
-                                    >
-                                        <Minus
-                                            class="size-3"
-                                            aria-hidden="true"
-                                        />
-                                    </button>
-                                    <span
-                                        class="min-w-6 text-center text-xs font-medium text-zinc-900 dark:text-white"
-                                        >{{ line.quantity }}</span
-                                    >
-                                    <button
-                                        type="button"
-                                        class="px-2 py-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                                        aria-label="Increase"
-                                        @click="
-                                            cartActions.update(
-                                                line.id,
-                                                line.quantity + 1,
-                                            )
-                                        "
-                                    >
-                                        <Plus
-                                            class="size-3"
-                                            aria-hidden="true"
-                                        />
-                                    </button>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    class="text-sm text-red-500 transition hover:text-red-700"
-                                    @click="cartActions.remove(line.id)"
-                                >
-                                    Remove
-                                </button>
+                            <div
+                                v-if="
+                                    cartContext && cartContext.discountTotal > 0
+                                "
+                                class="flex justify-between text-muted-foreground"
+                            >
+                                <dt>Diskon</dt>
+                                <dd class="font-medium text-emerald-600">
+                                    −{{
+                                        formatMoney(
+                                            cartContext.discountTotal,
+                                            currency,
+                                        )
+                                    }}
+                                </dd>
                             </div>
-                        </div>
-                    </li>
-                </ul>
-
-                <div
-                    class="mt-4 flex items-center justify-between border-t border-zinc-200 pt-4 dark:border-zinc-700"
-                >
-                    <Link
-                        :href="shop.index.url()"
-                        class="text-sm text-zinc-500 transition hover:text-zinc-900 dark:hover:text-white"
-                    >
-                        ← Continue Shopping
-                    </Link>
-                    <button
-                        type="button"
-                        class="text-sm text-red-500 transition hover:text-red-700"
-                        @click="confirmClear"
-                    >
-                        Clear Cart
-                    </button>
-                </div>
-            </div>
-
-            <div class="mt-8 lg:col-span-5 lg:mt-0">
-                <div class="rounded-2xl bg-zinc-50 p-6 dark:bg-zinc-800/50">
-                    <h2
-                        class="text-lg font-semibold text-zinc-900 dark:text-white"
-                    >
-                        Order Summary
-                    </h2>
-
-                    <dl class="mt-6 space-y-3 text-sm text-zinc-500">
-                        <div
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700"
-                        >
-                            <dt>Tax</dt>
-                            <dd class="text-base text-zinc-900 dark:text-white">
-                                {{
-                                    formatMoney(
-                                        cartContext?.taxTotal ?? 0,
-                                        currency,
-                                    )
-                                }}
-                            </dd>
-                        </div>
-
-                        <div
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700"
-                        >
-                            <dt>Delivery</dt>
-                            <dd>Calculated at checkout</dd>
-                        </div>
-
-                        <div
-                            v-if="cartContext && cartContext.discountTotal > 0"
-                            class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700"
-                        >
-                            <dt>Discount</dt>
-                            <dd class="text-emerald-600">
-                                −{{
-                                    formatMoney(
-                                        cartContext.discountTotal,
-                                        currency,
-                                    )
-                                }}
-                            </dd>
-                        </div>
-
-                        <div class="flex items-center justify-between pt-1">
-                            <dt
-                                class="text-base font-semibold text-zinc-900 dark:text-white"
+                            <div
+                                class="flex justify-between text-muted-foreground"
                             >
-                                Subtotal {{ taxLabel }}
-                            </dt>
-                            <dd
-                                class="text-base font-semibold text-zinc-900 dark:text-white"
+                                <dt>Ongkir</dt>
+                                <dd>Di checkout</dd>
+                            </div>
+                        </dl>
+                        <Separator />
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-[13px] font-bold text-foreground"
+                                >Total</span
                             >
-                                {{
-                                    formatMoney(
-                                        cartContext?.subtotal ?? 0,
-                                        currency,
-                                    )
-                                }}
-                            </dd>
+                            <span
+                                class="text-lg font-semibold tracking-tight text-foreground"
+                            >
+                                {{ formatMoney(totalAmount, currency) }}
+                            </span>
                         </div>
-                    </dl>
-
-                    <div class="mt-6">
-                        <Link :href="checkout.index.url()" class="block">
-                            <Button class="w-full">
+                        <Button
+                            as-child
+                            size="xl"
+                            class="hidden w-full lg:flex"
+                        >
+                            <Link :href="checkout.index.url()">
                                 {{
                                     page.props.auth.user
-                                        ? 'Proceed to checkout'
-                                        : 'Sign in to checkout'
+                                        ? 'Bayar'
+                                        : 'Masuk untuk bayar'
                                 }}
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
-            </div>
+                            </Link>
+                        </Button>
+                        <Button
+                            as-child
+                            variant="link"
+                            size="sm"
+                            class="hidden h-auto px-0 text-[12px] font-bold lg:inline-flex"
+                        >
+                            <Link :href="shop.index.url()">
+                                Lanjut belanja
+                            </Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </aside>
         </div>
     </Container>
+
+    <!-- Mobile sticky checkout bar -->
+    <div
+        v-if="!isEmpty"
+        class="fixed inset-x-0 z-40 border-t border-border bg-card py-2.5 lg:hidden"
+        style="
+            bottom: calc(
+                var(--om-bottom-nav-height) + env(safe-area-inset-bottom, 0px)
+            );
+        "
+    >
+        <Container class="flex items-center gap-3">
+            <div class="min-w-0 flex-1">
+                <p
+                    class="text-muted-foreground"
+                    :style="{ fontSize: 'var(--om-text-micro)' }"
+                >
+                    Total {{ taxLabel }}
+                </p>
+                <p class="text-lg font-semibold tracking-tight text-foreground">
+                    {{ formatMoney(totalAmount, currency) }}
+                </p>
+            </div>
+            <Button as-child size="xl" class="inline-flex shrink-0 px-5">
+                <Link :href="checkout.index.url()">
+                    {{ page.props.auth.user ? 'Bayar' : 'Masuk & bayar' }}
+                </Link>
+            </Button>
+        </Container>
+    </div>
+
+    <div
+        v-if="!isEmpty"
+        class="h-[calc(var(--om-control-height)+1.25rem)] lg:hidden"
+        aria-hidden="true"
+    />
 </template>

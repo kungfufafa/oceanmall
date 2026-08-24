@@ -30,7 +30,7 @@ return [
     |
     */
 
-    'brand' => Models\Brand::class,
+    'brand' => App\Models\Brand::class,
 
     /*
     |--------------------------------------------------------------------------

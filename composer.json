@@ -11,10 +11,14 @@
     "require": {
         "php": "^8.3",
         "inertiajs/inertia-laravel": "^3.0",
+        "laravel-lang/lang": "^15.34",
         "laravel/fortify": "^1.34",
         "laravel/framework": "^13.8",
+        "laravel/octane": "^2.18",
+        "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
         "laravel/wayfinder": "^0.1.14",
+        "predis/predis": "^3.5",
         "shopper/framework": "^2.11",
         "shopper/stripe": "^2.11",
         "spatie/laravel-typescript-transformer": "^3.2"
