@@ -87,6 +87,7 @@ final class PersistUserShippingAddress
             'country_id' => $address->country_id,
             'rajaongkir_destination_id' => $destinationId !== '' ? $destinationId : null,
             'rajaongkir_destination_label' => $metadata['rajaongkir_destination_label'] ?? null,
+            'rajaongkir_pin_point' => $metadata['rajaongkir_pin_point'] ?? null,
             'saved_address_id' => $address->id,
         ];
     }
@@ -127,6 +128,7 @@ final class PersistUserShippingAddress
                         : null,
                     'rajaongkir_destination_id' => $metadata['rajaongkir_destination_id'] ?? null,
                     'rajaongkir_destination_label' => $metadata['rajaongkir_destination_label'] ?? null,
+                    'rajaongkir_pin_point' => $metadata['rajaongkir_pin_point'] ?? null,
                 ];
             })
             ->all();
@@ -149,6 +151,11 @@ final class PersistUserShippingAddress
 
         if ($destinationLabel !== '') {
             $metadata['rajaongkir_destination_label'] = $destinationLabel;
+        }
+
+        $pin = trim((string) ($shippingAddress['rajaongkir_pin_point'] ?? ''));
+        if ($pin !== '') {
+            $metadata['rajaongkir_pin_point'] = $pin;
         }
 
         return $metadata;

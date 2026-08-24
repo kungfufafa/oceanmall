@@ -5,29 +5,37 @@ declare(strict_types=1);
 namespace Tests\Feature\Komerce;
 
 use App\Actions\Checkout\MarkOrderPaidFromKomerce;
+use App\Actions\Shipping\DispatchRajaOngkirDelivery;
 use App\Jobs\CreateRajaOngkirDeliveryForShipment;
 use App\Models\OrderShipment;
 use App\Models\Product;
 use App\Services\Komerce\ShippingDeliveryClient;
+use App\Shipping\RajaOngkirCourier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
+use Shopper\Core\Enum\ShippingStatus;
 use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
 use Shopper\Core\Models\OrderAddress;
 use Shopper\Core\Models\OrderItem;
+use Shopper\Core\Models\OrderShipping;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Enum\TransactionType;
 use Shopper\Payment\Models\PaymentTransaction;
+use Tests\Support\SignsKomercePaymentCallbacks;
 use Tests\TestCase;
+use Throwable;
 
 final class ShippingDeliveryTest extends TestCase
 {
     use RefreshDatabase;
+    use SignsKomercePaymentCallbacks;
 
     private function fakeDeliveryConfig(): void
     {
@@ -37,6 +45,25 @@ final class ShippingDeliveryTest extends TestCase
         config()->set('komerce.rajaongkir.delivery_base_url', 'https://delivery.example.test');
         config()->set('komerce.pickup_time', '10:00:00');
         config()->set('komerce.pickup_vehicle', 'Motor');
+    }
+
+    /**
+     * @param  array<string, mixed>  $routes
+     */
+    private function fakeDeliveryHttp(array $routes = []): void
+    {
+        Http::fake(array_merge([
+            'https://delivery.example.test/order/api/v1/orders/print-label*' => Http::response([
+                'meta' => [
+                    'code' => 200,
+                    'status' => 'success',
+                    'message' => 'Generate Print Label Success',
+                ],
+                'data' => [
+                    'path' => 'https://delivery.example.test/storage/label/RO-ORDER-001.pdf',
+                ],
+            ]),
+        ], $routes));
     }
 
     public function test_delivery_client_posts_store_order_and_pickup_request(): void
@@ -124,7 +151,7 @@ final class ShippingDeliveryTest extends TestCase
 
         [$order, $shipment] = $this->createShipmentReadyForDelivery();
 
-        Http::fake([
+        $this->fakeDeliveryHttp([
             'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
                 'meta' => [
                     'message' => 'Success Create New Order',
@@ -149,16 +176,25 @@ final class ShippingDeliveryTest extends TestCase
 
         resolve(CreateRajaOngkirDeliveryForShipment::class, [
             'orderShipmentId' => $shipment->id,
-        ])->handle(resolve(ShippingDeliveryClient::class));
+        ])->handle();
 
         $shipment->refresh();
         $this->assertSame('JNE123456789', $shipment->awb);
         $this->assertSame('JNE123456789', $shipment->tracking_number);
         $this->assertSame('labeled', $shipment->status);
         $this->assertSame('RO-ORDER-001', data_get($shipment->metadata, 'komerce.order_no'));
+        $this->assertSame(
+            'https://delivery.example.test/storage/label/RO-ORDER-001.pdf',
+            data_get($shipment->metadata, 'komerce.label_url'),
+        );
+
+        $this->assertDatabaseHas((new OrderShipping)->getTable(), [
+            'order_id' => $order->id,
+            'tracking_number' => 'JNE123456789',
+        ]);
 
         $order->refresh();
-        $this->assertSame(\Shopper\Core\Enum\ShippingStatus::Shipped, $order->shipping_status);
+        $this->assertSame(ShippingStatus::Shipped, $order->shipping_status);
 
         Http::assertSent(function (Request $request): bool {
             $payload = $request->data();
@@ -204,7 +240,7 @@ final class ShippingDeliveryTest extends TestCase
 
         [, $shipment] = $this->createShipmentReadyForDelivery();
 
-        Http::fake([
+        $this->fakeDeliveryHttp([
             'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
                 'meta' => [
                     'message' => 'Success Create New Order',
@@ -221,7 +257,7 @@ final class ShippingDeliveryTest extends TestCase
         try {
             resolve(CreateRajaOngkirDeliveryForShipment::class, [
                 'orderShipmentId' => $shipment->id,
-            ])->handle(resolve(ShippingDeliveryClient::class));
+            ])->handle();
 
             $this->fail('Expected pickup request failure.');
         } catch (RequestException) {
@@ -258,7 +294,7 @@ final class ShippingDeliveryTest extends TestCase
             ],
         ]);
 
-        Http::fake([
+        $this->fakeDeliveryHttp([
             'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
                 'meta' => ['code' => 201, 'status' => 'success'],
                 'data' => ['order_id' => 99999, 'order_no' => 'RO-SHOULD-NOT-BE-USED'],
@@ -279,7 +315,7 @@ final class ShippingDeliveryTest extends TestCase
 
         resolve(CreateRajaOngkirDeliveryForShipment::class, [
             'orderShipmentId' => $shipment->id,
-        ])->handle(resolve(ShippingDeliveryClient::class));
+        ])->handle();
 
         $shipment->refresh();
         $this->assertSame('JNE-RETRY-AWB', $shipment->awb);
@@ -334,7 +370,7 @@ final class ShippingDeliveryTest extends TestCase
         try {
             resolve(CreateRajaOngkirDeliveryForShipment::class, [
                 'orderShipmentId' => $shipment->id,
-            ])->handle(resolve(ShippingDeliveryClient::class));
+            ])->handle();
 
             $this->fail('Expected the failed pickup item to reject the delivery workflow.');
         } catch (\RuntimeException $exception) {
@@ -361,7 +397,7 @@ final class ShippingDeliveryTest extends TestCase
 
         resolve(CreateRajaOngkirDeliveryForShipment::class, [
             'orderShipmentId' => $shipment->id,
-        ])->handle(resolve(ShippingDeliveryClient::class));
+        ])->handle();
 
         Http::assertNothingSent();
         $this->assertSame('EXISTING-AWB', $shipment->refresh()->awb);
@@ -574,8 +610,10 @@ final class ShippingDeliveryTest extends TestCase
     {
         $this->fakeDeliveryConfig();
 
-        // Create shipment without persisted rate in metadata
         [, $shipment] = $this->createShipmentReadyForDelivery([
+            'cost' => 0,
+            'carrier_code' => '',
+            'service_code' => '',
             'metadata' => null,
         ]);
 
@@ -593,11 +631,11 @@ final class ShippingDeliveryTest extends TestCase
         try {
             resolve(CreateRajaOngkirDeliveryForShipment::class, [
                 'orderShipmentId' => $shipment->id,
-            ])->handle(resolve(ShippingDeliveryClient::class));
+            ])->handle();
 
             $this->fail('Expected delivery job to fail safely when official tariff data is unavailable.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString('Data tarif resmi Shipping Delivery belum tersedia', $e->getMessage());
+            $this->assertStringContainsString('Delivery calculate', $e->getMessage());
         }
 
         $shipment->refresh();
@@ -610,54 +648,352 @@ final class ShippingDeliveryTest extends TestCase
         });
     }
 
-    public function test_delivery_job_attempts_dynamic_official_tariff_resolution_when_metadata_rate_is_missing(): void
+    public function test_delivery_job_uses_official_delivery_calculate_cashback_not_cost_zero(): void
     {
         $this->fakeDeliveryConfig();
 
         [, $shipment] = $this->createShipmentReadyForDelivery([
-            'metadata' => null,
+            'metadata' => [
+                'rate' => [
+                    'carrier_code' => 'jne',
+                    'carrier_name' => 'JNE',
+                    'service_code' => 'jne:REG',
+                    'service_name' => 'REG',
+                    'amount' => 18000,
+                    'currency' => 'IDR',
+                ],
+            ],
         ]);
+        $shipment->inventory?->forceFill([
+            'latitude' => '-6.7366',
+            'longitude' => '108.5414',
+        ])->save();
+        $order = $shipment->order;
+        $meta = json_decode((string) $order->metadata, true) ?: [];
+        $meta['shipping_address']['rajaongkir_pin_point'] = '-6.2380,106.7830';
+        $order->forceFill(['metadata' => json_encode($meta, JSON_THROW_ON_ERROR)])->save();
 
-        Http::fake([
+        $this->fakeDeliveryHttp([
             'https://delivery.example.test/tariff/api/v1/calculate*' => Http::response([
                 'meta' => ['code' => 200, 'status' => 'success'],
                 'data' => [
-                    'calculate_reguler' => [
-                        [
-                            'shipping_name' => 'JNE',
-                            'service_name' => 'REG',
-                            'shipping_cost' => 18000,
-                            'shipping_cashback' => 4500,
-                            'service_fee' => 0,
-                            'additional_cost' => 0,
-                            'grandtotal' => 118000,
-                            'cod_value' => 0,
-                            'insurance_value' => 0,
-                        ],
-                    ],
+                    'calculate_reguler' => [[
+                        'shipping_name' => 'JNE',
+                        'service_name' => 'REG',
+                        'shipping_cost' => 18000,
+                        'shipping_cashback' => 4500,
+                        'service_fee' => 0,
+                        'grandtotal' => 118000,
+                    ]],
+                    'calculate_cargo' => [],
+                    'calculate_instant' => [],
                 ],
             ]),
             'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
                 'meta' => ['message' => 'Success Create New Order', 'code' => 201, 'status' => 'success'],
-                'data' => ['order_id' => 8888, 'order_no' => 'RO-DYNAMIC-001'],
+                'data' => ['order_id' => 8888, 'order_no' => 'RO-COST-001'],
             ]),
             'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
                 'meta' => ['message' => 'Success Request Pickup', 'code' => 201, 'status' => 'success'],
                 'data' => [[
                     'status' => 'success',
-                    'order_no' => 'RO-DYNAMIC-001',
-                    'awb' => 'JNE-DYNAMIC-AWB',
+                    'order_no' => 'RO-COST-001',
+                    'awb' => 'JNE-COST-AWB',
                 ]],
             ]),
         ]);
 
         resolve(CreateRajaOngkirDeliveryForShipment::class, [
             'orderShipmentId' => $shipment->id,
-        ])->handle(resolve(ShippingDeliveryClient::class));
+        ])->handle();
 
         $shipment->refresh();
-        $this->assertSame('JNE-DYNAMIC-AWB', $shipment->awb);
-        $this->assertSame('labeled', $shipment->status);
-        $this->assertSame('RO-DYNAMIC-001', data_get($shipment->metadata, 'komerce.order_no'));
+        $this->assertSame('JNE-COST-AWB', $shipment->awb);
+
+        Http::assertSent(function (Request $request): bool {
+            return $request->method() === 'GET'
+                && str_contains($request->url(), '/tariff/api/v1/calculate');
+        });
+        Http::assertSent(function (Request $request): bool {
+            $payload = $request->data();
+
+            return $request->method() === 'POST'
+                && $request->url() === 'https://delivery.example.test/order/api/v1/orders/store'
+                && data_get($payload, 'shipping_cost') === 18000
+                && data_get($payload, 'shipping_cashback') === 4500;
+        });
+    }
+
+    public function test_cost_checkout_display_name_is_sent_as_official_delivery_courier(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [, $shipment] = $this->createShipmentReadyForDelivery([
+            'carrier_name' => 'Jalur Nugraha Ekakurir (JNE)',
+            'service_code' => 'jne:REG',
+            'service_name' => 'Layanan Reguler',
+            'metadata' => [
+                'rate' => [
+                    'provider' => 'shipping_delivery',
+                    'carrier_code' => 'jne',
+                    'carrier_name' => 'Jalur Nugraha Ekakurir (JNE)',
+                    'shipping_name' => 'JNE',
+                    'service_code' => 'jne:REG',
+                    'service_name' => 'REG',
+                    'shipping_cost' => 18000,
+                    'shipping_cashback' => 4500,
+                    'service_fee' => 0,
+                    'amount' => 18000,
+                    'currency' => 'IDR',
+                ],
+            ],
+        ]);
+
+        $this->fakeDeliveryHttp([
+            'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
+                'meta' => ['message' => 'Success Create New Order', 'code' => 201, 'status' => 'success'],
+                'data' => ['order_id' => 7777, 'order_no' => 'RO-MAP-001'],
+            ]),
+            'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
+                'meta' => ['message' => 'Success Request Pickup', 'code' => 201, 'status' => 'success'],
+                'data' => [[
+                    'status' => 'success',
+                    'order_no' => 'RO-MAP-001',
+                    'awb' => 'JNE-MAP-AWB',
+                ]],
+            ]),
+        ]);
+
+        resolve(CreateRajaOngkirDeliveryForShipment::class, [
+            'orderShipmentId' => $shipment->id,
+        ])->handle();
+
+        $this->assertSame('JNE', RajaOngkirCourier::deliveryName('jne', 'Jalur Nugraha Ekakurir (JNE)'));
+
+        Http::assertSent(function (Request $request): bool {
+            $payload = $request->data();
+
+            return $request->method() === 'POST'
+                && $request->url() === 'https://delivery.example.test/order/api/v1/orders/store'
+                && data_get($payload, 'shipping') === 'JNE'
+                && data_get($payload, 'shipping_type') === 'REG';
+        });
+    }
+
+    public function test_paid_order_without_shipments_creates_allocation_then_dispatches_delivery(): void
+    {
+        $this->fakeDeliveryConfig();
+        Bus::fake();
+
+        $address = OrderAddress::query()->create([
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Merdeka 1',
+            'postal_code' => '10110',
+            'city' => 'Jakarta',
+            'phone' => '081234567890',
+        ]);
+
+        Inventory::factory()->create([
+            'is_default' => true,
+            'rajaongkir_origin_id' => '501',
+        ]);
+
+        $order = Order::factory()->create([
+            'number' => 'ORDER-NO-SHIP',
+            'price_amount' => 100000,
+            'currency_code' => 'IDR',
+            'status' => OrderStatus::New,
+            'payment_status' => PaymentStatus::Pending,
+            'shipping_address_id' => $address->id,
+        ]);
+
+        $product = Product::factory()->standard()->create();
+        OrderItem::query()->create([
+            'order_id' => $order->id,
+            'name' => $product->name,
+            'sku' => $product->sku,
+            'product_type' => $product->getMorphClass(),
+            'product_id' => $product->id,
+            'quantity' => 1,
+            'unit_price_amount' => 100000,
+        ]);
+
+        PaymentTransaction::query()->create([
+            'order_id' => $order->id,
+            'driver' => 'komerce',
+            'type' => TransactionType::Initiate,
+            'status' => TransactionStatus::Pending,
+            'amount' => 100000,
+            'currency_code' => 'IDR',
+            'reference' => 'KOMPAY-NO-SHIP',
+        ]);
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/status/KOMPAY-NO-SHIP' => Http::response([
+                'success' => true,
+                'data' => [
+                    'payment_id' => 'KOMPAY-NO-SHIP',
+                    'status' => 'PAID',
+                    'amount' => 100000,
+                ],
+            ]),
+        ]);
+
+        $this->assertSame(0, OrderShipment::query()->where('order_id', $order->id)->count());
+
+        $status = resolve(MarkOrderPaidFromKomerce::class)->handle('KOMPAY-NO-SHIP');
+
+        $this->assertSame('handled', $status);
+        $this->assertSame(1, OrderShipment::query()->where('order_id', $order->id)->count());
+        Bus::assertDispatched(CreateRajaOngkirDeliveryForShipment::class, 1);
+    }
+
+    public function test_paid_payment_webhook_creates_awb_label_and_shopper_shipping_record(): void
+    {
+        $this->fakeDeliveryConfig();
+        config()->set('komerce.webhook_secret', 'webhook-secret');
+
+        [$order, $shipment] = $this->createShipmentReadyForDelivery();
+
+        PaymentTransaction::query()->create([
+            'order_id' => $order->id,
+            'driver' => 'komerce',
+            'type' => TransactionType::Initiate,
+            'status' => TransactionStatus::Pending,
+            'amount' => 100000,
+            'currency_code' => 'IDR',
+            'reference' => 'KOMPAY-1001',
+        ]);
+
+        $this->fakeDeliveryHttp([
+            'https://payment.example.test/user/api/v1/user/payment/status/KOMPAY-1001' => Http::response([
+                'success' => true,
+                'data' => [
+                    'payment_id' => 'KOMPAY-1001',
+                    'status' => 'PAID',
+                    'amount' => 100000,
+                ],
+            ]),
+            'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
+                'meta' => ['message' => 'Success Create New Order', 'code' => 201, 'status' => 'success'],
+                'data' => ['order_id' => 41001, 'order_no' => 'RO-WEBHOOK-1'],
+            ]),
+            'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
+                'meta' => ['message' => 'Success Request Pickup', 'code' => 201, 'status' => 'success'],
+                'data' => [[
+                    'status' => 'success',
+                    'order_no' => 'RO-WEBHOOK-1',
+                    'awb' => 'JNE-WEBHOOK-1',
+                ]],
+            ]),
+        ]);
+
+        $this->postSignedKomercePaymentWebhook([
+            'payment_id' => 'KOMPAY-1001',
+            'order_id' => 'ORDER-1001',
+            'status' => 'PAID',
+            'amount' => 100000,
+        ])
+            ->assertOk()
+            ->assertJson(['status' => 'handled']);
+
+        $shipment->refresh();
+        $order->refresh();
+
+        $this->assertSame(PaymentStatus::Paid, $order->payment_status);
+        $this->assertSame('JNE-WEBHOOK-1', $shipment->awb);
+        $this->assertSame('RO-WEBHOOK-1', data_get($shipment->metadata, 'komerce.order_no'));
+        $this->assertNotEmpty(data_get($shipment->metadata, 'komerce.label_url'));
+        $this->assertSame(ShippingStatus::Shipped, $order->shipping_status);
+        $this->assertDatabaseHas((new OrderShipping)->getTable(), [
+            'order_id' => $order->id,
+            'tracking_number' => 'JNE-WEBHOOK-1',
+        ]);
+        Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/orders/print-label'));
+    }
+
+    public function test_fulfill_paid_orders_command_issues_missing_awb(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [, $shipment] = $this->createShipmentReadyForDelivery();
+        $shipment->order?->update(['payment_status' => PaymentStatus::Paid]);
+
+        $this->fakeDeliveryHttp([
+            'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
+                'meta' => ['message' => 'Success Create New Order', 'code' => 201, 'status' => 'success'],
+                'data' => ['order_id' => 41002, 'order_no' => 'RO-CMD-1'],
+            ]),
+            'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
+                'meta' => ['message' => 'Success Request Pickup', 'code' => 201, 'status' => 'success'],
+                'data' => [[
+                    'status' => 'success',
+                    'order_no' => 'RO-CMD-1',
+                    'awb' => 'JNE-CMD-1',
+                ]],
+            ]),
+        ]);
+
+        $this->artisan('komerce:fulfill-paid-orders')->assertSuccessful();
+
+        $this->assertSame('JNE-CMD-1', $shipment->refresh()->awb);
+    }
+
+    public function test_delivery_job_persists_fulfillment_error_when_store_order_fails(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [, $shipment] = $this->createShipmentReadyForDelivery();
+
+        Http::fake([
+            'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
+                'meta' => ['status' => 'error', 'code' => 500, 'message' => 'origin invalid'],
+            ], 500),
+        ]);
+
+        try {
+            (new CreateRajaOngkirDeliveryForShipment((int) $shipment->id))->handle();
+            $this->fail('Expected store-order failure.');
+        } catch (Throwable) {
+            $shipment->refresh();
+        }
+
+        $this->assertNull($shipment->awb);
+        $this->assertNotEmpty(data_get($shipment->metadata, 'komerce.fulfillment_error'));
+    }
+
+    public function test_paid_delivery_dispatch_runs_only_after_the_payment_transaction_commits(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [$order, $shipment] = $this->createShipmentReadyForDelivery();
+
+        $this->fakeDeliveryHttp([
+            'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
+                'meta' => ['message' => 'Success Create New Order', 'code' => 201, 'status' => 'success'],
+                'data' => ['order_id' => 41003, 'order_no' => 'RO-COMMIT-1'],
+            ]),
+            'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
+                'meta' => ['message' => 'Success Request Pickup', 'code' => 201, 'status' => 'success'],
+                'data' => [[
+                    'status' => 'success',
+                    'order_no' => 'RO-COMMIT-1',
+                    'awb' => 'JNE-COMMIT-1',
+                ]],
+            ]),
+        ]);
+
+        DB::transaction(function () use ($order, $shipment): void {
+            $order->update(['payment_status' => PaymentStatus::Paid]);
+            resolve(DispatchRajaOngkirDelivery::class)->handle($order->refresh());
+            $this->assertNull($shipment->fresh()->awb);
+        });
+
+        $this->assertSame('JNE-COMMIT-1', $shipment->fresh()->awb);
+        $this->assertDatabaseHas((new OrderShipping)->getTable(), [
+            'order_id' => $order->id,
+            'tracking_number' => 'JNE-COMMIT-1',
+        ]);
     }
 }

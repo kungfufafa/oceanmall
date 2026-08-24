@@ -28,8 +28,10 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Shopper\Cart\CartManager;
 use Shopper\Cart\CartSessionManager;
+use Shopper\Cart\Models\Cart;
 use Shopper\Core\Enum\AddressType;
 use Shopper\Core\Enum\PaymentStatus;
+use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Enum\TransactionType;
@@ -328,7 +330,12 @@ final class CheckoutController extends Controller
             'name' => $selected['service_name'],
             'price' => (int) $selected['amount'],
             'service_code' => $selected['service_code'],
+            'service_name' => $selected['service_name'],
             'carrier_code' => $selected['carrier_code'],
+            'carrier_name' => $selected['carrier_name'] ?? null,
+            'shipping_name' => $selected['carrier_name'] ?? null,
+            'shipping_cost' => (int) $selected['amount'],
+            'amount' => (int) $selected['amount'],
             'currency' => $selected['currency'],
             'estimated_days' => $selected['estimated_days'],
         ]);
@@ -353,7 +360,7 @@ final class CheckoutController extends Controller
             'rates.*' => ['required', 'string'],
         ]);
 
-        $cart = resolve(\Shopper\Cart\CartSessionManager::class)->current();
+        $cart = resolve(CartSessionManager::class)->current();
 
         if (! $cart) {
             return redirect()->route('shop.cart');
@@ -368,7 +375,7 @@ final class CheckoutController extends Controller
             try {
                 $allocationPlan = resolve(SuggestAllocation::class)->handle($cart, $shippingAddress);
                 session()->put(CheckoutSession::ALLOCATION_PLAN, $allocationPlan);
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 return back()->withErrors(['rates' => __('Unable to determine shipment allocation.')]);
             }
         }
@@ -668,14 +675,14 @@ final class CheckoutController extends Controller
      * @return array{0: array<string, mixed>|null, 1: array<int|string, array<int, array<string, mixed>>>}
      */
     private function resolveAllocationAndRates(
-        \Shopper\Cart\Models\Cart $cart,
+        Cart $cart,
         array $shippingAddress,
         array $packages,
         array $checkout,
     ): array {
         try {
             $plan = resolve(SuggestAllocation::class)->handle($cart, $shippingAddress);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return [null, []];
         }
 
@@ -690,7 +697,7 @@ final class CheckoutController extends Controller
         );
 
         $inventoryIds = array_column($allocationArray, 'inventory_id');
-        $inventories = \Shopper\Core\Models\Inventory::query()
+        $inventories = Inventory::query()
             ->whereIn('id', $inventoryIds)
             ->get()
             ->keyBy('id');

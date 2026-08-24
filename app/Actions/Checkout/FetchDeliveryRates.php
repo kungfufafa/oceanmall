@@ -4,16 +4,18 @@ declare(strict_types=1);
 
 namespace App\Actions\Checkout;
 
-use App\Services\Komerce\ShippingCostClient;
 use App\Support\EnabledCarriers;
 use App\Support\KomerceCourierAssets;
-use Illuminate\Support\Facades\Cache;
+use App\Support\RajaOngkirQuoteContext;
+use Illuminate\Support\Collection;
 use Shopper\Core\Models\Carrier;
 use Shopper\Core\Models\Country;
 use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Zone;
 use Shopper\Shipping\DataTransferObjects\Address as ShippingAddress;
 use Shopper\Shipping\DataTransferObjects\Package;
+use Shopper\Shipping\DataTransferObjects\ShippingRate;
+use Shopper\Shipping\Facades\Shipping;
 use Shopper\Shipping\Services\CarrierRateService;
 use Throwable;
 
@@ -63,8 +65,7 @@ final class FetchDeliveryRates
     }
 
     /**
-     * RajaOngkir Cost API response shape:
-     * `{ meta: {...}, data: list<{ name, code, service?, description?, cost?, etd?, costs?: list<...> }> }`.
+     * Quote RajaOngkir Cost rates through Shopper's registered `rajaongkir` driver.
      *
      * @param  array<string, mixed>  $shippingAddress
      * @param  array<int, Package>  $packages
@@ -84,7 +85,7 @@ final class FetchDeliveryRates
             ?? null;
 
         if (! $originId || ! $destinationId) {
-            return null;
+            return [];
         }
 
         $countryId = isset($shippingAddress['country_id']) ? (int) $shippingAddress['country_id'] : null;
@@ -100,25 +101,24 @@ final class FetchDeliveryRates
             return [];
         }
 
-        try {
-            $cacheKey = 'shipping_rates:'
-                .sha1("{$originId}:{$destinationId}:{$this->totalWeightGrams($packages)}:".implode(',', $courierSlugs));
+        $context = resolve(RajaOngkirQuoteContext::class);
+        $context->set((string) $originId, (string) $destinationId, $courierSlugs);
 
-            $response = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($originId, $destinationId, $packages, $courierSlugs): array {
-                return resolve(ShippingCostClient::class)->calculate(
-                    origin: ['id' => $originId],
-                    destination: ['id' => $destinationId],
-                    weightGrams: $this->totalWeightGrams($packages),
-                    couriers: $courierSlugs,
-                );
-            });
+        try {
+            $rates = Shipping::driver('rajaongkir')->calculateRates(
+                from: $this->buildOriginAddress(),
+                to: $this->buildDestinationAddress($shippingAddress),
+                packages: $packages,
+            );
         } catch (Throwable $e) {
             report($e);
 
             return [];
+        } finally {
+            $context->clear();
         }
 
-        return $this->formatRajaOngkirRates($response, $courierSlugs);
+        return $this->formatShopperRates($rates);
     }
 
     private function defaultInventoryOriginId(): ?string
@@ -153,123 +153,44 @@ final class FetchDeliveryRates
     }
 
     /**
-     * @param  array<int, Package>  $packages
-     */
-    private function totalWeightGrams(array $packages): int
-    {
-        $grams = array_sum(array_map(fn (Package $package): int => $this->packageWeightGrams($package), $packages));
-
-        return max(1, (int) $grams);
-    }
-
-    private function packageWeightGrams(Package $package): int
-    {
-        $weight = max(0.0, $package->weight);
-
-        if ($package->isImperial()) {
-            return max(1, (int) ceil($weight * 453.59237));
-        }
-
-        // BuildShippingPackages normalizes metric Package weights to kilograms.
-        return max(1, (int) ceil($weight * 1000));
-    }
-
-    /**
-     * @param  array<string, mixed>  $response
-     * @param  list<string>  $enabledCouriers
+     * @param  Collection<int, ShippingRate>|mixed  $rates
      * @return array<int, array<string, mixed>>
      */
-    private function formatRajaOngkirRates(array $response, array $enabledCouriers): array
+    private function formatShopperRates(mixed $rates): array
     {
-        $data = $response['data'] ?? [];
-
-        if (! is_array($data)) {
+        if (! is_iterable($rates)) {
             return [];
         }
 
-        $allowed = array_fill_keys(array_map('strtolower', $enabledCouriers), true);
         $dbCarriers = Carrier::query()->get()->keyBy(fn (Carrier $c): string => strtolower((string) $c->slug));
-        $rates = [];
+        $formatted = [];
 
-        foreach ($data as $carrierRow) {
-            if (! is_array($carrierRow)) {
+        foreach ($rates as $rate) {
+            if (! $rate instanceof ShippingRate) {
                 continue;
             }
 
-            $carrierCode = strtolower((string) ($carrierRow['code'] ?? ''));
-
-            if ($carrierCode === '' || ! isset($allowed[$carrierCode])) {
-                continue;
-            }
-            $carrierName = (string) ($carrierRow['name'] ?? $carrierCode);
-            $dbCarrier = $dbCarriers->get($carrierCode) ?? $dbCarriers->get($carrierCode === 'idexpress' ? 'ide' : ($carrierCode === 'ide' ? 'idexpress' : $carrierCode));
+            $carrierCode = strtolower($rate->carrierCode);
+            $dbCarrier = $dbCarriers->get($carrierCode)
+                ?? $dbCarriers->get($carrierCode === 'idexpress' ? 'ide' : ($carrierCode === 'ide' ? 'idexpress' : $carrierCode));
             $logoUrl = data_get($dbCarrier?->metadata, 'logo_url')
                 ?? $dbCarrier?->logo()
                 ?? KomerceCourierAssets::logoUrl($carrierCode);
 
-            $costRows = isset($carrierRow['costs']) && is_array($carrierRow['costs'])
-                ? $carrierRow['costs']
-                : [$carrierRow];
-
-            foreach ($costRows as $costRow) {
-                if (! is_array($costRow)) {
-                    continue;
-                }
-
-                $service = (string) ($costRow['service'] ?? '');
-                $amount = $this->costAmount($costRow);
-
-                if ($service === '' || $amount === null) {
-                    continue;
-                }
-
-                $rates[] = [
-                    'service_code' => "{$carrierCode}:{$service}",
-                    'service_name' => $service,
-                    'amount' => $amount,
-                    'currency' => 'IDR',
-                    'carrier_code' => $carrierCode,
-                    'estimated_days' => $this->estimatedDays($costRow),
-                    'description' => $costRow['description'] ?? null,
-                    'carrier_name' => $dbCarrier?->name ?? $carrierName,
-                    'carrier_logo' => $logoUrl,
-                ];
-            }
+            $formatted[] = [
+                'service_code' => $rate->serviceCode,
+                'service_name' => $rate->serviceName,
+                'amount' => $rate->amount,
+                'currency' => $rate->currency,
+                'carrier_code' => $carrierCode,
+                'estimated_days' => $rate->estimatedDays,
+                'description' => null,
+                'carrier_name' => $dbCarrier?->name ?? $rate->carrierCode,
+                'carrier_logo' => $logoUrl,
+            ];
         }
 
-        return $rates;
-    }
-
-    /**
-     * @param  array<string, mixed>  $costRow
-     */
-    private function costAmount(array $costRow): ?int
-    {
-        $cost = $costRow['cost'] ?? null;
-
-        if (is_array($cost)) {
-            $cost = $cost['value'] ?? $cost[0]['value'] ?? null;
-        }
-
-        return is_numeric($cost) ? (int) $cost : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $costRow
-     */
-    private function estimatedDays(array $costRow): string|int|null
-    {
-        if (array_key_exists('etd', $costRow)) {
-            return $costRow['etd'];
-        }
-
-        $cost = $costRow['cost'] ?? null;
-
-        if (is_array($cost)) {
-            return $cost['etd'] ?? $cost[0]['etd'] ?? null;
-        }
-
-        return null;
+        return $formatted;
     }
 
     private function buildOriginAddress(): ShippingAddress

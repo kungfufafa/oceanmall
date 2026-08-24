@@ -311,7 +311,7 @@
 
 ## 9. Delivery Status Webhook
 
-- **Method**: `POST` (incoming webhook to merchant URL)
+- **Method**: `PUT` on the endpoint table at https://www.rajaongkir.com/docs/delivery-order-api/getting_started/base-url; OceanMall accepts `POST` and `PUT` on the merchant URL.
 - **Payload Schema**:
 
 ```json

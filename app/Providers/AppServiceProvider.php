@@ -4,35 +4,37 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Domain\Payment\Adapters\KomercePaymentAdapter;
-use App\Domain\Payment\Contracts\PaymentDriverContract;
-use App\Domain\Shipping\Adapters\RajaOngkirShippingAdapter;
-use App\Domain\Shipping\Contracts\ShippingDriverContract;
-use App\Livewire\Shopper\KomerceOrderShipping;
+use App\Addons\KomerceRajaOngkir\KomerceRajaOngkirAddon;
+use App\Livewire\Shopper\Pages\OrderShipments;
 use App\Models\OrderShipment;
 use App\Models\User;
 use App\Observers\InventoryObserver;
 use App\Observers\OrderShipmentObserver;
-use Shopper\Core\Models\Inventory;
 use App\Payment\KomerceDriver;
 use App\Shipping\Drivers\KomerceShippingDriver;
 use App\Shipping\Drivers\RajaOngkirDriver;
 use App\Stock\AllocationPlanStockAllocator;
 use App\Support\CheckoutAllocationContext;
+use App\Support\KomerceCourierAssets;
+use App\Support\KomerceFulfillmentContext;
+use App\Support\KomercePaymentLookupContext;
+use App\Support\KomerceTrackingContext;
+use App\Support\RajaOngkirQuoteContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
-use Livewire\Livewire;
 use Shopper\Core\Contracts\StockAllocator;
 use Shopper\Core\Models\Carrier;
+use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
 use Shopper\Core\Models\PaymentMethod;
 use Shopper\Payment\Facades\Payment;
 use Shopper\Shipping\Facades\Shipping;
-use Shopper\View\OrderRenderHook;
+use Shopper\ShopperPanel;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -42,9 +44,20 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(CheckoutAllocationContext::class);
+        $this->app->scoped(RajaOngkirQuoteContext::class);
+        $this->app->scoped(KomerceTrackingContext::class);
+        $this->app->scoped(KomerceFulfillmentContext::class);
+        $this->app->scoped(KomercePaymentLookupContext::class);
         $this->app->bind(StockAllocator::class, AllocationPlanStockAllocator::class);
-        $this->app->bind(PaymentDriverContract::class, KomercePaymentAdapter::class);
-        $this->app->bind(ShippingDriverContract::class, RajaOngkirShippingAdapter::class);
+
+        $this->registerShopperAddon();
+
+        $this->app->booting(function (): void {
+            config()->set(
+                'shopper.components.order.pages.order-shipments',
+                OrderShipments::class,
+            );
+        });
     }
 
     /**
@@ -60,7 +73,22 @@ class AppServiceProvider extends ServiceProvider
         $this->configureShopperPayment();
         $this->configureShopperShipping();
         $this->configureShopperLogos();
-        $this->configureShopperFulfillment();
+    }
+
+    /**
+     * Register the panel addon on every scoped Shopper instance (Octane-safe).
+     * Shopper boots addons immediately after resolving the panel, so this must
+     * run via afterResolving rather than AppServiceProvider::boot().
+     */
+    protected function registerShopperAddon(): void
+    {
+        $this->app->afterResolving('shopper', function (ShopperPanel $panel): void {
+            if ($panel->hasAddon('komerce-rajaongkir')) {
+                return;
+            }
+
+            $panel->addon(new KomerceRajaOngkirAddon);
+        });
     }
 
     /**
@@ -101,15 +129,15 @@ class AppServiceProvider extends ServiceProvider
 
     protected function configureShopperPayment(): void
     {
-        Payment::extend('komerce', static fn (): KomerceDriver => new KomerceDriver);
+        Payment::extend('komerce', static fn (): KomerceDriver => resolve(KomerceDriver::class));
 
         config()->set('shopper.payment.drivers.komerce.enabled', komerce_payment_enabled() || qrisly_enabled());
     }
 
     protected function configureShopperShipping(): void
     {
-        Shipping::extend('rajaongkir', static fn (): RajaOngkirDriver => new RajaOngkirDriver);
-        Shipping::extend('komerce', static fn (): KomerceShippingDriver => new KomerceShippingDriver);
+        Shipping::extend('rajaongkir', static fn (): RajaOngkirDriver => resolve(RajaOngkirDriver::class));
+        Shipping::extend('komerce', static fn (): KomerceShippingDriver => resolve(KomerceShippingDriver::class));
 
         config()->set('shopper.shipping.drivers.rajaongkir.enabled', komerce_shipping_cost_enabled());
         config()->set('shopper.shipping.drivers.komerce.enabled', komerce_shipping_delivery_enabled());
@@ -140,11 +168,11 @@ class AppServiceProvider extends ServiceProvider
             return static function (Carrier $carrier) use ($komerceIllustrationBase, $carrierLogoMap): ?string {
                 $dbLogo = data_get($carrier->metadata, 'logo_url') ?? data_get($carrier->metadata, 'logo');
                 if (is_string($dbLogo) && $dbLogo !== '') {
-                    return \Illuminate\Support\Str::startsWith($dbLogo, ['http://', 'https://']) ? $dbLogo : asset($dbLogo);
+                    return Str::startsWith($dbLogo, ['http://', 'https://']) ? $dbLogo : asset($dbLogo);
                 }
 
                 $slug = strtolower((string) $carrier->slug);
-                $cdnLogo = \App\Support\KomerceCourierAssets::logoUrl($slug);
+                $cdnLogo = KomerceCourierAssets::logoUrl($slug);
                 if ($cdnLogo !== null) {
                     return $cdnLogo;
                 }
@@ -162,10 +190,12 @@ class AppServiceProvider extends ServiceProvider
                 // Fallback: local public/images/couriers/
                 if (file_exists(public_path("images/couriers/{$slug}.svg"))) {
                     $mtime = filemtime(public_path("images/couriers/{$slug}.svg"));
+
                     return asset("images/couriers/{$slug}.svg")."?v={$mtime}";
                 }
                 if (file_exists(public_path("images/couriers/{$slug}.png"))) {
                     $mtime = filemtime(public_path("images/couriers/{$slug}.png"));
+
                     return asset("images/couriers/{$slug}.png")."?v={$mtime}";
                 }
 
@@ -186,59 +216,17 @@ class AppServiceProvider extends ServiceProvider
 
                 if (file_exists(public_path("images/payments/{$slug}.svg"))) {
                     $mtime = filemtime(public_path("images/payments/{$slug}.svg"));
+
                     return asset("images/payments/{$slug}.svg")."?v={$mtime}";
                 }
                 if (file_exists(public_path("images/payments/{$slug}.png"))) {
                     $mtime = filemtime(public_path("images/payments/{$slug}.png"));
+
                     return asset("images/payments/{$slug}.png")."?v={$mtime}";
                 }
 
                 return null;
             };
         });
-    }
-
-    protected function configureShopperFulfillment(): void
-    {
-        Livewire::component('komerce-order-shipping', KomerceOrderShipping::class);
-        Livewire::component('shopper-order-summary', \App\Livewire\Shopper\OrderSummary::class);
-        Livewire::component('shopper-slide-overs.create-shipping-label', \App\Livewire\Shopper\SlideOvers\CreateShippingLabel::class);
-        Livewire::component('shopper-order-customer', \App\Livewire\Shopper\OrderCustomer::class);
-
-        $resolveOrder = static function (): ?Order {
-            $routeOrder = request()->route('order') ?? request()->route('id');
-
-            if (! $routeOrder && preg_match('#/orders/([^/]+)/detail#', request()->path(), $matches)) {
-                $routeOrder = urldecode($matches[1]);
-            }
-
-            if (! $routeOrder && request()->header('referer')) {
-                if (preg_match('#/orders/([^/]+)/detail#', (string) request()->header('referer'), $matches)) {
-                    $routeOrder = urldecode($matches[1]);
-                }
-            }
-
-            return match (true) {
-                $routeOrder instanceof Order => $routeOrder,
-                is_numeric($routeOrder) => Order::query()->find($routeOrder),
-                is_string($routeOrder) && $routeOrder !== '' => Order::query()->where('number', $routeOrder)->orWhere('id', $routeOrder)->first(),
-                default => null,
-            };
-        };
-
-        shopper()->renderHook(
-            OrderRenderHook::DETAIL_MAIN_BEFORE,
-            static function () use ($resolveOrder): string {
-                $order = $resolveOrder();
-
-                if (! $order instanceof Order) {
-                    return '';
-                }
-
-                return view('shopper.partials.komerce-order-shipping-hook', [
-                    'order' => $order,
-                ])->render();
-            },
-        );
     }
 }

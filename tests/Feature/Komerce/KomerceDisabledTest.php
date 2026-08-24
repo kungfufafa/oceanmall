@@ -113,14 +113,14 @@ final class KomerceDisabledTest extends TestCase
         ]);
 
         resolve(CreateRajaOngkirDeliveryForShipment::class, ['orderShipmentId' => $shipment->id])
-            ->handle(resolve(ShippingDeliveryClient::class));
+            ->handle();
 
         Http::assertNothingSent();
         $this->assertNull($shipment->refresh()->awb);
         $this->assertSame('pending', $shipment->status);
     }
 
-    public function test_payment_webhook_returns_503_when_disabled(): void
+    public function test_payment_webhook_acks_official_handled_when_disabled(): void
     {
         $this->disableKomerce();
         config()->set('komerce.webhook_secret', 'webhook-secret');
@@ -133,8 +133,8 @@ final class KomerceDisabledTest extends TestCase
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
         $signature = hash_hmac('sha256', $body, 'webhook-secret');
 
-        // A valid HMAC still short-circuits to 503 because the integration is off
-        // (no API key), so no remote payment-status call is ever attempted.
+        // Official payment callback ACK is HTTP 200 `{status: handled}`.
+        // With the integration off, no remote payment-status call is attempted.
         $this->call(
             'POST',
             route('webhooks.komerce.payment'),
@@ -147,7 +147,7 @@ final class KomerceDisabledTest extends TestCase
                 'HTTP_X_CALLBACK_API_KEY' => $signature,
             ],
             $body,
-        )->assertStatus(503)->assertJson(['status' => 'disabled']);
+        )->assertOk()->assertJson(['status' => 'handled']);
 
         Http::assertNothingSent();
     }

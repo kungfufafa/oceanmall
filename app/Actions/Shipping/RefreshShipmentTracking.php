@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace App\Actions\Shipping;
 
 use App\Models\OrderShipment;
-use App\Services\Komerce\ShippingDeliveryClient;
+use App\Support\KomerceTrackingContext;
 use RuntimeException;
+use Shopper\Shipping\Exceptions\ShippingException;
+use Shopper\Shipping\Facades\Shipping;
 
 final readonly class RefreshShipmentTracking
 {
     public function __construct(
-        private ShippingDeliveryClient $delivery,
+        private KomerceTrackingContext $trackingContext,
         private NormalizeShipmentStatus $normalizeStatus,
         private SyncOrderShippingFromShipments $syncOrderShipping,
     ) {}
@@ -36,17 +38,41 @@ final readonly class RefreshShipmentTracking
             throw new RuntimeException('This shipment has no courier (shipping) to track yet.');
         }
 
-        $response = $this->delivery->track($awb, $shipping);
-        $providerAwb = data_get($response, 'data.airway_bill');
+        $costCourier = $this->costCourierCode($shipment);
+        $this->trackingContext->setLastPhoneNumber($this->receiverPhone($shipment));
+
+        try {
+            if (komerce_shipping_cost_enabled() && $costCourier !== null) {
+                $this->trackingContext->setCourier($costCourier);
+                $info = Shipping::driver('rajaongkir')->track($awb);
+            } elseif (komerce_shipping_delivery_enabled()) {
+                $this->trackingContext->setCourier($shipping);
+                $info = Shipping::driver('komerce')->track($awb);
+            } else {
+                throw new RuntimeException('Shipment tracking needs RajaOngkir Cost or Komerce Delivery configured.');
+            }
+        } catch (ShippingException $e) {
+            throw new RuntimeException($e->getMessage(), 0, $e);
+        } finally {
+            $response = $this->trackingContext->lastRaw();
+            $this->trackingContext->clear();
+        }
+
+        $providerAwb = data_get($response, 'data.airway_bill')
+            ?? data_get($response, 'data.summary.waybill_number')
+            ?? data_get($response, 'data.details.waybill_number');
 
         if (is_scalar($providerAwb) && trim((string) $providerAwb) !== ''
             && strcasecmp(trim((string) $providerAwb), $awb) !== 0) {
-            throw new RuntimeException('Shipping Delivery tracking response returned a different airway bill.');
+            throw new RuntimeException('RajaOngkir tracking response returned a different airway bill.');
         }
 
         $history = $this->normalizeHistory($response);
-        $rawStatus = $this->resolveRawStatus($response, $history);
-        $normalized = $this->normalizeStatus->handle($rawStatus, is_string($shipment->status) ? $shipment->status : null);
+        $rawStatus = $info->statusDescription
+            ?? $this->resolveRawStatus($response, $history);
+        $normalized = $info->status !== ''
+            ? $info->status
+            : $this->normalizeStatus->handle($rawStatus, is_string($shipment->status) ? $shipment->status : null);
 
         $metadata = is_array($shipment->metadata) ? $shipment->metadata : [];
         $komerce = is_array($metadata['komerce'] ?? null) ? $metadata['komerce'] : [];
@@ -98,6 +124,28 @@ final readonly class RefreshShipmentTracking
         }
 
         return null;
+    }
+
+    private function costCourierCode(OrderShipment $shipment): ?string
+    {
+        $code = strtolower(trim((string) $shipment->carrier_code));
+
+        if ($code !== '' && preg_match('/^[a-z0-9_-]+$/', $code) === 1) {
+            return $code;
+        }
+
+        $name = strtolower(trim((string) $this->shippingCourier($shipment)));
+
+        return $name !== '' && preg_match('/^[a-z0-9_-]+$/', $name) === 1 ? $name : null;
+    }
+
+    private function receiverPhone(OrderShipment $shipment): ?string
+    {
+        $order = $shipment->order()->first();
+        $address = $order?->shippingAddress;
+        $phone = $address?->phone_number ?? $address?->phone;
+
+        return is_scalar($phone) ? (string) $phone : null;
     }
 
     /**
@@ -155,7 +203,15 @@ final readonly class RefreshShipmentTracking
      */
     private function resolveRawStatus(array $response, array $history): ?string
     {
-        foreach (['data.last_status', 'data.status', 'data.delivery_status', 'data.summary.status', 'status'] as $path) {
+        foreach ([
+            'data.delivery_status.status',
+            'data.details.status',
+            'data.last_status',
+            'data.status',
+            'data.delivery_status',
+            'data.summary.status',
+            'status',
+        ] as $path) {
             $value = data_get($response, $path);
 
             if (is_scalar($value) && trim((string) $value) !== '') {

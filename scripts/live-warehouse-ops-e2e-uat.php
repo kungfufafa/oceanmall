@@ -12,6 +12,8 @@ declare(strict_types=1);
  * php scripts/live-warehouse-ops-e2e-uat.php
  */
 
+use App\Actions\Cart\AddToCart;
+use App\Actions\Checkout\BuildShippingPackages;
 use App\Actions\Checkout\CreateKomercePayment;
 use App\Actions\Checkout\FetchDeliveryRates;
 use App\Actions\Checkout\FetchPaymentMethods;
@@ -19,8 +21,8 @@ use App\Actions\Checkout\MarkOrderPaidFromKomerce;
 use App\Actions\CreateOrder;
 use App\Actions\Shipping\NormalizeShipmentStatus;
 use App\Actions\Shipping\PrintShipmentLabels;
+use App\Actions\Shipping\SyncOrderShippingFromShipments;
 use App\Actions\Warehouse\SuggestAllocation;
-use App\Actions\Cart\AddToCart;
 use App\CheckoutSession;
 use App\Jobs\CreateRajaOngkirDeliveryForShipment;
 use App\Models\OrderShipment;
@@ -30,7 +32,9 @@ use App\Services\Komerce\ShippingCostClient;
 use App\Support\KomerceCallbackSignature;
 use App\Support\KomerceLabelResponse;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Shopper\Cart\CartSessionManager;
 use Shopper\Core\Enum\OrderStatus;
@@ -113,7 +117,7 @@ session()->put(CheckoutSession::ALLOCATION_PLAN, $plan);
 
 $selectedByShipment = [];
 foreach ($plan->shipments as $draft) {
-    $packages = resolve(\App\Actions\Checkout\BuildShippingPackages::class)
+    $packages = resolve(BuildShippingPackages::class)
         ->handleFromLines($draft->lines);
     $rates = resolve(FetchDeliveryRates::class)->handle($shippingAddress, $packages, $draft->inventory_id);
     if ($rates === []) {
@@ -153,7 +157,7 @@ session()->forget(CheckoutSession::KEY);
 $deliveryOrderNo = 'RO-WH-'.$order->id.'-'.now()->format('His');
 $awbCode = 'AWB-WH-'.$order->id.'-'.now()->format('His');
 
-Http::fake(function (\Illuminate\Http\Client\Request $request) use ($paymentId, $amount, $deliveryOrderNo, $awbCode) {
+Http::fake(function (Illuminate\Http\Client\Request $request) use ($paymentId, $amount, $deliveryOrderNo, $awbCode) {
     $url = $request->url();
 
     if (str_contains($url, '/payment/status/')) {
@@ -217,7 +221,7 @@ if ($shipments->isEmpty()) {
 foreach ($shipments as $shipment) {
     resolve(CreateRajaOngkirDeliveryForShipment::class, [
         'orderShipmentId' => $shipment->id,
-    ])->handle(resolve(\App\Services\Komerce\ShippingDeliveryClient::class));
+    ])->handle();
 }
 $shipment = OrderShipment::query()->where('order_id', $order->id)->firstOrFail();
 if (blank(data_get($shipment->metadata, 'komerce.order_no')) && blank($shipment->awb)) {
@@ -233,7 +237,7 @@ if (blank(data_get($shipment->metadata, 'komerce.order_no')) && blank($shipment-
         'status' => NormalizeShipmentStatus::LABELED,
         'metadata' => $meta,
     ])->save();
-    resolve(\App\Actions\Shipping\SyncOrderShippingFromShipments::class)->handle($order->fresh());
+    resolve(SyncOrderShippingFromShipments::class)->handle($order->fresh());
 }
 $shipment->refresh();
 $order->refresh();
@@ -264,8 +268,8 @@ $ok('override_locked', 'can_override=false after AWB');
 // ── Admin: authorize ops + print label ───────────────────────────────────────
 Auth::login($admin);
 try {
-    \Illuminate\Support\Facades\Gate::forUser($admin)->authorize('print-shipment-label', $order);
-    \Illuminate\Support\Facades\Gate::forUser($admin)->authorize('override-allocation', $order);
+    Gate::forUser($admin)->authorize('print-shipment-label', $order);
+    Gate::forUser($admin)->authorize('override-allocation', $order);
 } catch (Throwable $e) {
     $fail('admin_gates', $e->getMessage());
 }
@@ -284,8 +288,8 @@ $detailUrl = route('shopper.orders.detail', $order);
 $labelUrlRoute = route('shopper.orders.fulfillment.print-label', $order);
 $ok('cpanel_routes', 'detail='.$detailUrl.' label='.$labelUrlRoute);
 
-$http = $app->make(\Illuminate\Contracts\Http\Kernel::class);
-$showReq = \Illuminate\Http\Request::create($detailUrl, 'GET');
+$http = $app->make(Illuminate\Contracts\Http\Kernel::class);
+$showReq = Request::create($detailUrl, 'GET');
 $showReq->setLaravelSession($app['session.store']);
 $showReq->setUserResolver(static fn () => $admin);
 Auth::setUser($admin);
@@ -310,8 +314,8 @@ $secret = (string) config('komerce.webhook_secret', '');
 $postWebhook = static function (array $payload) use ($app, $secret): array {
     $body = json_encode($payload, JSON_THROW_ON_ERROR);
     $sig = KomerceCallbackSignature::sign($body, $secret);
-    $kernel = $app->make(\Illuminate\Contracts\Http\Kernel::class);
-    $req = \Illuminate\Http\Request::create(
+    $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+    $req = Request::create(
         '/webhooks/komerce/delivery',
         'POST',
         [],

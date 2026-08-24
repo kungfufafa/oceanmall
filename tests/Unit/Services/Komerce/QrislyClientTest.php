@@ -8,6 +8,7 @@ use App\Exceptions\KomerceNotConfiguredException;
 use App\Services\Komerce\QrislyClient;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use InvalidArgumentException;
 use Tests\TestCase;
 
 final class QrislyClientTest extends TestCase
@@ -80,5 +81,55 @@ final class QrislyClientTest extends TestCase
         $this->expectException(KomerceNotConfiguredException::class);
 
         (new QrislyClient)->generateQris(['qris_id' => 1, 'amount' => 1000]);
+    }
+
+    public function test_generate_qris_rejects_amount_below_official_minimum(): void
+    {
+        config()->set('komerce.qrisly_api_key', 'qrisly-key');
+        config()->set('komerce.qrisly_qris_id', '18');
+
+        $this->expectException(InvalidArgumentException::class);
+
+        (new QrislyClient)->generateQris(['qris_id' => 18, 'amount' => 999]);
+    }
+
+    public function test_upload_qris_posts_multipart_to_official_endpoint(): void
+    {
+        config()->set('komerce.qrisly_api_key', 'qrisly-key');
+        config()->set('komerce.qrisly_base_url', 'https://qrisly.example.test/user');
+
+        Http::fake([
+            'https://qrisly.example.test/user/api/v1/qrisly/upload-qris' => Http::response([
+                'success' => true,
+                'data' => [
+                    'qris_id' => '9d6c9f9e-8c33-4f42-8b1f-0e6a3e2e7d10',
+                    'provider' => 'DANA',
+                ],
+            ]),
+        ]);
+
+        $path = tempnam(sys_get_temp_dir(), 'qris');
+        $this->assertNotFalse($path);
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', true);
+        $this->assertNotFalse($png);
+        file_put_contents($path, $png);
+        $named = $path.'.png';
+        rename($path, $named);
+
+        try {
+            $response = (new QrislyClient)->uploadQris('OceanMall Store', $named);
+        } finally {
+            @unlink($named);
+        }
+
+        $this->assertSame('9d6c9f9e-8c33-4f42-8b1f-0e6a3e2e7d10', $response['data']['qris_id']);
+
+        Http::assertSent(function (Request $request): bool {
+            return $request->method() === 'POST'
+                && $request->url() === 'https://qrisly.example.test/user/api/v1/qrisly/upload-qris'
+                && $request->hasHeader('x-api-key', 'qrisly-key')
+                && $request->isMultipart()
+                && str_contains($request->body(), 'OceanMall Store');
+        });
     }
 }

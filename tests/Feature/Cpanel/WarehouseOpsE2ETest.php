@@ -9,7 +9,6 @@ use App\Jobs\CreateRajaOngkirDeliveryForShipment;
 use App\Models\OrderShipment;
 use App\Models\Product;
 use App\Models\User;
-use App\Services\Komerce\ShippingDeliveryClient;
 use App\Support\KomerceCallbackSignature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -203,7 +202,7 @@ final class WarehouseOpsE2ETest extends TestCase
 
         resolve(CreateRajaOngkirDeliveryForShipment::class, [
             'orderShipmentId' => $shipment->id,
-        ])->handle(resolve(ShippingDeliveryClient::class));
+        ])->handle();
 
         $shipment->refresh();
         $order->refresh();

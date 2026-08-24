@@ -79,10 +79,13 @@ final class OrderShipmentOpsPresenter
                     'tracking_number' => $shipment->tracking_number,
                     'carrier' => $carrier,
                     'service' => strtoupper($service),
-                    'carrier_logo' => \App\Support\KomerceCourierAssets::logoUrl($shipment->carrier_code),
+                    'carrier_logo' => KomerceCourierAssets::logoUrl($shipment->carrier_code),
                     'cost' => (int) $shipment->cost,
                     'currency' => $shipment->currency_code,
                     'delivery_order_no' => $deliveryOrderNo,
+                    'fulfillment_error' => is_string(data_get($shipment->metadata, 'komerce.fulfillment_error'))
+                        ? (string) data_get($shipment->metadata, 'komerce.fulfillment_error')
+                        : null,
                     'can_print_label' => $canPrint,
                     'print_hint' => $canPrint
                         ? null

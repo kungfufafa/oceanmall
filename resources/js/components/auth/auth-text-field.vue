@@ -38,10 +38,10 @@ const inputClass = computed(() =>
 
 <template>
     <div class="flex flex-col gap-1.5">
-        <Label :for="id">
-            {{ label }}
-            <span v-if="required" class="text-red-500">*</span>
-        </Label>
+        <div class="flex items-center gap-1">
+            <Label :for="id">{{ label }}</Label>
+            <span v-if="required" class="text-red-500" aria-hidden="true">*</span>
+        </div>
         <Input
             :id="id"
             :model-value="modelValue"

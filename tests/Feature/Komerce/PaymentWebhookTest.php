@@ -72,7 +72,7 @@ final class PaymentWebhookTest extends TestCase
 
         $this->postSignedKomercePaymentWebhook($payload)
             ->assertOk()
-            ->assertJson(['status' => 'already_processed']);
+            ->assertJson(['status' => 'handled']);
 
         $order->refresh();
         $transaction->refresh();
@@ -170,8 +170,8 @@ final class PaymentWebhookTest extends TestCase
             'status' => 'PAID',
             'amount' => 1,
         ])
-            ->assertStatus(422)
-            ->assertJson(['status' => 'amount_mismatch']);
+            ->assertOk()
+            ->assertJson(['status' => 'handled']);
 
         $order->refresh();
         $this->assertSame(PaymentStatus::Pending, $order->payment_status);

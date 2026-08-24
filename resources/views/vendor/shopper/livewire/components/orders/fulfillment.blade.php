@@ -63,7 +63,53 @@
         </div>
     </x-shopper::card>
 
-    @if ($currentStep >= 3)
+    @if ($rajaOngkirEnabled ?? false)
+        <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="text-sm text-gray-600 dark:text-gray-300">
+                @if ($rajaOngkirAwbs ?? [])
+                    <p>
+                        Resi RajaOngkir:
+                        <span class="font-semibold text-gray-900 dark:text-white">{{ implode(', ', $rajaOngkirAwbs) }}</span>
+                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Shopper hanya mencatat AWB resmi. Nomor resi tidak diketik manual.</p>
+                @elseif ($orderIsPaid ?? false)
+                    <p>Pembayaran lunas. Terbitkan AWB dan stiker dari RajaOngkir — bukan form resi Shopper.</p>
+                @else
+                    <p>Menunggu pelunasan. Setelah lunas, resi RajaOngkir terbit otomatis.</p>
+                @endif
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+                @if ($canPrintRajaOngkirLabel ?? false)
+                    <x-filament::button
+                        tag="a"
+                        :href="$printRajaOngkirRoute"
+                        target="_blank"
+                        icon="heroicon-o-printer"
+                        color="primary"
+                    >
+                        Cetak Stiker RajaOngkir
+                    </x-filament::button>
+                @elseif ($orderIsPaid ?? false)
+                    <x-filament::button
+                        wire:click="openShippingLabel"
+                        wire:loading.attr="disabled"
+                        icon="heroicon-o-paper-airplane"
+                        color="primary"
+                    >
+                        <span wire:loading.remove wire:target="openShippingLabel">Terbitkan Resi RajaOngkir</span>
+                        <span wire:loading wire:target="openShippingLabel">Menerbitkan…</span>
+                    </x-filament::button>
+                @endif
+            </div>
+        </div>
+    @elseif ($currentStep > 0 && $currentStep < 4 && $this->hasUnfulfilledItems())
+        <div class="flex items-center justify-end mt-5">
+            <x-filament::button wire:click="openShippingLabel">
+                {{ __('shopper::pages/orders.create_shipping_label') }}
+            </x-filament::button>
+        </div>
+    @elseif ($currentStep >= 3)
         <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">
             {{ __('shopper::pages/orders.all_items_fulfilled') }}
         </p>

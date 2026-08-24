@@ -4,6 +4,7 @@ namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Laravel\Fortify\Features;
 use Shopper\Core\Models\Setting;
 use Shopper\Database\Seeders\PermissionRoleTableSeeder;
@@ -47,6 +48,36 @@ abstract class TestCase extends BaseTestCase
 
         $this->seed(PermissionsTableSeeder::class);
         $this->seed(PermissionRoleTableSeeder::class);
+    }
+
+    /**
+     * Fake Komerce Payment HTTP, always including GET /methods so checkout
+     * tests do not leak a real request when the official catalog is consulted.
+     *
+     * @param  array<string, mixed>  $routes
+     */
+    protected function fakeKomercePaymentHttp(array $routes = []): void
+    {
+        Http::fake(array_merge([
+            'https://payment.example.test/user/api/v1/user/methods' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [
+                    [
+                        'payment_type' => 'va',
+                        'bank_code' => 'BCA',
+                        'min_amount' => 10000,
+                        'max_amount' => 999999999,
+                        'logo_url' => 'https://example.test/bca.png',
+                    ],
+                    [
+                        'payment_type' => 'qris',
+                        'bank_code' => '',
+                        'min_amount' => 10000,
+                        'max_amount' => 10000000,
+                    ],
+                ],
+            ]),
+        ], $routes));
     }
 
     protected function skipUnlessFortifyHas(string $feature, ?string $message = null): void

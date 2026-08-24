@@ -11,7 +11,7 @@ Semua spesifikasi ini dijadikan rujukan kontrak teknis (*Source of Truth*) tanpa
 1. **[Shipping Cost API V2](file:///Users/apriansyahrs/Documents/Code/oceanmall/docs/official-contracts/shipping-cost-v2.md)**
    - Base URL: `https://rajaongkir.komerce.id/api/v1/`
    - Key: Header `key: <SHIPPING_COST_KEY>`
-   - Scope: Domestic Destination Search (`GET`), Calculate Domestic Shipping Cost (`POST`), Track Waybill (`POST`).
+   - Scope: Domestic Destination Search (`GET`), International Destination Search (`GET`), Calculate Domestic Cost (`POST`), Calculate International Cost (`POST`), Track Waybill (`POST /track/waybill`).
 
 2. **[Shipping Delivery API V1](file:///Users/apriansyahrs/Documents/Code/oceanmall/docs/official-contracts/shipping-delivery-v1.md)**
    - Base URL: `https://api.collaborator.komerce.id/` (Production) / `https://api-sandbox.collaborator.komerce.id/` (Sandbox)

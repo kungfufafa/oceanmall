@@ -8,17 +8,25 @@ use App\Actions\Shipping\SyncOrderShippingFromShipments;
 use App\Models\OrderShipment;
 use App\Models\OrderShipmentLine;
 use App\Services\Komerce\ShippingDeliveryClient;
+use App\Shipping\RajaOngkirCourier;
+use App\Support\KomerceFulfillmentContext;
+use App\Support\KomerceLabelResponse;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Shopper\Core\Enum\Dimension\Length;
 use Shopper\Core\Enum\Dimension\Weight;
 use Shopper\Core\Models\Order;
+use Shopper\Shipping\DataTransferObjects\Address as ShippingAddress;
+use Shopper\Shipping\Exceptions\ShippingException;
+use Shopper\Shipping\Facades\Shipping;
+use Throwable;
 
 final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, ShouldQueue
 {
@@ -27,6 +35,12 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
     use Queueable;
     use SerializesModels;
 
+    public int $tries = 5;
+
+    public int $backoff = 60;
+
+    public int $uniqueFor = 300;
+
     public function __construct(public readonly int $orderShipmentId) {}
 
     public function uniqueId(): string
@@ -34,12 +48,59 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         return (string) $this->orderShipmentId;
     }
 
-    public function handle(ShippingDeliveryClient $delivery): void
+    public function handle(): void
     {
         if (! komerce_shipping_delivery_enabled()) {
             return;
         }
 
+        $shipment = OrderShipment::query()
+            ->with(['order.shippingAddress', 'order.items', 'order.customer', 'inventory', 'lines.purchasable'])
+            ->findOrFail($this->orderShipmentId);
+
+        $existingAwb = trim((string) ($shipment->awb ?: $shipment->tracking_number));
+        if ($existingAwb !== '') {
+            return;
+        }
+
+        $context = resolve(KomerceFulfillmentContext::class);
+        $context->set($shipment);
+
+        try {
+            Shipping::driver('komerce')->createShipment(
+                from: $this->originAddress($shipment),
+                to: $this->destinationAddress($shipment),
+                packages: [],
+                serviceCode: trim((string) $shipment->carrier_code).':'.trim((string) $shipment->service_code),
+            );
+            $this->clearFulfillmentError($shipment->refresh());
+        } catch (ShippingException $e) {
+            $this->persistFulfillmentError($shipment->refresh(), $e->getMessage());
+
+            throw new RuntimeException($e->getMessage(), 0, $e);
+        } catch (Throwable $e) {
+            $this->persistFulfillmentError($shipment->refresh(), $e->getMessage());
+
+            throw $e;
+        } finally {
+            $context->clear();
+        }
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        $shipment = OrderShipment::query()->find($this->orderShipmentId);
+
+        if ($shipment instanceof OrderShipment) {
+            $this->persistFulfillmentError(
+                $shipment,
+                $exception?->getMessage() ?? 'RajaOngkir delivery job failed.',
+            );
+        }
+    }
+
+    public function execute(ShippingDeliveryClient $delivery): void
+    {
         $shipment = OrderShipment::query()
             ->with(['order.shippingAddress', 'order.items', 'order.customer', 'inventory', 'lines.purchasable'])
             ->findOrFail($this->orderShipmentId);
@@ -95,7 +156,7 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         }
 
         $pickupResponse = $delivery->requestPickup([
-            'pickup_date' => now()->addDay()->format('Y-m-d'),
+            'pickup_date' => $this->pickupDate($pickupTime),
             'pickup_time' => $pickupTime,
             'pickup_vehicle' => $pickupVehicle,
             'orders' => [
@@ -104,8 +165,19 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         ]);
 
         $pickupItem = $this->successfulPickupItem($pickupResponse, $deliveryOrderNo);
-        $awb = $this->requiredString($pickupItem['awb'] ?? null, 'Komerce pickup AWB');
+        $awb = trim((string) ($pickupItem['awb'] ?? ''));
+        if ($awb === '') {
+            $detail = $delivery->detailOrder($deliveryOrderNo);
+            $awb = trim((string) (data_get($detail, 'data.awb') ?? ''));
+        }
+        if ($awb === '') {
+            throw new RuntimeException(sprintf(
+                'RajaOngkir pickup succeeded for [%s] but AWB is not issued yet (order still packing).',
+                $deliveryOrderNo,
+            ));
+        }
         $trackingNumber = $awb;
+        $labelResponse = $this->printOfficialLabel($delivery, $deliveryOrderNo);
 
         $shipment->forceFill([
             'awb' => $awb,
@@ -118,6 +190,7 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
                 $awb,
                 $storeResponse,
                 $pickupResponse,
+                $labelResponse,
             ),
         ])->save();
 
@@ -127,6 +200,42 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         if ($order instanceof Order) {
             resolve(SyncOrderShippingFromShipments::class)->handle($order);
         }
+    }
+
+    private function originAddress(OrderShipment $shipment): ShippingAddress
+    {
+        $inventory = $shipment->inventory;
+
+        return new ShippingAddress(
+            firstName: (string) ($inventory?->getAttribute('name') ?? shopper_setting('name') ?? 'Warehouse'),
+            lastName: '',
+            street: (string) ($inventory?->getAttribute('street_address') ?? ''),
+            city: (string) ($inventory?->getAttribute('city') ?? ''),
+            postalCode: (string) ($inventory?->getAttribute('postal_code') ?? ''),
+            state: (string) ($inventory?->getAttribute('state') ?? ''),
+            country: 'ID',
+            street2: $inventory?->getAttribute('street_address_plus') ? (string) $inventory->getAttribute('street_address_plus') : null,
+            phone: $inventory?->getAttribute('phone_number') ? (string) $inventory->getAttribute('phone_number') : null,
+            email: $inventory?->getAttribute('email') ? (string) $inventory->getAttribute('email') : null,
+        );
+    }
+
+    private function destinationAddress(OrderShipment $shipment): ShippingAddress
+    {
+        $order = $shipment->order;
+        $fields = $order instanceof Order ? $this->shippingAddress($order) : [];
+
+        return new ShippingAddress(
+            firstName: (string) ($fields['first_name'] ?? ''),
+            lastName: (string) ($fields['last_name'] ?? ''),
+            street: (string) ($fields['street_address'] ?? ''),
+            city: (string) ($fields['city'] ?? ''),
+            postalCode: (string) ($fields['postal_code'] ?? ''),
+            state: (string) ($fields['state'] ?? ''),
+            country: 'ID',
+            street2: isset($fields['street_address_plus']) ? (string) $fields['street_address_plus'] : null,
+            phone: isset($fields['phone_number']) ? (string) $fields['phone_number'] : null,
+        );
     }
 
     /**
@@ -240,7 +349,12 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
                 'Delivery rate additional_cost',
             ),
             'grand_total' => $this->requiredNonNegativeInteger(
-                $deliveryRate['grandtotal'] ?? null,
+                $deliveryRate['grandtotal']
+                    ?? $deliveryRate['grand_total']
+                    ?? (array_sum(array_map(
+                        static fn (array $detail): int => (int) ($detail['subtotal'] ?? 0),
+                        $orderDetails,
+                    )) + $shippingCost),
                 'Delivery rate grandtotal',
             ),
             'cod_value' => $this->requiredNonNegativeInteger(
@@ -283,7 +397,15 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
             'country_name' => $address?->country_name,
         ];
 
-        foreach (['country_id', 'rajaongkir_destination_id', 'destination_id'] as $key) {
+        foreach ([
+            'country_id',
+            'rajaongkir_destination_id',
+            'destination_id',
+            'rajaongkir_pin_point',
+            'pin_point',
+            'latitude',
+            'longitude',
+        ] as $key) {
             $value = $metadataAddress[$key]
                 ?? $metadata[$key]
                 ?? $address?->getAttribute($key);
@@ -436,11 +558,66 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         $metadata = $this->decodeMetadata($order->getAttribute('metadata'));
         $paymentType = strtolower(trim((string) data_get($metadata, 'komerce.payment_type', '')));
 
+        if ($paymentType === '') {
+            $order->loadMissing('paymentMethod');
+            $methodMeta = $this->decodeMetadata($order->paymentMethod?->metadata);
+            $paymentType = strtolower(trim((string) ($methodMeta['payment_type'] ?? '')));
+        }
+
+        if ($paymentType === '' && str_contains(strtolower((string) ($order->paymentMethod?->slug ?? '')), 'qris')) {
+            $paymentType = 'qris';
+        }
+
+        if ($paymentType === '') {
+            $paymentType = 'bank_transfer';
+        }
+
+        // Shipping Delivery store-order `payment_method` is how the shipment is
+        // billed to the courier (official example: "BANK TRANSFER"), not the
+        // customer's checkout channel. Live store rejects "QRIS" with
+        // "Please fill correct payment method". Prepaid VA/QRIS → BANK TRANSFER.
         return match ($paymentType) {
-            'bank_transfer' => 'BANK TRANSFER',
-            'qris' => 'QRIS',
+            'cod' => 'COD',
+            'bank_transfer', 'qris', 'va' => 'BANK TRANSFER',
             default => throw new RuntimeException('Order is missing its persisted Komerce payment type.'),
         };
+    }
+
+    private function pickupDate(string $pickupTime): string
+    {
+        $todayPickup = now()->setTimeFromTimeString($pickupTime);
+
+        if (now()->lessThan($todayPickup)) {
+            return now()->format('Y-m-d');
+        }
+
+        return now()->addDay()->format('Y-m-d');
+    }
+
+    private function persistFulfillmentError(OrderShipment $shipment, string $message): void
+    {
+        $fresh = OrderShipment::query()->find($shipment->id) ?? $shipment;
+        $metadata = $this->decodeMetadata($fresh->metadata);
+        $komerce = is_array($metadata['komerce'] ?? null) ? $metadata['komerce'] : [];
+        $komerce['fulfillment_error'] = $message;
+        $komerce['fulfillment_failed_at'] = now()->toIso8601String();
+        $metadata['komerce'] = $komerce;
+
+        $fresh->forceFill(['metadata' => $metadata])->save();
+    }
+
+    private function clearFulfillmentError(OrderShipment $shipment): void
+    {
+        $metadata = $this->decodeMetadata($shipment->metadata);
+        $komerce = is_array($metadata['komerce'] ?? null) ? $metadata['komerce'] : [];
+
+        if (! isset($komerce['fulfillment_error']) && ! isset($komerce['fulfillment_failed_at'])) {
+            return;
+        }
+
+        unset($komerce['fulfillment_error'], $komerce['fulfillment_failed_at']);
+        $metadata['komerce'] = $komerce;
+        $shipment->forceFill(['metadata' => $metadata])->save();
     }
 
     /**
@@ -501,8 +678,6 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
                 ));
             }
 
-            $this->requiredString($item['awb'] ?? null, 'Komerce pickup AWB');
-
             return $item;
         }
 
@@ -541,6 +716,7 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
     /**
      * @param  array<string, mixed>  $storeResponse
      * @param  array<string, mixed>  $pickupResponse
+     * @param  array<string, mixed>|null  $labelResponse
      * @return array<string, mixed>
      */
     private function metadataAfterPickup(
@@ -550,6 +726,7 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         string $awb,
         array $storeResponse,
         array $pickupResponse,
+        ?array $labelResponse = null,
     ): array {
         $metadata = $this->metadataAfterStore(
             $shipment,
@@ -558,13 +735,38 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
             $storeResponse,
         );
 
+        $labelUrl = is_array($labelResponse) ? KomerceLabelResponse::absoluteUrl($labelResponse) : null;
+
         $metadata['komerce'] = array_filter(array_merge($metadata['komerce'], [
             'awb' => $awb,
             'tracking_number' => $awb,
             'pickup_response' => $pickupResponse,
+            'label_response' => $labelResponse,
+            'label_url' => $labelUrl,
         ]), static fn (mixed $value): bool => $value !== null);
 
         return $metadata;
+    }
+
+    /**
+     * Official print-label after pickup. Failure must not drop the AWB.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function printOfficialLabel(ShippingDeliveryClient $delivery, string $deliveryOrderNo): ?array
+    {
+        try {
+            $response = $delivery->printLabel([$deliveryOrderNo]);
+        } catch (Throwable $e) {
+            Log::warning('RajaOngkir print-label failed after pickup.', [
+                'order_no' => $deliveryOrderNo,
+                'message' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        return $response !== [] ? $response : null;
     }
 
     /**
@@ -602,143 +804,168 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
     {
         $rate = data_get($this->decodeMetadata($shipment->metadata), 'rate');
 
-        if (is_array($rate)) {
-            $source = strtolower(trim((string) ($rate['provider'] ?? $rate['source'] ?? '')));
-            if (in_array($source, ['shipping_delivery', 'komship'], true)) {
-                return $rate;
-            }
+        if (is_array($rate) && $this->isOfficialDeliveryTariff($rate)) {
+            return $rate;
         }
 
-        $dynamicRate = $this->attemptDynamicDeliveryRate($shipment);
+        $fromCalculate = $this->rateFromDeliveryCalculate($shipment, is_array($rate) ? $rate : []);
 
-        if ($dynamicRate !== null) {
-            return $dynamicRate;
+        if ($fromCalculate !== null) {
+            return $fromCalculate;
         }
 
-        throw new RuntimeException('Data tarif resmi Shipping Delivery belum tersedia untuk rute/kurir ini.');
+        throw new RuntimeException(
+            'RajaOngkir store-order membutuhkan tarif Delivery calculate (termasuk shipping_cashback). Isi pinpoint gudang dan tujuan. Angka Cost dengan cashback 0 ditolak API.',
+        );
     }
 
     /**
-     * Attempt dynamic resolution of official Shipping Delivery rate when metadata rate is missing.
+     * Official Delivery GET /tariff/api/v1/calculate. Live store rejects Cost cashback 0.
      *
+     * @param  array<string, mixed>  $costRate
      * @return array<string, mixed>|null
      */
-    private function attemptDynamicDeliveryRate(OrderShipment $shipment): ?array
+    private function rateFromDeliveryCalculate(OrderShipment $shipment, array $costRate): ?array
     {
-        $order = $shipment->order;
+        $originPin = $this->originPinPoint($shipment);
+        $destinationPin = $this->destinationPinPoint($shipment);
+
+        if ($originPin === null || $destinationPin === null) {
+            return null;
+        }
+
         $inventory = $shipment->inventory;
-
-        if (! $order || ! $inventory) {
-            return null;
-        }
-
-        $originId = filter_var(
-            $inventory->getAttribute('rajaongkir_origin_id'),
-            FILTER_VALIDATE_INT,
-            ['options' => ['min_range' => 1]],
+        $originId = $this->requiredPositiveInteger(
+            $inventory?->getAttribute('rajaongkir_origin_id'),
+            'Shipment inventory RajaOngkir origin id',
+        );
+        $destinationId = $this->requiredPositiveInteger(
+            data_get($this->shippingAddress($shipment->order), 'rajaongkir_destination_id')
+                ?? data_get($this->shippingAddress($shipment->order), 'destination_id'),
+            'Order RajaOngkir destination id',
         );
 
-        $shippingAddress = $this->shippingAddress($order);
-        $destinationId = filter_var(
-            data_get($shippingAddress, 'rajaongkir_destination_id') ?? data_get($shippingAddress, 'destination_id'),
-            FILTER_VALIDATE_INT,
-            ['options' => ['min_range' => 1]],
+        $weightKilograms = $this->shipmentWeightKilograms($shipment);
+        $itemValue = $this->shipmentItemValue($shipment);
+        $wantedName = RajaOngkirCourier::deliveryName(
+            (string) ($costRate['carrier_code'] ?? $shipment->carrier_code ?? ''),
+            is_string($costRate['shipping_name'] ?? null) ? (string) $costRate['shipping_name'] : (string) ($shipment->carrier_name ?? ''),
+        );
+        $wantedService = RajaOngkirCourier::deliveryService(
+            (string) ($costRate['service_name'] ?? $costRate['service'] ?? $shipment->service_name ?? $shipment->service_code ?? ''),
         );
 
-        if ($originId === false || $destinationId === false) {
-            return null;
-        }
+        $response = resolve(ShippingDeliveryClient::class)->calculate(
+            $originId,
+            $destinationId,
+            $originPin,
+            $destinationPin,
+            $weightKilograms,
+            $itemValue,
+            false,
+        );
 
-        $shipment->loadMissing('lines.purchasable');
-
-        $weightGrams = array_sum(array_map(
-            function ($line): int {
-                $purchasable = $line->purchasable;
-                if (! $purchasable instanceof Model) {
-                    return 0;
-                }
-
-                try {
-                    return $this->weightGrams($purchasable) * max(1, (int) $line->qty);
-                } catch (\Throwable) {
-                    return 0;
-                }
-            },
-            $shipment->lines->all(),
-        ));
-
-        if ($weightGrams <= 0) {
-            return null;
-        }
-
-        $weightKg = max(0.001, round($weightGrams / 1000, 3));
-        $itemValue = (int) ($order->price_amount ?? 0);
-
-        try {
-            $client = resolve(ShippingDeliveryClient::class);
-            $response = $client->calculate(
-                shipperDestinationId: $originId,
-                receiverDestinationId: $destinationId,
-                originPinPoint: '-6.175392,106.827153',
-                destinationPinPoint: '-6.200000,106.816666',
-                weightKilograms: $weightKg,
-                itemValue: $itemValue,
-            );
-        } catch (\Throwable) {
-            return null;
-        }
-
-        $data = data_get($response, 'data', $response);
-
-        if (! is_array($data)) {
-            return null;
-        }
-
-        $categories = ['calculate_reguler', 'calculate_cargo', 'calculate_instant'];
-        $carrierCode = strtolower((string) $shipment->carrier_code);
-        $serviceCode = strtoupper((string) $shipment->service_code);
-
-        foreach ($categories as $category) {
-            $rows = $data[$category] ?? [];
+        foreach (['calculate_reguler', 'calculate_cargo', 'calculate_instant'] as $bucket) {
+            $rows = data_get($response, 'data.'.$bucket, []);
             if (! is_array($rows)) {
                 continue;
             }
-
             foreach ($rows as $row) {
                 if (! is_array($row)) {
                     continue;
                 }
-
-                $rowShippingName = strtolower(trim((string) ($row['shipping_name'] ?? '')));
-                $rowServiceName = strtoupper(trim((string) ($row['service_name'] ?? '')));
-
                 if (
-                    ($rowShippingName === $carrierCode || str_contains($rowShippingName, $carrierCode))
-                    && ($rowServiceName === $serviceCode || str_contains($rowServiceName, $serviceCode) || $serviceCode === 'REG')
+                    strtoupper((string) ($row['shipping_name'] ?? '')) === strtoupper($wantedName)
+                    && strtoupper((string) ($row['service_name'] ?? '')) === strtoupper($wantedService)
                 ) {
-                    $cost = (int) ($row['shipping_cost'] ?? $row['cost'] ?? $shipment->cost);
-                    $cashback = (int) ($row['shipping_cashback'] ?? $row['cashback'] ?? 0);
-                    $fee = (int) ($row['service_fee'] ?? 0);
-                    $additional = (int) ($row['additional_cost'] ?? 0);
-                    $grand = (int) ($row['grandtotal'] ?? $row['grand_total'] ?? ($cost + $fee + $additional));
-
                     return [
                         'provider' => 'shipping_delivery',
-                        'shipping_name' => $row['shipping_name'] ?? $shipment->carrier_name,
-                        'service_name' => $row['service_name'] ?? $shipment->service_name,
-                        'shipping_cost' => $cost,
-                        'shipping_cashback' => $cashback,
-                        'service_fee' => $fee,
-                        'additional_cost' => $additional,
-                        'grandtotal' => $grand,
-                        'cod_value' => (int) ($row['cod_value'] ?? 0),
-                        'insurance_value' => (int) ($row['insurance_value'] ?? 0),
+                        'shipping_name' => (string) $row['shipping_name'],
+                        'service_name' => (string) $row['service_name'],
+                        'shipping_cost' => (int) $row['shipping_cost'],
+                        'shipping_cashback' => (int) ($row['shipping_cashback'] ?? 0),
+                        'service_fee' => (int) ($row['service_fee'] ?? 0),
+                        'additional_cost' => 0,
+                        'grandtotal' => (int) ($row['grandtotal'] ?? 0),
+                        'cod_value' => 0,
+                        'insurance_value' => 0,
                     ];
                 }
             }
         }
 
         return null;
+    }
+
+    private function originPinPoint(OrderShipment $shipment): ?string
+    {
+        $inventory = $shipment->inventory;
+        $lat = $inventory?->getAttribute('latitude');
+        $lng = $inventory?->getAttribute('longitude');
+
+        if (! is_numeric($lat) || ! is_numeric($lng)) {
+            return null;
+        }
+
+        return $lat.','.$lng;
+    }
+
+    private function destinationPinPoint(OrderShipment $shipment): ?string
+    {
+        $address = $this->shippingAddress($shipment->order);
+        $pin = $address['rajaongkir_pin_point'] ?? $address['pin_point'] ?? null;
+        if (is_string($pin) && str_contains($pin, ',')) {
+            return $pin;
+        }
+
+        $lat = $address['latitude'] ?? null;
+        $lng = $address['longitude'] ?? null;
+        if (is_numeric($lat) && is_numeric($lng)) {
+            return $lat.','.$lng;
+        }
+
+        return null;
+    }
+
+    private function shipmentWeightKilograms(OrderShipment $shipment): float
+    {
+        $grams = 0;
+        foreach ($shipment->lines as $line) {
+            $purchasable = $line->purchasable;
+            if ($purchasable instanceof Model) {
+                $grams += $this->weightGrams($purchasable) * max(1, (int) $line->qty);
+            }
+        }
+
+        return max(0.01, $grams / 1000);
+    }
+
+    private function shipmentItemValue(OrderShipment $shipment): int
+    {
+        $order = $shipment->order;
+        $itemsTotal = 0;
+        if ($order instanceof Order) {
+            $order->loadMissing('items');
+            foreach ($order->items as $item) {
+                $itemsTotal += (int) $item->getAttribute('unit_price_amount') * (int) $item->getAttribute('quantity');
+            }
+        }
+
+        return max(0, $itemsTotal);
+    }
+
+    /**
+     * @param  array<string, mixed>  $rate
+     */
+    private function isOfficialDeliveryTariff(array $rate): bool
+    {
+        $source = strtolower(trim((string) ($rate['provider'] ?? $rate['source'] ?? '')));
+
+        if (! in_array($source, ['shipping_delivery', 'komship'], true)) {
+            return false;
+        }
+
+        return isset($rate['shipping_name'], $rate['service_name'], $rate['shipping_cost']);
     }
 
     private function requiredPositiveInteger(mixed $value, string $field): int

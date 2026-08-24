@@ -8,6 +8,20 @@
 
 ---
 
+## 0. Search Province (step-by-step method)
+
+- **Method**: `GET`
+- **Path**: `/destination/province`
+- **Source**: https://rajaongkir.com/docs/shipping-cost/getting_started/about
+- **Authentication**: Header `key: <SHIPPING_COST_KEY>`
+
+```bash
+curl --location 'https://rajaongkir.komerce.id/api/v1/destination/province' \
+--header 'key: YOUR_SHIPPING_COST_KEY'
+```
+
+---
+
 ## 1. Search Domestic Destination
 
 - **Method**: `GET`
@@ -108,11 +122,69 @@ curl --location 'https://rajaongkir.komerce.id/api/v1/calculate/domestic-cost' \
 
 ---
 
-## 3. Track Waybill
+## 3. Search International Destination
+
+- **Method**: `GET`
+- **Path**: `/destination/international-destination`
+- **Source**: https://www.rajaongkir.com/docs/shipping-cost/endpoint-rajaongkir-for-search-base/search-international-destination
+- **Authentication**: Header `key: <SHIPPING_COST_KEY>`
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `search` | string | Yes | Nation name (e.g. `japan`) |
+| `limit` | int | No | Maximum number of results |
+| `offset` | int | No | Offset for pagination |
+
+### Success Response Example (200 OK)
+
+```json
+{
+  "meta": {
+    "message": "Success Get International Destination",
+    "code": 200,
+    "status": "success"
+  },
+  "data": [
+    {
+      "country_id": "108",
+      "country_name": "JAPAN"
+    }
+  ]
+}
+```
+
+---
+
+## 4. Calculate International Shipping Cost
 
 - **Method**: `POST`
-- **Path**: `/track/waybill`
+- **Path**: `/calculate/international-cost`
+- **Source**: https://www.rajaongkir.com/docs/shipping-cost/endpoint-rajaongkir-for-search-base/calculate-international-cost
 - **Authentication**: Header `key: <SHIPPING_COST_KEY>`
+- **Content-Type**: `application/x-www-form-urlencoded`
+
+### Request Body (`application/x-www-form-urlencoded`)
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `origin` | int | Yes | Origin location ID from Search Domestic Destination |
+| `destination` | int | Yes | Destination `country_id` from Search International Destination |
+| `weight` | int | Yes | Package weight in **grams** |
+| `courier` | string | Yes | Courier code (colon-separated when quoting several) |
+| `price` | string | No | Optional sorting filter (`lowest` or `highest`) |
+
+---
+
+## 5. Track Waybill
+
+- **Method**: `POST` (official table and tracking page; not GET)
+- **Path**: `/track/waybill`
+- **Source**: https://www.rajaongkir.com/docs/shipping-cost/tracking
+- **Authentication**: Header `key: <SHIPPING_COST_KEY>`
+
+Official curl sends `awb` and `courier` as query parameters. The same fields are also documented as `x-www-form-urlencoded` body fields.
 
 ### Query Parameters / Form Fields
 
@@ -120,7 +192,7 @@ curl --location 'https://rajaongkir.komerce.id/api/v1/calculate/domestic-cost' \
 |---|---|---|---|
 | `awb` | string | Yes | Airway Bill / Resi tracking number |
 | `courier` | string | Yes | Courier code (e.g. `jne`, `sicepat`) |
-| `last_phone_number` | string | Conditional | Last 4 digits of recipient phone (for couriers like Shopee Xpress) |
+| `last_phone_number` | string | Conditional | Last **5** digits of recipient phone (required by couriers such as JNE) |
 
 ### Success Response Example (200 OK)
 

@@ -6,17 +6,65 @@ namespace App\Services\Komerce;
 
 use App\Services\Komerce\Concerns\UsesKomerceHttp;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use RuntimeException;
+use Throwable;
 
 final class PaymentClient
 {
     use UsesKomerceHttp;
+
+    private const METHODS_ENDPOINT = '/api/v1/user/methods';
 
     private const CREATE_ENDPOINT = '/api/v1/user/payment/create';
 
     private const STATUS_ENDPOINT = '/api/v1/user/payment/status';
 
     private const CANCEL_ENDPOINT = '/api/v1/user/payment/cancel';
+
+    private const METHODS_CACHE_KEY = 'komerce:payment-methods';
+
+    private const METHODS_UNAVAILABLE_CACHE_KEY = 'komerce:payment-methods:unavailable';
+
+    /**
+     * Official payment-method catalog. Cached for one hour per provider guidance.
+     * Failures are remembered briefly so checkout does not wait on a dead catalog.
+     *
+     * @return array<string, mixed>
+     */
+    public function listMethods(): array
+    {
+        $cached = Cache::get(self::METHODS_CACHE_KEY);
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        if (Cache::has(self::METHODS_UNAVAILABLE_CACHE_KEY)) {
+            throw new RuntimeException('Komerce payment methods catalog is temporarily unavailable.');
+        }
+
+        try {
+            $response = $this->paymentHttp()
+                ->connectTimeout(2)
+                ->timeout(min(5, max(1, $this->timeout())))
+                ->get(self::METHODS_ENDPOINT)
+                ->throw()
+                ->json();
+        } catch (Throwable $e) {
+            Cache::put(self::METHODS_UNAVAILABLE_CACHE_KEY, true, now()->addSeconds(45));
+            Log::warning('Komerce payment methods catalog unavailable.', [
+                'message' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+
+        $payload = is_array($response) ? $response : [];
+        Cache::put(self::METHODS_CACHE_KEY, $payload, now()->addHour());
+
+        return $payload;
+    }
 
     /**
      * Create a virtual-account payment.

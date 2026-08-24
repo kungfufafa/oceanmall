@@ -75,6 +75,7 @@ return;
             :min="min"
             :max="max ?? undefined"
             :disabled="disabled"
+            aria-label="Jumlah"
             class="w-12 text-center font-semibold text-foreground tabular-nums bg-transparent border-none focus:outline-none"
             :class="size === 'sm' ? 'text-xs' : 'text-sm'"
             @input="e => {

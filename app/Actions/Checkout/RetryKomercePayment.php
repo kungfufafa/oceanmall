@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Actions\Checkout;
 
-use App\Services\Komerce\PaymentClient;
 use RuntimeException;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Order;
 use Shopper\Core\Models\PaymentMethod;
 use Shopper\Payment\Enum\TransactionStatus;
+use Shopper\Payment\Facades\Payment;
 use Shopper\Payment\Models\PaymentTransaction;
 use Throwable;
 
@@ -18,7 +18,6 @@ final class RetryKomercePayment
     public function __construct(
         private readonly CreateKomercePayment $createPayment,
         private readonly ResolveKomercePaymentInstructions $resolveInstructions,
-        private readonly PaymentClient $payments,
     ) {}
 
     /**
@@ -81,16 +80,15 @@ final class RetryKomercePayment
             return;
         }
 
-        $remote = $this->payments->getStatus($paymentId);
-        $status = strtoupper(trim((string) data_get($remote, 'data.status')));
+        $remote = Payment::driver('komerce')->retrievePayment($paymentId);
 
-        if ($status === 'PAID') {
+        if ($remote->status === 'captured') {
             throw new RuntimeException('The previous Komerce payment is already paid; synchronize the order instead of creating another charge.');
         }
 
-        if ($status === 'PENDING') {
-            $this->payments->cancel($paymentId, 'Customer requested new payment instructions');
-        } elseif (! in_array($status, ['EXPIRED', 'CANCELED'], true)) {
+        if ($remote->status === 'pending') {
+            Payment::driver('komerce')->cancelPayment($paymentId);
+        } elseif (! in_array($remote->status, ['failed', 'canceled'], true)) {
             throw new RuntimeException('The previous Komerce payment has an unknown status and cannot be replaced safely.');
         }
 

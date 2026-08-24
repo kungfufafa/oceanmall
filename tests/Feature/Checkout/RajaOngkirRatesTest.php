@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Checkout;
 
+use App\Actions\Checkout\FetchDeliveryRates;
 use App\CheckoutSession;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -289,5 +290,28 @@ final class RajaOngkirRatesTest extends TestCase
                 && $request->url() === 'https://shipping.example.test/api/v1/calculate/domestic-cost'
                 && (int) $request['weight'] === 150000;
         });
+    }
+
+    public function test_fetch_delivery_rates_returns_empty_when_cost_is_enabled_but_origin_is_missing(): void
+    {
+        $this->fakeRajaOngkirConfig();
+        Http::fake();
+
+        $country = Country::factory()->create(['cca2' => 'ID']);
+        $zone = Zone::factory()->create(['is_enabled' => true]);
+        $zone->countries()->attach($country->id);
+
+        $rates = resolve(FetchDeliveryRates::class)->handle([
+            'country_id' => $country->id,
+            'rajaongkir_destination_id' => '114',
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Merdeka 1',
+            'postal_code' => '10110',
+            'city' => 'Jakarta',
+        ], []);
+
+        $this->assertSame([], $rates);
+        Http::assertNothingSent();
     }
 }

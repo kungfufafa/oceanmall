@@ -5,25 +5,24 @@ declare(strict_types=1);
 namespace App\Actions\Checkout;
 
 use App\Actions\Notify\NotifyOrderCustomer;
+use App\Actions\Shipping\DispatchRajaOngkirDelivery;
 use App\Enums\OrderNotificationType;
-use App\Jobs\CreateRajaOngkirDeliveryForShipment;
-use App\Models\OrderShipment;
-use App\Services\Komerce\PaymentClient;
-use App\Services\Komerce\QrislyClient;
+use App\Support\KomercePaymentLookupContext;
 use Illuminate\Support\Facades\DB;
 use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Order;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Enum\TransactionType;
+use Shopper\Payment\Facades\Payment;
 use Shopper\Payment\Models\PaymentTransaction;
+use Throwable;
 
 final class MarkOrderPaidFromKomerce
 {
     public function __construct(
-        private readonly PaymentClient $payments,
-        private readonly QrislyClient $qrisly,
         private readonly NotifyOrderCustomer $notifyOrderCustomer,
+        private readonly KomercePaymentLookupContext $lookupContext,
     ) {}
 
     /**
@@ -60,25 +59,24 @@ final class MarkOrderPaidFromKomerce
 
         $provider ??= $this->resolveProvider($transaction, $order);
 
-        if ($provider === 'qrisly') {
-            if (! qrisly_enabled()) {
-                return 'not_paid';
-            }
+        $this->lookupContext->setProvider($provider);
 
-            $remotePayment = $this->qrisly->getPaymentStatus($paymentId);
-            $remoteStatus = $this->remoteQrislyStatus($remotePayment);
-
-            if (! $this->isPaidStatus($remoteStatus)) {
-                return 'not_paid';
-            }
-        } else {
-            $remotePayment = $this->payments->getStatus($paymentId);
-            $remoteStatus = $this->remotePaymentStatus($remotePayment);
-
-            if (! $this->isPaidStatus($remoteStatus)) {
-                return 'not_paid';
-            }
+        try {
+            $retrieved = Payment::driver('komerce')->retrievePayment($paymentId);
+        } catch (Throwable) {
+            return 'not_paid';
+        } finally {
+            $this->lookupContext->clear();
         }
+
+        if ($retrieved->status !== 'captured') {
+            return 'not_paid';
+        }
+
+        $remotePayment = is_array($retrieved->data['raw_response'] ?? null)
+            ? $retrieved->data['raw_response']
+            : [];
+        $remoteStatus = 'PAID';
 
         $result = DB::transaction(function () use ($order, $transaction, $paymentId, $remotePayment, $remoteStatus, $provider): array {
             $lockedOrder = Order::query()->lockForUpdate()->find($order->id);
@@ -165,18 +163,7 @@ final class MarkOrderPaidFromKomerce
 
     private function dispatchPendingDeliveries(Order $order): void
     {
-        if (! komerce_shipping_delivery_enabled()) {
-            return;
-        }
-
-        OrderShipment::query()
-            ->where('order_id', $order->id)
-            ->whereNull('awb')
-            ->whereNull('tracking_number')
-            ->pluck('id')
-            ->each(static function (mixed $shipmentId): void {
-                CreateRajaOngkirDeliveryForShipment::dispatch((int) $shipmentId);
-            });
+        resolve(DispatchRajaOngkirDelivery::class)->handle($order);
     }
 
     private function isTerminallyCancelled(Order $order): bool
@@ -219,32 +206,6 @@ final class MarkOrderPaidFromKomerce
         $fromOrder = data_get($metadata, 'komerce.provider');
 
         return is_string($fromOrder) && $fromOrder !== '' ? $fromOrder : 'payment_api';
-    }
-
-    /**
-     * @param  array<string, mixed>  $response
-     */
-    private function remotePaymentStatus(array $response): string
-    {
-        return (string) (data_get($response, 'data.status') ?? data_get($response, 'status', ''));
-    }
-
-    /**
-     * @param  array<string, mixed>  $response
-     */
-    private function remoteQrislyStatus(array $response): string
-    {
-        return (string) (
-            data_get($response, 'data.payment_status')
-            ?? data_get($response, 'payment_status')
-            ?? data_get($response, 'data.status')
-            ?? data_get($response, 'status', '')
-        );
-    }
-
-    private function isPaidStatus(string $status): bool
-    {
-        return strtoupper(trim($status)) === 'PAID';
     }
 
     /**

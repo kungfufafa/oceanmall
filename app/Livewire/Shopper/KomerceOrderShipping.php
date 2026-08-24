@@ -4,19 +4,22 @@ declare(strict_types=1);
 
 namespace App\Livewire\Shopper;
 
+use App\Actions\Shipping\EnsureOrderShipments;
 use App\Actions\Shipping\RefreshShipmentTracking;
 use App\Actions\Shipping\SyncOrderShippingFromShipments;
 use App\Actions\Warehouse\OverrideAllocation;
 use App\Jobs\CreateRajaOngkirDeliveryForShipment;
 use App\Models\OrderShipment;
 use App\Models\User;
-use App\Services\Komerce\ShippingDeliveryClient;
 use App\Support\OrderShipmentOpsPresenter;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Shopper\Core\Enum\OrderStatus;
+use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Order;
 
 final class KomerceOrderShipping extends Component
@@ -119,16 +122,16 @@ final class KomerceOrderShipping extends Component
 
         if ($targetShipments->isEmpty()) {
             $this->overrideError = 'Tidak ada shipment pengiriman yang dapat diproses.';
+
             return;
         }
 
-        $deliveryClient = resolve(ShippingDeliveryClient::class);
         $processedCount = 0;
         $lastError = null;
 
         foreach ($targetShipments as $shipment) {
             try {
-                (new CreateRajaOngkirDeliveryForShipment((int) $shipment->id))->handle($deliveryClient);
+                (new CreateRajaOngkirDeliveryForShipment((int) $shipment->id))->handle();
                 $processedCount++;
             } catch (\Throwable $e) {
                 report($e);
@@ -172,6 +175,7 @@ final class KomerceOrderShipping extends Component
 
         if ($shipments->isEmpty()) {
             $this->overrideError = 'Belum ada nomor resi AWB yang dapat dilacak.';
+
             return;
         }
 
@@ -197,7 +201,7 @@ final class KomerceOrderShipping extends Component
         $this->dispatch('order.updated');
 
         if ($refreshedCount > 0) {
-            $this->successMessage = "Berhasil memperbarui status pelacakan kurir dari RajaOngkir.";
+            $this->successMessage = 'Berhasil memperbarui status pelacakan kurir dari RajaOngkir.';
         } elseif ($lastError !== null) {
             $this->overrideError = 'Gagal memperbarui status pelacakan: '.$lastError;
         }
@@ -210,9 +214,9 @@ final class KomerceOrderShipping extends Component
         $this->successMessage = null;
 
         try {
-            $updates = ['payment_status' => \Shopper\Core\Enum\PaymentStatus::Paid];
-            if ($this->order->status === \Shopper\Core\Enum\OrderStatus::New) {
-                $updates['status'] = \Shopper\Core\Enum\OrderStatus::Processing;
+            $updates = ['payment_status' => PaymentStatus::Paid];
+            if ($this->order->status === OrderStatus::New) {
+                $updates['status'] = OrderStatus::Processing;
             }
             $this->order->update($updates);
             $this->order->refresh();
@@ -261,78 +265,11 @@ final class KomerceOrderShipping extends Component
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, OrderShipment>
+     * @return Collection<int, OrderShipment>
      */
-    private function ensureShipmentsExist(): \Illuminate\Support\Collection
+    private function ensureShipmentsExist(): Collection
     {
-        $existing = OrderShipment::query()->where('order_id', $this->order->id)->get();
-        if ($existing->isNotEmpty()) {
-            return $existing;
-        }
-
-        $defaultInventory = \Shopper\Core\Models\Inventory::query()->where('is_default', true)->first()
-            ?? \Shopper\Core\Models\Inventory::query()->whereNotNull('rajaongkir_origin_id')->where('rajaongkir_origin_id', '!=', '')->first()
-            ?? \Shopper\Core\Models\Inventory::query()->first();
-
-        if (! $defaultInventory) {
-            return collect();
-        }
-
-        $this->order->loadMissing(['items', 'shippingOption.carrier']);
-
-        $shippingOption = $this->order->shippingOption;
-        $carrierCode = 'jne';
-        $carrierName = 'JNE';
-        $serviceCode = 'REG';
-        $serviceName = 'Reguler';
-        $shippingCost = (int) ($this->order->shipping_total ?? 0);
-
-        if ($shippingOption) {
-            $carrierName = $shippingOption->carrier?->name ?? 'JNE';
-            $carrierCode = strtolower($shippingOption->carrier?->slug ?? $carrierName);
-            $serviceName = $shippingOption->name ?? 'Reguler';
-            $serviceCode = strtoupper((string) (data_get($shippingOption->metadata, 'service_code') ?? $serviceName));
-            if ($shippingCost === 0 && isset($shippingOption->price)) {
-                $shippingCost = (int) $shippingOption->price;
-            }
-        }
-
-        $metadata = is_array($this->order->metadata)
-            ? $this->order->metadata
-            : json_decode((string) $this->order->metadata, true) ?? [];
-
-        if (isset($metadata['shipping']) && is_array($metadata['shipping'])) {
-            $shippingMeta = $metadata['shipping'];
-            $carrierCode = $shippingMeta['courier_code'] ?? $shippingMeta['courier'] ?? $carrierCode;
-            $carrierName = $shippingMeta['courier_name'] ?? strtoupper((string) $carrierCode);
-            $serviceCode = $shippingMeta['service_code'] ?? $shippingMeta['service'] ?? $serviceCode;
-            $serviceName = $shippingMeta['service_name'] ?? $shippingMeta['service_description'] ?? $serviceName;
-            if (! empty($shippingMeta['cost'])) {
-                $shippingCost = (int) $shippingMeta['cost'];
-            }
-        }
-
-        $shipment = OrderShipment::query()->create([
-            'order_id' => $this->order->id,
-            'inventory_id' => $defaultInventory->id,
-            'status' => 'pending',
-            'carrier_code' => strtolower((string) $carrierCode),
-            'carrier_name' => $carrierName,
-            'service_code' => $serviceCode,
-            'service_name' => $serviceName,
-            'cost' => $shippingCost,
-            'currency_code' => $this->order->currency_code ?? 'IDR',
-        ]);
-
-        foreach ($this->order->items as $item) {
-            $shipment->lines()->create([
-                'purchasable_type' => $item->product_type,
-                'purchasable_id' => $item->product_id,
-                'qty' => max(1, (int) $item->quantity),
-            ]);
-        }
-
-        return collect([$shipment]);
+        return resolve(EnsureOrderShipments::class)->handle($this->order);
     }
 
     private function seedOverrideDefaults(): void

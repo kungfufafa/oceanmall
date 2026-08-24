@@ -6,13 +6,14 @@ namespace App\Actions\Shipping;
 
 use App\Models\OrderShipment;
 use App\Services\Komerce\ShippingDeliveryClient;
+use App\Shipping\Drivers\KomerceShippingDriver;
 use RuntimeException;
 use Shopper\Core\Models\Order;
+use Shopper\Shipping\Exceptions\ShippingException;
+use Shopper\Shipping\Facades\Shipping;
 
 final readonly class PrintShipmentLabels
 {
-    public function __construct(private ShippingDeliveryClient $delivery) {}
-
     /**
      * Generate RajaOngkir shipping labels for an order's shipments.
      *
@@ -45,7 +46,23 @@ final readonly class PrintShipmentLabels
             );
         }
 
-        return $this->delivery->printLabel($orderNos, $page);
+        if (! komerce_shipping_delivery_enabled()) {
+            throw new RuntimeException(
+                'Shipping labels need Komerce delivery configured. Add your Shipping Delivery API key, then try again.',
+            );
+        }
+
+        $driver = Shipping::driver('komerce');
+
+        if (! $driver instanceof KomerceShippingDriver) {
+            throw new RuntimeException('Komerce shipping driver is not registered.');
+        }
+
+        try {
+            return $driver->printLabels($orderNos, $page);
+        } catch (ShippingException $e) {
+            throw new RuntimeException($e->getMessage(), 0, $e);
+        }
     }
 
     private static function deliveryOrderNo(OrderShipment $shipment): ?string

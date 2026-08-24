@@ -40,6 +40,10 @@ return [
         'set_default_summary' => 'Inventaris di lokasi ini tersedia untuk dijual secara online dan akan digunakan sebagai default',
         'priority_summary' => 'Nilai yang lebih rendah dipenuhi terlebih dahulu saat mengalokasikan stok di beberapa lokasi.',
         'is_default' => 'Ini adalah lokasi default Anda. Untuk mengubah apakah Anda memproses pesanan online dari lokasi ini, pilih lokasi default lain terlebih dahulu.',
+        'rajaongkir_origin' => 'Origin RajaOngkir',
+        'rajaongkir_origin_summary' => 'ID destinasi yang dipakai sebagai origin gudang saat menghitung ongkir RajaOngkir Cost dan membuat order Komerce Delivery. Kosongkan untuk diisi otomatis dari alamat lokasi.',
+        'rajaongkir_origin_id' => 'ID origin RajaOngkir',
+        'rajaongkir_origin_helper' => 'ID subdistrict dari pencarian destinasi RajaOngkir. Wajib agar checkout menampilkan tarif dari gudang ini.',
     ],
 
     'analytics' => [

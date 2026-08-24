@@ -7,19 +7,18 @@ namespace App\Actions\Checkout;
 use App\Actions\Notify\NotifyOrderCustomer;
 use App\Actions\Stock\ReleaseOrderShipmentStock;
 use App\Enums\OrderNotificationType;
-use App\Services\Komerce\PaymentClient;
 use Illuminate\Support\Facades\DB;
 use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Order;
 use Shopper\Payment\Enum\TransactionStatus;
+use Shopper\Payment\Facades\Payment;
 use Shopper\Payment\Models\PaymentTransaction;
 use Throwable;
 
 final readonly class CancelUnpaidKomerceOrder
 {
     public function __construct(
-        private PaymentClient $payments,
         private ReleaseOrderShipmentStock $releaseStock,
         private NotifyOrderCustomer $notifyOrderCustomer,
     ) {}
@@ -88,7 +87,7 @@ final readonly class CancelUnpaidKomerceOrder
         }
 
         try {
-            $this->payments->cancel(trim($paymentId), $reason);
+            Payment::driver('komerce')->cancelPayment(trim($paymentId));
         } catch (Throwable $e) {
             report($e);
         }

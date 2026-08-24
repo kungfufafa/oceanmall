@@ -7,9 +7,13 @@ namespace App\Actions\Shipping;
 use App\Actions\Notify\NotifyOrderCustomer;
 use App\Enums\OrderNotificationType;
 use App\Models\OrderShipment;
+use Shopper\Core\Enum\FulfillmentStatus;
 use Shopper\Core\Enum\OrderStatus;
+use Shopper\Core\Enum\ShipmentStatus;
 use Shopper\Core\Enum\ShippingStatus;
+use Shopper\Core\Models\Carrier;
 use Shopper\Core\Models\Order;
+use Shopper\Core\Models\OrderShipping;
 
 final class SyncOrderShippingFromShipments
 {
@@ -113,25 +117,25 @@ final class SyncOrderShippingFromShipments
         }
 
         $carrierCode = strtolower((string) ($shipment->carrier_code ?: $shipment->carrier_name));
-        $carrierId = \Shopper\Core\Models\Carrier::query()
+        $carrierId = Carrier::query()
             ->where('slug', $carrierCode)
             ->orWhere('name', 'like', "%{$carrierCode}%")
-            ->value('id') ?? \Shopper\Core\Models\Carrier::query()->where('is_enabled', true)->value('id');
+            ->value('id') ?? Carrier::query()->where('is_enabled', true)->value('id');
 
         $status = match (strtolower((string) $shipment->status)) {
-            'delivered' => \Shopper\Core\Enum\ShipmentStatus::Delivered,
-            'picked_up', 'in_transit', 'labeled' => \Shopper\Core\Enum\ShipmentStatus::InTransit,
-            'failed' => \Shopper\Core\Enum\ShipmentStatus::DeliveryFailed,
-            default => \Shopper\Core\Enum\ShipmentStatus::Pending,
+            'delivered' => ShipmentStatus::Delivered,
+            'picked_up', 'in_transit', 'labeled' => ShipmentStatus::InTransit,
+            'failed' => ShipmentStatus::DeliveryFailed,
+            default => ShipmentStatus::Pending,
         };
 
         $itemFulfillmentStatus = match (strtolower((string) $shipment->status)) {
-            'delivered' => \Shopper\Core\Enum\FulfillmentStatus::Delivered,
-            'picked_up', 'in_transit', 'labeled' => \Shopper\Core\Enum\FulfillmentStatus::Shipped,
-            default => \Shopper\Core\Enum\FulfillmentStatus::Processing,
+            'delivered' => FulfillmentStatus::Delivered,
+            'picked_up', 'in_transit', 'labeled' => FulfillmentStatus::Shipped,
+            default => FulfillmentStatus::Processing,
         };
 
-        $orderShipping = \Shopper\Core\Models\OrderShipping::query()->updateOrCreate(
+        $orderShipping = OrderShipping::query()->updateOrCreate(
             [
                 'order_id' => $order->id,
                 'tracking_number' => $awb,
@@ -139,7 +143,7 @@ final class SyncOrderShippingFromShipments
             [
                 'carrier_id' => $carrierId,
                 'status' => $status,
-                'tracking_url' => url("/account/orders/{$order->id}/track"),
+                'tracking_url' => route('account.orders.show', $order),
                 'shipped_at' => now(),
             ],
         );

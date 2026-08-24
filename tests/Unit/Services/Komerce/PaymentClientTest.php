@@ -53,6 +53,63 @@ final class PaymentClientTest extends TestCase
         });
     }
 
+    public function test_list_methods_gets_official_catalog_with_payment_key(): void
+    {
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/methods' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [
+                    [
+                        'payment_type' => 'va',
+                        'bank_code' => 'BCA',
+                        'min_amount' => 10000,
+                    ],
+                ],
+            ]),
+        ]);
+
+        $response = (new PaymentClient)->listMethods();
+
+        $this->assertSame('BCA', data_get($response, 'data.0.bank_code'));
+
+        Http::assertSent(function (Request $request): bool {
+            return $request->method() === 'GET'
+                && $request->url() === 'https://payment.example.test/user/api/v1/user/methods'
+                && $request->hasHeader('x-api-key', 'test-komerce-key');
+        });
+    }
+
+    public function test_list_methods_does_not_retry_immediately_after_catalog_failure(): void
+    {
+        config()->set('komerce.payment_api_key', 'test-komerce-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/methods' => Http::response([
+                'meta' => ['status' => 'error', 'code' => 500, 'message' => 'upstream timeout'],
+            ], 500),
+        ]);
+
+        try {
+            (new PaymentClient)->listMethods();
+            $this->fail('Expected the first catalog request to fail.');
+        } catch (\Throwable $e) {
+            $this->assertStringContainsString('500', $e->getMessage());
+        }
+
+        try {
+            (new PaymentClient)->listMethods();
+            $this->fail('Expected the cached catalog miss to fail without another HTTP call.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('Komerce payment methods catalog is temporarily unavailable.', $e->getMessage());
+        }
+
+        Http::assertSentCount(1);
+    }
+
     public function test_create_qris_posts_json_payload_with_qris_payment_type(): void
     {
         config()->set('komerce.payment_api_key', 'test-komerce-key');

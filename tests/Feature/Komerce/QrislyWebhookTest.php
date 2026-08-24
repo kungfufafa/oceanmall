@@ -17,6 +17,7 @@ use Tests\TestCase;
 final class QrislyWebhookTest extends TestCase
 {
     use RefreshDatabase;
+
     public function test_qrisly_webhook_marks_order_paid_on_payment_success(): void
     {
         config()->set('komerce.qrisly_api_key', 'qrisly-key');
@@ -63,14 +64,14 @@ final class QrislyWebhookTest extends TestCase
             'event' => 'payment.success',
             'timestamp' => '2026-08-04T10:00:00Z',
             'data' => [
-                'qris_history_id' => '9001',
+                'history_id' => '9001',
                 'status' => 'paid',
             ],
         ])
             ->assertOk()
             ->assertJson([
                 'success' => true,
-                'status' => 'handled',
+                'message' => 'Webhook received successfully',
             ]);
 
         $order->refresh();
@@ -78,15 +79,18 @@ final class QrislyWebhookTest extends TestCase
         $this->assertSame(OrderStatus::Processing, $order->status);
     }
 
-    public function test_qrisly_webhook_returns_503_when_disabled(): void
+    public function test_qrisly_webhook_acks_official_json_when_disabled(): void
     {
         config()->set('komerce.qrisly_api_key', '');
         config()->set('komerce.qrisly_qris_id', '');
 
         $this->postJson(route('webhooks.komerce.qrisly'), [
             'event' => 'payment.success',
-            'data' => ['qris_history_id' => '1'],
-        ])->assertStatus(503)->assertJson(['status' => 'disabled']);
+            'data' => ['history_id' => '1'],
+        ])->assertOk()->assertJson([
+            'success' => true,
+            'message' => 'Webhook received successfully',
+        ]);
     }
 
     public function test_qrisly_webhook_signal_cannot_mark_paid_when_provider_is_unpaid(): void
@@ -98,6 +102,7 @@ final class QrislyWebhookTest extends TestCase
         $order = Order::factory()->create([
             'price_amount' => 10000,
             'currency_code' => 'IDR',
+            'status' => OrderStatus::New,
             'payment_status' => PaymentStatus::Pending,
         ]);
         PaymentTransaction::query()->create([
@@ -119,12 +124,15 @@ final class QrislyWebhookTest extends TestCase
         $this->postJson(route('webhooks.komerce.qrisly'), [
             'event' => 'payment.success',
             'data' => [
-                'qris_history_id' => '9001',
+                'history_id' => '9001',
                 'status' => 'paid',
             ],
         ])
-            ->assertStatus(409)
-            ->assertJson(['status' => 'not_paid']);
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'message' => 'Webhook received successfully',
+            ]);
 
         $this->assertSame(PaymentStatus::Pending, $order->refresh()->payment_status);
     }

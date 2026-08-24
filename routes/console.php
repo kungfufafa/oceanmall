@@ -10,6 +10,8 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+Schedule::command('komerce:fulfill-paid-orders')->everyFiveMinutes();
+
 Schedule::command('komerce:refresh-shipment-tracking')->hourly();
 
 Schedule::command('komerce:expire-unpaid-orders')->everyFifteenMinutes();

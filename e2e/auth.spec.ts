@@ -5,7 +5,7 @@ test.describe('TC-UI-AUTH — Auth (browser)', () => {
     test('TC-UI-AUTH-001 login page a11y + fields @smoke', async ({ page }) => {
         await page.goto('/login');
         await expect(page.getByLabel('Email')).toBeVisible();
-        await expect(page.getByLabel('Password', { exact: true })).toBeVisible();
+        await expect(page.locator('#password')).toBeVisible();
         await expect(page.getByRole('button', { name: /masuk/i })).toBeVisible();
         await expectNoCriticalA11y(page, 'login');
     });
@@ -14,7 +14,7 @@ test.describe('TC-UI-AUTH — Auth (browser)', () => {
         await page.goto('/login');
         // Use a distinct email so failed attempts do not burn the QA user's login throttle bucket.
         await page.getByLabel('Email').fill('wrong-password-qa@oceanmall.test');
-        await page.getByLabel('Password', { exact: true }).fill('definitely-wrong-password');
+        await page.locator('#password').fill('definitely-wrong-password');
         await page.getByRole('button', { name: /masuk/i }).click();
         await expect(page).toHaveURL(/\/login/);
         await expect(

@@ -18,6 +18,7 @@ E-commerce storefront starter berbasis [Laravel](https://laravel.com) + [Shopper
 - Checkout (payment method dikonfigurasi di admin Shopper)
 - Account: orders & addresses
 - Admin panel Shopper di `/cpanel`
+- Customer API `/api/v1` (Sanctum Bearer) + aplikasi mobile Expo di `mobile/`
 
 ## Requirements
 
@@ -116,13 +117,31 @@ Menjalankan `artisan serve`, queue listener, log viewer, dan Vite sekaligus.
 App: [http://localhost:8000](http://localhost:8000)  
 Admin: [http://localhost:8000/cpanel](http://localhost:8000/cpanel)
 
+### Mobile (Expo)
+
+Aplikasi customer iOS/Android ada di `mobile/` (Expo Router + NativeWind + React Native Reusables), memakai `/api/v1`.
+
+```bash
+cd mobile
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Detail: [`mobile/README.md`](mobile/README.md).
+
 ## Environment
 
 Salin dari `.env.example`. Prefix admin bisa diubah lewat `SHOPPER_PREFIX` (default: `cpanel`).
 
 ### Payment & shipping (Phase 1 — Komerce / RajaOngkir)
 
-OceanMall checkout aktif memakai **Komerce Payment** (VA / QRIS) + **RajaOngkir Shipping Cost**. Stripe **tetap mati** by default.
+OceanMall checkout aktif memakai **Komerce Payment** (VA / QRIS) + **RajaOngkir Shipping Cost**.
+
+- **Driver** Shopper: `Payment::extend('komerce')`, `Shipping::extend('rajaongkir'|'komerce')` — pola yang sama dengan `shopper/stripe` / UPS. Checkout, webhook HMAC, retry/expire, AWB (`createShipment`), tracking, dan cetak label memakai facade Shopper.
+- **Addon** Shopper: `app/Addons/KomerceRajaOngkir` (`shopper.addons.komerce-rajaongkir`) — panel order, form origin gudang, dan override Livewire admin. Matikan lewat `config/shopper/addons.php` tanpa menyentuh driver checkout.
+
+Stripe **tetap mati** by default.
 
 | Variable | Keterangan |
 | --- | --- |

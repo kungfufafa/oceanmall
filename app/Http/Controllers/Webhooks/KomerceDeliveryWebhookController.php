@@ -13,7 +13,8 @@ use Illuminate\Http\Request;
  * Receiver for Komerce Shipping Delivery webhooks registered at
  * https://collaborator.komerce.id/webhook (Add Webhook URL).
  *
- * Payload: { order_no, cnote, status }
+ * Official endpoint table lists merchant webhook as PUT. This controller
+ * is registered for POST and PUT. Payload: { order_no, cnote, status }
  *
  * The official Delivery webhook contract does not define a signature header.
  * Its payload is treated only as a refresh signal; the action verifies the
@@ -37,11 +38,8 @@ final class KomerceDeliveryWebhookController extends Controller
         $cnote = isset($payload['cnote']) ? trim((string) $payload['cnote']) : null;
         $status = isset($payload['status']) ? trim((string) $payload['status']) : null;
 
-        $result = $apply->handle($orderNo, $cnote, $status);
+        $apply->handle($orderNo, $cnote, $status);
 
-        return match ($result) {
-            'not_found' => response()->json(['status' => $result], 404),
-            default => response()->json(['status' => $result]),
-        };
+        return response()->json(['status' => 'handled']);
     }
 }

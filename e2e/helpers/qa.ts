@@ -35,7 +35,7 @@ export async function expectNoCriticalA11y(page: Page, context: string): Promise
 export async function loginAsCustomer(page: Page): Promise<void> {
     await page.goto('/login');
     await page.getByLabel('Email').fill(qaUser.email);
-    await page.getByLabel('Password', { exact: true }).fill(qaUser.password);
+    await page.locator('#password').fill(qaUser.password);
     await page.getByRole('button', { name: /masuk/i }).click();
     await expect(page).not.toHaveURL(/\/login$/, { timeout: 20_000 });
 }

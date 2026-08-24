@@ -11,6 +11,7 @@ use App\Http\Controllers\Account\SyncKomercePaymentStatusController;
 use App\Http\Controllers\Account\TrackShipmentController;
 use App\Http\Controllers\Cpanel\OverrideAllocationController;
 use App\Http\Controllers\Cpanel\PrintShipmentLabelController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Shop\CartController;
 use App\Http\Controllers\Shop\CartCouponController;
 use App\Http\Controllers\Shop\CategoryController;
@@ -98,7 +99,7 @@ Route::post('webhooks/komerce/payment', KomercePaymentWebhookController::class)
     ->middleware('throttle:60,1')
     ->name('webhooks.komerce.payment');
 
-Route::post('webhooks/komerce/delivery', KomerceDeliveryWebhookController::class)
+Route::match(['POST', 'PUT'], 'webhooks/komerce/delivery', KomerceDeliveryWebhookController::class)
     ->middleware('throttle:60,1')
     ->name('webhooks.komerce.delivery');
 
@@ -145,7 +146,7 @@ Route::middleware(['auth', 'verified'])
     });
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
-    Route::get('dashboard', \App\Http\Controllers\DashboardController::class)->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 });
 
 require __DIR__.'/settings.php';

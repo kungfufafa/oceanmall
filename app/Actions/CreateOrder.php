@@ -9,12 +9,14 @@ use App\CheckoutSession;
 use App\DTO\AllocationPlan;
 use App\DTO\ShipmentDraft;
 use App\Models\OrderShipment;
+use App\Shipping\RajaOngkirCourier;
 use App\Support\CheckoutAllocationContext;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Shopper\Cart\Actions\CreateOrderFromCartAction;
 use Shopper\Cart\Models\Cart;
+use Shopper\Core\Models\CarrierOption;
 use Shopper\Core\Models\Order;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Enum\TransactionType;
@@ -22,9 +24,12 @@ use Shopper\Payment\Models\PaymentTransaction;
 
 final class CreateOrder
 {
-    public function handle(): Order
+    /**
+     * @param  array<string, mixed>|null  $checkout
+     */
+    public function handle(?array $checkout = null, ?Cart $cart = null): Order
     {
-        $checkout = session()->get(CheckoutSession::KEY);
+        $checkout ??= session()->get(CheckoutSession::KEY);
 
         abort_unless(
             $checkout
@@ -34,7 +39,7 @@ final class CreateOrder
             __('Checkout session is incomplete or expired.'),
         );
 
-        $cart = cartSession();
+        $cart ??= cartSession();
 
         abort_if(
             Auth::check() && $cart->customer_id !== null && $cart->customer_id !== Auth::id(),
@@ -87,13 +92,13 @@ final class CreateOrder
     {
         $id = data_get($checkout, 'shipping_option.0.id');
 
-        if (is_int($id) && \Shopper\Core\Models\CarrierOption::query()->whereKey($id)->exists()) {
+        if (is_int($id) && CarrierOption::query()->whereKey($id)->exists()) {
             return $id;
         }
 
         if (is_string($id) && ctype_digit($id)) {
             $numericId = (int) $id;
-            if (\Shopper\Core\Models\CarrierOption::query()->whereKey($numericId)->exists()) {
+            if (CarrierOption::query()->whereKey($numericId)->exists()) {
                 return $numericId;
             }
         }
@@ -120,7 +125,21 @@ final class CreateOrder
 
         // Persist full address fields so delivery jobs can populate receiver_name /
         // receiver_address even when the sh_order_addresses row has null columns.
-        foreach (['first_name', 'last_name', 'street_address', 'street_address_plus', 'postal_code', 'city', 'state', 'phone_number'] as $field) {
+        foreach ([
+            'first_name',
+            'last_name',
+            'street_address',
+            'street_address_plus',
+            'postal_code',
+            'city',
+            'state',
+            'phone_number',
+            'rajaongkir_destination_label',
+            'rajaongkir_pin_point',
+            'pin_point',
+            'latitude',
+            'longitude',
+        ] as $field) {
             $value = data_get($shippingAddress, $field);
             if (is_scalar($value) && trim((string) $value) !== '') {
                 $metadataAddress[$field] = trim((string) $value);
@@ -254,17 +273,22 @@ final class CreateOrder
             $rate = $this->rateForShipment($shipmentDraft, $checkout, $shipmentCount);
             $cost = $this->rateCost($rate);
             $total += $cost;
+            $rate = $this->officialDeliveryRate($rate, $cost);
+
+            $carrierCode = $this->rateString($rate, 'carrier_code');
+            $serviceCode = $this->rateString($rate, 'service_code')
+                ?? $this->rateString($rate, 'id');
 
             $shipment = OrderShipment::query()->create([
                 'order_id' => $order->id,
                 'inventory_id' => $shipmentDraft->inventory_id,
-                'carrier_code' => $this->rateString($rate, 'carrier_code'),
-                'carrier_name' => $this->rateString($rate, 'carrier_name')
-                    ?? $this->rateString($rate, 'name'),
-                'service_code' => $this->rateString($rate, 'service_code')
-                    ?? $this->rateString($rate, 'id'),
+                'carrier_code' => $carrierCode,
+                'carrier_name' => $this->rateString($rate, 'shipping_name')
+                    ?? $this->rateString($rate, 'carrier_name')
+                    ?? RajaOngkirCourier::deliveryName($carrierCode),
+                'service_code' => $serviceCode,
                 'service_name' => $this->rateString($rate, 'service_name')
-                    ?? $this->rateString($rate, 'description'),
+                    ?? RajaOngkirCourier::deliveryService($serviceCode),
                 'cost' => $cost,
                 'currency_code' => $this->rateString($rate, 'currency_code')
                     ?? $this->rateString($rate, 'currency')
@@ -326,6 +350,36 @@ final class CreateOrder
             ?? data_get($rate, 'price')
             ?? data_get($rate, 'cost')
             ?? 0);
+    }
+
+    /**
+     * Stamp Cost checkout quotes with Delivery store-order field names so
+     * RajaOngkir issues the AWB; Shopper only records the result.
+     *
+     * @param  array<string, mixed>  $rate
+     * @return array<string, mixed>
+     */
+    private function officialDeliveryRate(array $rate, int $cost): array
+    {
+        if ($rate === [] || $cost < 1) {
+            return $rate;
+        }
+
+        $carrierCode = $this->rateString($rate, 'carrier_code');
+        $service = $this->rateString($rate, 'service_name')
+            ?? $this->rateString($rate, 'service_code')
+            ?? $this->rateString($rate, 'id');
+
+        $rate['shipping_name'] = RajaOngkirCourier::deliveryName(
+            $carrierCode,
+            $this->rateString($rate, 'carrier_name'),
+        );
+        $rate['service_name'] = RajaOngkirCourier::deliveryService($service);
+        $rate['shipping_cost'] = $cost;
+        $rate['shipping_cashback'] = (int) ($rate['shipping_cashback'] ?? 0);
+        $rate['service_fee'] = (int) ($rate['service_fee'] ?? 0);
+
+        return $rate;
     }
 
     /**

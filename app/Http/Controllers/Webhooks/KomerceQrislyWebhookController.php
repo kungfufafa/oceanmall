@@ -23,62 +23,38 @@ final class KomerceQrislyWebhookController extends Controller
 {
     public function __invoke(Request $request, MarkOrderPaidFromKomerce $markOrderPaid): JsonResponse
     {
+        $ack = [
+            'success' => true,
+            'message' => 'Webhook received successfully',
+        ];
+
         if (! qrisly_enabled()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'QRISLY is not configured.',
-                'status' => 'disabled',
-            ], 503);
+            return response()->json($ack);
         }
 
         $event = strtolower(trim((string) $request->input('event', '')));
         $paymentStatus = strtolower(trim((string) (
-            $request->input('data.payment_status')
-            ?? $request->input('data.status')
+            $request->input('data.status')
+            ?? $request->input('data.payment_status')
             ?? $request->input('payment_status')
             ?? ''
         )));
 
         $historyId = trim((string) (
-            $request->input('data.qris_history_id')
-            ?? $request->input('data.history_id')
-            ?? $request->input('qris_history_id')
+            $request->input('data.history_id')
             ?? $request->input('history_id')
+            ?? $request->input('data.qris_history_id')
+            ?? $request->input('qris_history_id')
             ?? ''
         ));
-
-        if ($historyId === '') {
-            return response()->json([
-                'success' => true,
-                'message' => 'Ignored: missing history id.',
-                'status' => 'ignored',
-            ]);
-        }
 
         $isSuccessEvent = $event === 'payment.success'
             || in_array($paymentStatus, ['paid', 'success', 'succeeded'], true);
 
-        if (! $isSuccessEvent) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Ignored non-paid event.',
-                'status' => 'ignored',
-            ]);
+        if ($historyId !== '' && $isSuccessEvent) {
+            $markOrderPaid->handle($historyId, 'qrisly');
         }
 
-        $status = $markOrderPaid->handle($historyId, 'qrisly');
-
-        $http = match ($status) {
-            'no_transaction', 'no_order' => 404,
-            'not_paid', 'cancelled_order' => 409,
-            'amount_mismatch' => 422,
-            default => 200,
-        };
-
-        return response()->json([
-            'success' => $http === 200,
-            'message' => $status,
-            'status' => $status,
-        ], $http);
+        return response()->json($ack);
     }
 }

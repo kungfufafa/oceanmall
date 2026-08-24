@@ -68,4 +68,10 @@ return [
     'pickup_time' => env('KOMERCE_PICKUP_TIME', '10:00:00'),
 
     'timeout' => (int) env('KOMERCE_TIMEOUT', 30),
+
+    /*
+     * Payment API VA expiry_duration in seconds. Official create example uses
+     * 86400; documented VA minimum is 3600. QRIS Payment expiry is provider-fixed.
+     */
+    'payment_expiry_duration' => max(3600, (int) env('KOMERCE_PAYMENT_EXPIRY_DURATION', 86400)),
 ];

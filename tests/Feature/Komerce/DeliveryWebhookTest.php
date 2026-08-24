@@ -84,7 +84,18 @@ final class DeliveryWebhookTest extends TestCase
             'order_no' => 'RO-MISSING',
             'cnote' => 'AWB-MISSING',
             'status' => 'Dikirim',
-        ])->assertNotFound()->assertJson(['status' => 'not_found']);
+        ])->assertOk()->assertJson(['status' => 'handled']);
+    }
+
+    public function test_delivery_webhook_accepts_official_put_method(): void
+    {
+        config()->set('komerce.shipping_delivery_api_key', 'test-komerce-key');
+
+        $this->putJson(route('webhooks.komerce.delivery'), [
+            'order_no' => 'RO-MISSING',
+            'cnote' => 'AWB-MISSING',
+            'status' => 'Dikirim',
+        ])->assertOk()->assertJson(['status' => 'handled']);
     }
 
     public function test_delivery_webhook_rejects_incomplete_official_payload(): void

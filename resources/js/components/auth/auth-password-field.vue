@@ -42,10 +42,10 @@ const inputClass = computed(() =>
 
 <template>
     <div class="flex flex-col gap-1.5">
-        <Label :for="id">
-            {{ label }}
-            <span v-if="required" class="text-red-500">*</span>
-        </Label>
+        <div class="flex items-center gap-1">
+            <Label :for="id">{{ label }}</Label>
+            <span v-if="required" class="text-red-500" aria-hidden="true">*</span>
+        </div>
         <div class="relative">
             <Input
                 :id="id"
@@ -64,7 +64,7 @@ const inputClass = computed(() =>
                 size="icon-sm"
                 class="absolute inset-y-0 right-1 my-auto text-primary"
                 :aria-label="
-                    showPassword ? 'Sembunyikan password' : 'Tampilkan password'
+                    showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'
                 "
                 tabindex="-1"
                 @click="showPassword = !showPassword"

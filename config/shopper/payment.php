@@ -39,6 +39,22 @@ return [
             ],
         ],
 
+        /*
+         | Komerce Payment API (VA / QRIS) + optional QRISLY.
+         | Credentials stay in config/komerce.php. Enablement is also set at
+         | runtime in AppServiceProvider from the dedicated product keys.
+         */
+        'komerce' => [
+            'enabled' => env('KOMERCE_PAYMENT_API_KEY') !== null
+                && env('KOMERCE_PAYMENT_API_KEY') !== '',
+            'sandbox' => true,
+            'credentials' => [
+                'api_key' => env('KOMERCE_PAYMENT_API_KEY'),
+                'webhook_secret' => env('KOMERCE_WEBHOOK_SECRET'),
+                'base_url' => env('KOMERCE_PAYMENT_BASE_URL', 'https://api-sandbox.collaborator.komerce.id/user'),
+            ],
+        ],
+
     ],
 
 ];

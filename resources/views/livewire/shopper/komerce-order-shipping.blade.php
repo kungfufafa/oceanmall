@@ -150,6 +150,11 @@
                             <span>•</span>
                             <span>Ongkir: <strong class="text-emerald-600 dark:text-emerald-400">Rp {{ number_format($shipment['cost'], 0, ',', '.') }}</strong></span>
                         </div>
+                        @if (! empty($shipment['fulfillment_error']))
+                            <p class="text-xs text-rose-700 dark:text-rose-300">
+                                Gagal otomatis ke RajaOngkir: {{ $shipment['fulfillment_error'] }}
+                            </p>
+                        @endif
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2">

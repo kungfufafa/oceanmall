@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Webhooks\KomercePaymentWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:17
+* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:16
 * @route '/webhooks/komerce/payment'
 */
 const KomercePaymentWebhookController = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ KomercePaymentWebhookController.definition = {
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomercePaymentWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:17
+* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:16
 * @route '/webhooks/komerce/payment'
 */
 KomercePaymentWebhookController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ KomercePaymentWebhookController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomercePaymentWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:17
+* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:16
 * @route '/webhooks/komerce/payment'
 */
 KomercePaymentWebhookController.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ KomercePaymentWebhookController.post = (options?: RouteQueryOptions): RouteDefin
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomercePaymentWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:17
+* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:16
 * @route '/webhooks/komerce/payment'
 */
 const KomercePaymentWebhookControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ const KomercePaymentWebhookControllerForm = (options?: RouteQueryOptions): Route
 
 /**
 * @see \App\Http\Controllers\Webhooks\KomercePaymentWebhookController::__invoke
-* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:17
+* @see app/Http/Controllers/Webhooks/KomercePaymentWebhookController.php:16
 * @route '/webhooks/komerce/payment'
 */
 KomercePaymentWebhookControllerForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

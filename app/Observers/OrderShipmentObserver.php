@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
-use App\Jobs\CreateRajaOngkirDeliveryForShipment;
+use App\Actions\Shipping\DispatchRajaOngkirDelivery;
 use App\Models\OrderShipment;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Order;
@@ -24,7 +24,7 @@ final class OrderShipmentObserver
 
         $paid = $order->payment_status === PaymentStatus::Paid;
         if ($paid) {
-            CreateRajaOngkirDeliveryForShipment::dispatch((int) $shipment->id);
+            resolve(DispatchRajaOngkirDelivery::class)->dispatchOne((int) $shipment->id);
         }
     }
 }

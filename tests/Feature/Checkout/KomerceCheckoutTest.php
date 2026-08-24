@@ -14,8 +14,8 @@ use App\Jobs\CreateRajaOngkirDeliveryForShipment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as ClientRequest;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Shopper\Cart\CartManager;
 use Shopper\Cart\Models\Cart;
@@ -146,6 +146,7 @@ final class KomerceCheckoutTest extends TestCase
     public function test_checkout_renders_selected_komerce_without_payment_instructions(): void
     {
         $this->komerceFakeConfig();
+        $this->fakeKomercePaymentHttp();
 
         $user = User::factory()->create();
         [$country, , $paymentMethod] = $this->seedCountryZoneAndPaymentMethod();
@@ -247,7 +248,7 @@ final class KomerceCheckoutTest extends TestCase
             }
         });
 
-        Http::fake([
+        $this->fakeKomercePaymentHttp([
             'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
                 'success' => true,
                 'data' => [
@@ -323,7 +324,7 @@ final class KomerceCheckoutTest extends TestCase
             }
         });
 
-        Http::fake([
+        $this->fakeKomercePaymentHttp([
             'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
                 'success' => true,
                 'data' => [
@@ -390,7 +391,7 @@ final class KomerceCheckoutTest extends TestCase
             }
         });
 
-        Http::fake([
+        $this->fakeKomercePaymentHttp([
             'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
                 'success' => true,
                 'data' => [
@@ -447,6 +448,7 @@ final class KomerceCheckoutTest extends TestCase
     public function test_fetch_payment_methods_excludes_stripe_when_disabled(): void
     {
         $this->komerceFakeConfig();
+        $this->fakeKomercePaymentHttp();
 
         $country = Country::factory()->create();
         $zone = Zone::factory()->create(['is_enabled' => true]);
@@ -470,11 +472,42 @@ final class KomerceCheckoutTest extends TestCase
         $this->assertNotContains('stripe', $drivers);
     }
 
+    public function test_fetch_payment_methods_keeps_only_official_komerce_catalog_channels(): void
+    {
+        $this->komerceFakeConfig();
+
+        $this->fakeKomercePaymentHttp();
+
+        $country = Country::factory()->create();
+        $zone = Zone::factory()->create(['is_enabled' => true]);
+        $zone->countries()->attach($country->id);
+
+        $bca = PaymentMethod::factory()->create([
+            'driver' => 'komerce',
+            'is_enabled' => true,
+            'metadata' => json_encode(['channel_code' => 'BCA', 'payment_type' => 'bank_transfer']),
+        ]);
+        $bri = PaymentMethod::factory()->create([
+            'driver' => 'komerce',
+            'is_enabled' => true,
+            'metadata' => json_encode(['channel_code' => 'BRIVA', 'payment_type' => 'bank_transfer']),
+        ]);
+        $zone->paymentMethods()->attach([$bca->id, $bri->id]);
+
+        $methods = resolve(FetchPaymentMethods::class)->handle($country->id);
+        $channels = array_column($methods, 'channel_code');
+
+        $this->assertContains('BCA', $channels);
+        $this->assertNotContains('BRIVA', $channels);
+        $this->assertSame(10000, $methods[0]['min_amount']);
+    }
+
     public function test_fetch_payment_methods_includes_stripe_when_enabled(): void
     {
         config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
         config()->set('shopper.payment.drivers.stripe.enabled', true);
+        $this->fakeKomercePaymentHttp();
 
         $country = Country::factory()->create();
         $zone = Zone::factory()->create(['is_enabled' => true]);
@@ -495,6 +528,7 @@ final class KomerceCheckoutTest extends TestCase
     public function test_fetch_payment_methods_excludes_unconfigured_default_drivers(): void
     {
         $this->komerceFakeConfig();
+        $this->fakeKomercePaymentHttp();
 
         $country = Country::factory()->create();
         $zone = Zone::factory()->create(['is_enabled' => true]);
@@ -523,6 +557,7 @@ final class KomerceCheckoutTest extends TestCase
         config()->set('shopper.payment.drivers.stripe.enabled', true);
         config()->set('komerce.payment_api_key', 'test-komerce-key');
         config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+        $this->fakeKomercePaymentHttp();
 
         $user = User::factory()->create();
 
@@ -566,7 +601,7 @@ final class KomerceCheckoutTest extends TestCase
         ]);
         $this->makeOrderPayable($order);
 
-        Http::fake([
+        $this->fakeKomercePaymentHttp([
             'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
                 'success' => true,
                 'data' => [
@@ -616,7 +651,8 @@ final class KomerceCheckoutTest extends TestCase
                 && count(data_get($body, 'items')) >= 1
                 && data_get($body, 'items.0.name') !== null
                 && data_get($body, 'items.0.quantity') >= 1
-                && data_get($body, 'items.0.price') >= 0;
+                && data_get($body, 'items.0.price') >= 0
+                && data_get($body, 'expiry_duration') === 86400;
         });
     }
 
@@ -638,7 +674,7 @@ final class KomerceCheckoutTest extends TestCase
         ]);
         $this->makeOrderPayable($vaOrder);
 
-        Http::fake([
+        $this->fakeKomercePaymentHttp([
             'https://payment.example.test/user/api/v1/user/payment/create' => Http::sequence()
                 ->push([
                     'meta' => ['message' => 'success create payment', 'code' => 200, 'status' => 'success'],
@@ -725,11 +761,14 @@ final class KomerceCheckoutTest extends TestCase
         {
             public function __construct(private readonly Order $order) {}
 
-            public function handle(): Order { return $this->order; }
+            public function handle(): Order
+            {
+                return $this->order;
+            }
         });
 
         // Komerce payment creation fails (e.g. gateway error)
-        Http::fake([
+        $this->fakeKomercePaymentHttp([
             'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
                 'meta' => ['status' => 'error', 'code' => 500, 'message' => 'Gateway unavailable.'],
                 'data' => ['payment_id' => ''],
@@ -768,7 +807,7 @@ final class KomerceCheckoutTest extends TestCase
         ]);
         $this->makeOrderPayable($order);
 
-        Http::fake([
+        $this->fakeKomercePaymentHttp([
             'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
                 'meta' => [
                     'status' => 'error',
