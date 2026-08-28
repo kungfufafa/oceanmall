@@ -41,6 +41,15 @@ module.exports = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        om: {
+          navy: 'hsl(var(--om-navy))',
+          'navy-hover': 'hsl(var(--om-navy-hover))',
+          disabled: 'hsl(var(--om-disabled))',
+          sale: 'hsl(var(--om-sale))',
+          'sale-soft': 'hsl(var(--om-sale-soft))',
+          success: 'hsl(var(--om-success))',
+          warning: 'hsl(var(--om-warning))',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',
