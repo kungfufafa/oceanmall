@@ -1,83 +1,25 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
-/**
-* @see \Shopper\Livewire\Pages\Settings\Index::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Settings/Index.php:7
-* @route '/cpanel/setting'
-*/
-const Index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: Index.url(options),
-    method: 'get',
-})
+import Index from './Index'
+import General from './General'
+import Locations from './Locations'
+import LegalPage from './LegalPage'
+import PaymentMethods from './PaymentMethods'
+import Carriers from './Carriers'
+import Zones from './Zones'
+import Taxes from './Taxes'
+import Currencies from './Currencies'
+import Team from './Team'
 
-Index.definition = {
-    methods: ["get","head"],
-    url: '/cpanel/setting',
-} satisfies RouteDefinition<["get","head"]>
-
-/**
-* @see \Shopper\Livewire\Pages\Settings\Index::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Settings/Index.php:7
-* @route '/cpanel/setting'
-*/
-Index.url = (options?: RouteQueryOptions) => {
-    return Index.definition.url + queryParams(options)
+const Settings = {
+    Index: Object.assign(Index, Index),
+    General: Object.assign(General, General),
+    Locations: Object.assign(Locations, Locations),
+    LegalPage: Object.assign(LegalPage, LegalPage),
+    PaymentMethods: Object.assign(PaymentMethods, PaymentMethods),
+    Carriers: Object.assign(Carriers, Carriers),
+    Zones: Object.assign(Zones, Zones),
+    Taxes: Object.assign(Taxes, Taxes),
+    Currencies: Object.assign(Currencies, Currencies),
+    Team: Object.assign(Team, Team),
 }
 
-/**
-* @see \Shopper\Livewire\Pages\Settings\Index::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Settings/Index.php:7
-* @route '/cpanel/setting'
-*/
-Index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: Index.url(options),
-    method: 'get',
-})
-
-/**
-* @see \Shopper\Livewire\Pages\Settings\Index::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Settings/Index.php:7
-* @route '/cpanel/setting'
-*/
-Index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
-    url: Index.url(options),
-    method: 'head',
-})
-
-/**
-* @see \Shopper\Livewire\Pages\Settings\Index::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Settings/Index.php:7
-* @route '/cpanel/setting'
-*/
-const IndexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: Index.url(options),
-    method: 'get',
-})
-
-/**
-* @see \Shopper\Livewire\Pages\Settings\Index::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Settings/Index.php:7
-* @route '/cpanel/setting'
-*/
-IndexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: Index.url(options),
-    method: 'get',
-})
-
-/**
-* @see \Shopper\Livewire\Pages\Settings\Index::__invoke
-* @see vendor/shopper/framework/src/Livewire/Pages/Settings/Index.php:7
-* @route '/cpanel/setting'
-*/
-IndexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: Index.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-Index.form = IndexForm
-
-export default Index
+export default Settings

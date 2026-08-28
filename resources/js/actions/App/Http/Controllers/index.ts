@@ -1,3 +1,4 @@
+import Api from './Api'
 import Shop from './Shop'
 import StripeWebhookController from './StripeWebhookController'
 import Webhooks from './Webhooks'
@@ -7,6 +8,7 @@ import DashboardController from './DashboardController'
 import Settings from './Settings'
 
 const Controllers = {
+    Api: Object.assign(Api, Api),
     Shop: Object.assign(Shop, Shop),
     StripeWebhookController: Object.assign(StripeWebhookController, StripeWebhookController),
     Webhooks: Object.assign(Webhooks, Webhooks),
