@@ -37,11 +37,35 @@ final class CatalogController extends Controller
             ->limit(10)
             ->get();
 
-        $collections = Collection::query()
+        $promo = Product::query()
+            ->select('id', 'name', 'slug', 'brand_id')
+            ->with(['media', 'brand'])
+            ->withCurrentPrices()
+            ->scopes('publish')
+            ->whereHas(
+                'prices',
+                fn ($q) => $q
+                    ->whereRelation('currency', 'code', $currency)
+                    ->whereNotNull('compare_amount')
+                    ->whereColumn('compare_amount', '>', 'amount'),
+            )
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        $featuredCollections = Collection::query()
             ->scopes('published')
             ->has('products')
             ->withCount('products')
             ->with('media')
+            ->orderByRaw("CASE slug
+                    WHEN 'sales-promotions' THEN 0
+                    WHEN 'featured-products' THEN 1
+                    WHEN 'new-arrivals' THEN 2
+                    WHEN 'best-sellers' THEN 3
+                    WHEN 'premium' THEN 4
+                    ELSE 10
+                END")
             ->orderByDesc('products_count')
             ->limit(6)
             ->get()
@@ -53,10 +77,46 @@ final class CatalogController extends Controller
                 'products_count' => (int) $collection->products_count,
             ]);
 
+        $categories = Category::query()
+            ->scopes('enabled')
+            ->whereNull('parent_id')
+            ->with('media')
+            ->orderBy('position')
+            ->limit(8)
+            ->get()
+            ->map(fn (Category $category): array => [
+                'id' => $category->id,
+                'name' => $category->name,
+                'slug' => $category->slug,
+                'thumbnail' => $category->thumbnail ?? null,
+            ]);
+
+        $brands = Brand::query()
+            ->scopes('enabled')
+            ->whereHas('products', fn ($q) => $q->scopes('publish'))
+            ->with('media')
+            ->withCount(['products' => fn ($q) => $q->scopes('publish')])
+            ->orderBy('position')
+            ->limit(12)
+            ->get()
+            ->map(fn (Brand $brand): array => [
+                'id' => $brand->id,
+                'name' => $brand->name,
+                'slug' => $brand->slug,
+                'thumbnail' => $brand->thumbnail ?? null,
+                'products_count' => (int) $brand->products_count,
+            ]);
+
+        // Keep legacy keys for backward compat, add parity keys matching Web HomeController props
         return response()->json([
             'data' => [
                 'featured_products' => $this->presenter->products($featured),
-                'collections' => $collections->values()->all(),
+                'promo_products' => $this->presenter->products($promo),
+                'featured_collections' => $featuredCollections->values()->all(),
+                // legacy aliases
+                'collections' => $featuredCollections->values()->all(),
+                'categories' => $categories->values()->all(),
+                'brands' => $brands->values()->all(),
                 'currency' => $currency,
             ],
         ]);

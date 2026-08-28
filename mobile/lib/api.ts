@@ -87,6 +87,31 @@ export type Collection = {
   products_count?: number;
 };
 
+export type Category = {
+  id: number;
+  name: string;
+  slug: string;
+  thumbnail?: string | null;
+};
+
+export type Brand = {
+  id: number;
+  name: string;
+  slug: string;
+  thumbnail?: string | null;
+  products_count?: number;
+};
+
+export type HomePayload = {
+  featured_products: Product[];
+  promo_products: Product[];
+  featured_collections: Collection[];
+  collections: Collection[]; // legacy alias
+  categories: Category[];
+  brands: Brand[];
+  currency: string;
+};
+
 export type Cart = {
   id: number;
   currency: string;
