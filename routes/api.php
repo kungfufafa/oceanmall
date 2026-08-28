@@ -20,6 +20,10 @@ Route::prefix('v1')->group(function (): void {
     Route::post('auth/reset-password', [ProfileController::class, 'resetPassword'])->middleware('throttle:5,1');
 
     Route::get('catalog/home', [CatalogController::class, 'home']);
+    Route::get('catalog/featured', [CatalogController::class, 'featured']);
+    Route::get('catalog/promo', [CatalogController::class, 'promo']);
+    Route::get('catalog/brands', [CatalogController::class, 'brands']);
+    Route::get('catalog/collections', [CatalogController::class, 'collections']);
     Route::get('catalog/products', [CatalogController::class, 'products']);
     Route::get('catalog/products/{slug}', [CatalogController::class, 'product']);
     Route::get('catalog/search', [CatalogController::class, 'search'])->middleware('throttle:30,1');

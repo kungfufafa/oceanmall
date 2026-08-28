@@ -1,8 +1,8 @@
 import { ProductCard } from '@/components/product-card';
 import { Text } from '@/components/ui/text';
-import { api, type Brand, type Category, type Collection, type HomePayload, type Product } from '@/lib/api';
+import { api, fetchBrands, fetchCategories, fetchCollections, fetchFeatured, fetchPromo, type Brand, type Category, type Collection, type Product } from '@/lib/api';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Image, RefreshControl, ScrollView, View } from 'react-native';
 
 export default function HomeScreen() {
   const [featured, setFeatured] = useState<Product[]>([]);
@@ -16,18 +16,25 @@ export default function HomeScreen() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const home = await api<{ data: HomePayload }>('/catalog/home');
-      setCollections(home.data.featured_collections ?? home.data.collections ?? []);
+      const [feat, pr, cats, brs, cols] = await Promise.all([
+        fetchFeatured(),
+        fetchPromo(),
+        fetchCategories(),
+        fetchBrands(),
+        fetchCollections(),
+      ]);
 
-      let feat = home.data.featured_products ?? [];
-      if (feat.length === 0) {
-        const catalog = await api<{ data: Product[] }>('/catalog/products');
-        feat = catalog.data ?? [];
+      let featuredList = feat;
+      if (featuredList.length === 0) {
+        const fallback = await api<{ data: Product[] }>('/catalog/products');
+        featuredList = fallback.data ?? [];
       }
-      setFeatured(feat);
-      setPromo(home.data.promo_products ?? []);
-      setCategories(home.data.categories ?? []);
-      setBrands(home.data.brands ?? []);
+
+      setFeatured(featuredList);
+      setPromo(pr);
+      setCategories(cats);
+      setBrands(brs);
+      setCollections(cols);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat katalog');
     } finally {

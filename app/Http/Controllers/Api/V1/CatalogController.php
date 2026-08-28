@@ -345,8 +345,15 @@ final class CatalogController extends Controller
         $categories = Category::query()
             ->scopes('enabled')
             ->whereNull('parent_id')
+            ->with('media')
             ->orderBy('position')
-            ->get(['id', 'name', 'slug']);
+            ->get()
+            ->map(fn (Category $c): array => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'slug' => $c->slug,
+                'thumbnail' => $c->thumbnail ?? null,
+            ]);
 
         $brands = Brand::query()
             ->scopes('enabled')
@@ -355,9 +362,104 @@ final class CatalogController extends Controller
 
         return response()->json([
             'data' => [
-                'categories' => $categories,
+                'categories' => $categories->values()->all(),
                 'brands' => $brands,
             ],
+        ]);
+    }
+
+    public function featured(): JsonResponse
+    {
+        $products = Product::query()
+            ->select('id', 'name', 'slug', 'brand_id')
+            ->with(['media', 'brand'])
+            ->withCurrentPrices()
+            ->where('featured', true)
+            ->scopes('publish')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'data' => $this->presenter->products($products),
+        ]);
+    }
+
+    public function promo(): JsonResponse
+    {
+        $currency = current_currency();
+
+        $products = Product::query()
+            ->select('id', 'name', 'slug', 'brand_id')
+            ->with(['media', 'brand'])
+            ->withCurrentPrices()
+            ->scopes('publish')
+            ->whereHas(
+                'prices',
+                fn ($q) => $q
+                    ->whereRelation('currency', 'code', $currency)
+                    ->whereNotNull('compare_amount')
+                    ->whereColumn('compare_amount', '>', 'amount'),
+            )
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'data' => $this->presenter->products($products),
+        ]);
+    }
+
+    public function brands(): JsonResponse
+    {
+        $brands = Brand::query()
+            ->scopes('enabled')
+            ->whereHas('products', fn ($q) => $q->scopes('publish'))
+            ->with('media')
+            ->withCount(['products' => fn ($q) => $q->scopes('publish')])
+            ->orderBy('position')
+            ->limit(12)
+            ->get()
+            ->map(fn (Brand $b): array => [
+                'id' => $b->id,
+                'name' => $b->name,
+                'slug' => $b->slug,
+                'thumbnail' => $b->thumbnail ?? null,
+                'products_count' => (int) $b->products_count,
+            ]);
+
+        return response()->json([
+            'data' => $brands->values()->all(),
+        ]);
+    }
+
+    public function collections(): JsonResponse
+    {
+        $collections = Collection::query()
+            ->scopes('published')
+            ->has('products')
+            ->withCount('products')
+            ->with('media')
+            ->orderByRaw("CASE slug
+                    WHEN 'sales-promotions' THEN 0
+                    WHEN 'featured-products' THEN 1
+                    WHEN 'new-arrivals' THEN 2
+                    WHEN 'best-sellers' THEN 3
+                    WHEN 'premium' THEN 4
+                    ELSE 10
+                END")
+            ->orderByDesc('products_count')
+            ->limit(6)
+            ->get()
+            ->map(fn (Collection $collection): array => [
+                'id' => $collection->id,
+                'name' => $collection->name,
+                'slug' => $collection->slug,
+                'thumbnail' => $collection->thumbnail ?? null,
+                'products_count' => (int) $collection->products_count,
+            ]);
+
+        return response()->json([
+            'data' => $collections->values()->all(),
         ]);
     }
 }
