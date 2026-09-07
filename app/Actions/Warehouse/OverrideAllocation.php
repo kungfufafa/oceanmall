@@ -179,6 +179,13 @@ final class OverrideAllocation
                     'shipment' => __('Allocation can only be overridden before AWB or tracking number is assigned.'),
                 ]);
             }
+
+            $deliveryOrderNo = data_get($shipment->metadata, 'komerce.order_no');
+            if (is_scalar($deliveryOrderNo) && trim((string) $deliveryOrderNo) !== '') {
+                throw ValidationException::withMessages([
+                    'shipment' => __('Gudang tidak bisa dipindah setelah paket didaftarkan ke Komerce. Request pickup atau cetak resi dari gudang yang sudah terdaftar.'),
+                ]);
+            }
         }
     }
 

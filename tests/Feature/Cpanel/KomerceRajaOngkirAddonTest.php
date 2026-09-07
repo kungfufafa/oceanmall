@@ -10,8 +10,10 @@ use App\Livewire\Shopper\KomerceOrderShipping;
 use App\Livewire\Shopper\OrderCustomer;
 use App\Livewire\Shopper\OrderFulfillment;
 use App\Livewire\Shopper\OrderSummary;
+use App\Livewire\Shopper\Pages\OrderDetail;
 use App\Livewire\Shopper\Pages\OrderShipments;
 use App\Livewire\Shopper\SlideOvers\CreateShippingLabel;
+use App\Livewire\Shopper\SlideOvers\ShipmentAddEvent;
 use Livewire\Mechanisms\ComponentRegistry;
 use Shopper\Facades\Shopper;
 use Tests\TestCase;
@@ -33,6 +35,8 @@ final class KomerceRajaOngkirAddonTest extends TestCase
         $this->assertSame(OrderFulfillment::class, $registry->getClass('shopper-order-fulfillment'));
         $this->assertSame(OrderShipments::class, $registry->getClass('shopper-order-shipments'));
         $this->assertSame(CreateShippingLabel::class, $registry->getClass('shopper-slide-overs.create-shipping-label'));
+        $this->assertSame(ShipmentAddEvent::class, $registry->getClass('shopper-slide-overs.shipment-add-event'));
         $this->assertSame(OrderShipments::class, config('shopper.components.order.pages.order-shipments'));
+        $this->assertSame(OrderDetail::class, config('shopper.components.order.pages.order-detail'));
     }
 }

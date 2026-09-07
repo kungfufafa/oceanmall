@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Addons\KomerceRajaOngkir\KomerceRajaOngkirAddon;
+use App\Http\Responses\CpanelStaffLoginResponse;
+use App\Listeners\CancelKomerceDeliveryOnOrderCancelled;
+use App\Livewire\Shopper\Pages\OrderDetail;
 use App\Livewire\Shopper\Pages\OrderShipments;
 use App\Models\OrderShipment;
 use App\Models\User;
@@ -23,11 +26,14 @@ use App\Support\RajaOngkirQuoteContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Shopper\Contracts\LoginResponse as ShopperLoginResponse;
 use Shopper\Core\Contracts\StockAllocator;
+use Shopper\Core\Events\Orders\OrderCancelled;
 use Shopper\Core\Models\Carrier;
 use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
@@ -57,6 +63,10 @@ class AppServiceProvider extends ServiceProvider
                 'shopper.components.order.pages.order-shipments',
                 OrderShipments::class,
             );
+            config()->set(
+                'shopper.components.order.pages.order-detail',
+                OrderDetail::class,
+            );
         });
     }
 
@@ -73,6 +83,8 @@ class AppServiceProvider extends ServiceProvider
         $this->configureShopperPayment();
         $this->configureShopperShipping();
         $this->configureShopperLogos();
+        $this->configureShopperStaffLogin();
+        Event::listen(OrderCancelled::class, CancelKomerceDeliveryOnOrderCancelled::class);
     }
 
     /**
@@ -125,6 +137,11 @@ class AppServiceProvider extends ServiceProvider
             'print-shipment-label',
             static fn (User $user, ?Order $order = null): bool => $user->isAdmin() || $user->isManager() || $user->hasPermissionTo('browse_orders'),
         );
+    }
+
+    protected function configureShopperStaffLogin(): void
+    {
+        $this->app->bind(ShopperLoginResponse::class, CpanelStaffLoginResponse::class);
     }
 
     protected function configureShopperPayment(): void

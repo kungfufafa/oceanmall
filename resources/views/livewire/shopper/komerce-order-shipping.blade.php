@@ -43,12 +43,12 @@
                     icon="heroicon-o-check-circle"
                     size="sm"
                 >
-                    <span wire:loading.remove wire:target="markPaidAndProcessDelivery">Tandai Lunas & Kirim Komerce</span>
-                    <span wire:loading wire:target="markPaidAndProcessDelivery">Memproses…</span>
+                    <span wire:loading.remove wire:target="markPaidAndProcessDelivery">Sinkronkan Bayar Komerce & Pickup</span>
+                    <span wire:loading wire:target="markPaidAndProcessDelivery">Menyelaraskan…</span>
                 </x-filament::button>
             @endif
 
-            @if ($komerceEnabled && $hasUnprocessedShipment)
+            @if ($komerceEnabled && ($orderIsPaid ?? false) && $hasUnprocessedShipment)
                 <x-filament::button
                     type="button"
                     wire:click="processAllDeliveryOrders"
@@ -57,8 +57,10 @@
                     icon="heroicon-o-paper-airplane"
                     size="sm"
                 >
-                    <span wire:loading.remove wire:target="processAllDeliveryOrders">Kirim ke Komerce (Push Order)</span>
-                    <span wire:loading wire:target="processAllDeliveryOrders">Mengirim…</span>
+                    <span wire:loading.remove wire:target="processAllDeliveryOrders">
+                        {{ ($needsPickup ?? false) ? 'Request Pickup Komerce' : 'Daftarkan & Pickup Komerce' }}
+                    </span>
+                    <span wire:loading wire:target="processAllDeliveryOrders">Memproses…</span>
                 </x-filament::button>
             @endif
 
@@ -133,11 +135,15 @@
                             </span>
                             @if ($shipment['can_print_label'])
                                 <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
-                                    Resi Siap (Komerce)
+                                    Siap cetak label
+                                </span>
+                            @elseif ($shipment['needs_pickup'] ?? false)
+                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-300">
+                                    Menunggu pickup
                                 </span>
                             @else
                                 <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
-                                    Belum Terdaftar di Komerce
+                                    Belum terdaftar di Komerce
                                 </span>
                             @endif
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
@@ -169,7 +175,9 @@
                             >
                                 Cetak Stiker Resi
                             </x-filament::button>
+                        @endif
 
+                        @if (($shipment['awb'] || $shipment['tracking_number']) && $komerceEnabled)
                             <x-filament::button
                                 type="button"
                                 wire:click="refreshTracking({{ $shipment['id'] }})"
@@ -181,19 +189,21 @@
                                 <span wire:loading.remove wire:target="refreshTracking({{ $shipment['id'] }})">Lacak Resi</span>
                                 <span wire:loading wire:target="refreshTracking({{ $shipment['id'] }})">Melacak…</span>
                             </x-filament::button>
+                        @endif
 
+                        @if ($komerceEnabled && ($orderIsPaid ?? false) && ($shipment['needs_pickup'] ?? false))
                             <x-filament::button
                                 type="button"
-                                wire:click="processDeliveryOrder({{ $shipment['id'] }})"
+                                wire:click="requestPickup({{ $shipment['id'] }})"
                                 wire:loading.attr="disabled"
-                                icon="heroicon-o-arrow-path"
+                                icon="heroicon-o-truck"
                                 size="sm"
-                                color="gray"
+                                color="primary"
                             >
-                                <span wire:loading.remove wire:target="processDeliveryOrder({{ $shipment['id'] }})">Re-Push</span>
-                                <span wire:loading wire:target="processDeliveryOrder({{ $shipment['id'] }})">Memproses…</span>
+                                <span wire:loading.remove wire:target="requestPickup({{ $shipment['id'] }})">Request Pickup</span>
+                                <span wire:loading wire:target="requestPickup({{ $shipment['id'] }})">Meminta pickup…</span>
                             </x-filament::button>
-                        @elseif ($komerceEnabled)
+                        @elseif ($komerceEnabled && ($orderIsPaid ?? false) && ! $shipment['can_print_label'] && ! ($shipment['awb'] || $shipment['tracking_number']))
                             <x-filament::button
                                 type="button"
                                 wire:click="processDeliveryOrder({{ $shipment['id'] }})"
@@ -202,7 +212,7 @@
                                 size="sm"
                                 color="primary"
                             >
-                                <span wire:loading.remove wire:target="processDeliveryOrder({{ $shipment['id'] }})">Generate Resi Komerce</span>
+                                <span wire:loading.remove wire:target="processDeliveryOrder({{ $shipment['id'] }})">Daftarkan & Pickup</span>
                                 <span wire:loading wire:target="processDeliveryOrder({{ $shipment['id'] }})">Memproses…</span>
                             </x-filament::button>
                         @endif
@@ -214,13 +224,13 @@
                     <div>
                         <span class="text-gray-500 dark:text-gray-400 block text-[11px] uppercase tracking-wider font-semibold">ID Order Komerce</span>
                         <span class="font-mono font-bold text-sm text-primary-600 dark:text-primary-400 mt-0.5 block">
-                            {{ $shipment['delivery_order_no'] ?? 'Belum ada (Klik Generate Resi)' }}
+                            {{ $shipment['delivery_order_no'] ?? 'Belum ada' }}
                         </span>
                     </div>
                     <div>
                         <span class="text-gray-500 dark:text-gray-400 block text-[11px] uppercase tracking-wider font-semibold">No. Resi AirwayBill (AWB)</span>
                         <span class="font-mono font-bold text-sm text-gray-900 dark:text-white mt-0.5 block">
-                            {{ $shipment['awb'] ?? ($shipment['tracking_number'] ?? 'Menunggu proses pickup') }}
+                            {{ $shipment['awb'] ?? ($shipment['tracking_number'] ?? (($shipment['needs_pickup'] ?? false) ? 'Menunggu pickup Komerce' : 'Belum ada')) }}
                         </span>
                     </div>
                 </div>
@@ -242,19 +252,18 @@
         @endforelse
     </div>
 
-    {{-- Collapsible Footer for Stock Transfer --}}
+    {{-- Override gudang: only before Komerce registration / AWB --}}
     @if (count($overridableShipments) > 0)
-        <div class="px-5 py-3 bg-gray-50/80 dark:bg-gray-950/60 border-t border-gray-200 dark:border-gray-800">
-            <details class="group">
-                <summary class="flex cursor-pointer items-center justify-between text-xs font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
-                    <span class="flex items-center gap-2">
-                        <x-heroicon-o-arrows-right-left class="size-4 text-primary-500" />
-                        <span>Pindah Lokasi Stok Gudang Pengirim</span>
-                    </span>
-                    <x-heroicon-o-chevron-down class="size-4 transition group-open:rotate-180" />
-                </summary>
+        <div class="px-5 py-4 bg-gray-50/80 dark:bg-gray-950/60 border-t border-gray-200 dark:border-gray-800">
+            <div class="flex items-start gap-2 mb-3">
+                <x-heroicon-o-arrows-right-left class="size-4 text-primary-500 mt-0.5" />
+                <div>
+                    <p class="text-xs font-semibold text-gray-900 dark:text-white">Pindah gudang pengirim</p>
+                    <p class="text-[11px] text-gray-500 dark:text-gray-400">Hanya sebelum paket didaftarkan ke Komerce. Setelah pickup/resi terbit, gudang terkunci.</p>
+                </div>
+            </div>
 
-                <form wire:submit="applyOverride" class="mt-3 space-y-3 pt-2 text-xs">
+                <form wire:submit="applyOverride" class="space-y-3 text-xs">
                     <div class="grid gap-3 sm:grid-cols-2">
                         <div class="sm:col-span-2">
                             <label class="mb-1 block font-medium text-gray-700 dark:text-gray-300" for="shipment_line_id">Produk</label>
@@ -294,7 +303,12 @@
                         Pindahkan Stok
                     </x-filament::button>
                 </form>
-            </details>
+        </div>
+    @elseif (count($shipments) > 0)
+        <div class="px-5 py-3 bg-gray-50/80 dark:bg-gray-950/60 border-t border-gray-200 dark:border-gray-800">
+            <p class="text-[11px] text-gray-500 dark:text-gray-400">
+                Gudang pengirim terkunci karena paket sudah didaftarkan ke Komerce, sudah di-pickup, atau nomor resi sudah terbit.
+            </p>
         </div>
     @endif
 </div>

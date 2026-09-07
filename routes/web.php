@@ -135,7 +135,7 @@ Route::middleware(['auth', 'verified'])->prefix('account')->name('account.')->gr
     Route::patch('addresses/{address}/default-billing', [AddressController::class, 'setDefaultBilling'])->name('addresses.default-billing');
 });
 
-// Warehouse fulfillment under Shopper /cpanel only — no separate /admin backoffice.
+// Warehouse fulfillment under Shopper /cpanel only — staff ops, not customer-facing.
 Route::middleware(['auth', 'verified'])
     ->prefix(config('shopper.admin.prefix', 'cpanel'))
     ->group(function (): void {

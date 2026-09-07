@@ -170,10 +170,9 @@ final class PrintLabelTest extends TestCase
         [$order] = $this->orderWithDeliveryOrder();
         Http::fake();
 
-        // Under /cpanel, Shopper redirects AuthorizationException to its forbidden page.
         $this->actingAs(User::factory()->create())
             ->getJson(route('shopper.orders.fulfillment.print-label', $order))
-            ->assertRedirect(route('shopper.forbidden'));
+            ->assertForbidden();
 
         Http::assertNothingSent();
     }

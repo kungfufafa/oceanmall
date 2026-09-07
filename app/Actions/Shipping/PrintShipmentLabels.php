@@ -7,6 +7,7 @@ namespace App\Actions\Shipping;
 use App\Models\OrderShipment;
 use App\Services\Komerce\ShippingDeliveryClient;
 use App\Shipping\Drivers\KomerceShippingDriver;
+use App\Support\OrderShipmentOpsPresenter;
 use RuntimeException;
 use Shopper\Core\Models\Order;
 use Shopper\Shipping\Exceptions\ShippingException;
@@ -33,16 +34,24 @@ final readonly class PrintShipmentLabels
             ->orderBy('id')
             ->get();
 
+        $presenter = resolve(OrderShipmentOpsPresenter::class);
         $orderNos = $shipments
-            ->map(static fn (OrderShipment $shipment): ?string => self::deliveryOrderNo($shipment))
+            ->filter(static fn (OrderShipment $shipment): bool => $presenter->canPrintLabel($shipment))
+            ->map(static fn (OrderShipment $shipment): ?string => $presenter->deliveryOrderNo($shipment))
             ->filter()
             ->unique()
             ->values()
             ->all();
 
         if ($orderNos === []) {
+            $registered = $shipments->contains(
+                static fn (OrderShipment $shipment): bool => $presenter->deliveryOrderNo($shipment) !== null,
+            );
+
             throw new RuntimeException(
-                'This shipment is not ready for a label yet. Wait until payment is confirmed and the RajaOngkir delivery order (with pickup) has been created.',
+                $registered
+                    ? 'Request pickup Komerce dulu. Stiker resi baru bisa dicetak setelah pickup berhasil.'
+                    : 'Daftarkan paket ke Komerce dan request pickup dulu sebelum mencetak stiker resi.',
             );
         }
 
@@ -63,14 +72,5 @@ final readonly class PrintShipmentLabels
         } catch (ShippingException $e) {
             throw new RuntimeException($e->getMessage(), 0, $e);
         }
-    }
-
-    private static function deliveryOrderNo(OrderShipment $shipment): ?string
-    {
-        $orderNo = data_get($shipment->metadata, 'komerce.order_no');
-
-        return is_scalar($orderNo) && trim((string) $orderNo) !== ''
-            ? trim((string) $orderNo)
-            : null;
     }
 }

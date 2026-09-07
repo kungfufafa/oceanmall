@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Livewire\Shopper;
 
+use App\Actions\Checkout\SyncKomercePaymentStatus;
 use App\Actions\Shipping\EnsureOrderShipments;
+use App\Actions\Shipping\ReconcileKomerceShipment;
 use App\Actions\Shipping\RefreshShipmentTracking;
 use App\Actions\Shipping\SyncOrderShippingFromShipments;
 use App\Actions\Warehouse\OverrideAllocation;
@@ -18,7 +20,6 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
-use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Order;
 
@@ -112,6 +113,12 @@ final class KomerceOrderShipping extends Component
         $this->overrideError = null;
         $this->successMessage = null;
 
+        if ($this->order->payment_status !== PaymentStatus::Paid) {
+            $this->overrideError = 'Lunasi pesanan dulu sebelum mendaftarkan pickup dan resi Komerce.';
+
+            return;
+        }
+
         $shipments = $this->ensureShipmentsExist();
 
         if ($shipmentId !== null) {
@@ -126,13 +133,24 @@ final class KomerceOrderShipping extends Component
             return;
         }
 
-        $processedCount = 0;
+        $issuedCount = 0;
+        $pickupPendingCount = 0;
         $lastError = null;
 
         foreach ($targetShipments as $shipment) {
+            $alreadyLabeled = filled($shipment->awb) || filled($shipment->tracking_number);
+            if ($alreadyLabeled) {
+                continue;
+            }
+
             try {
                 (new CreateRajaOngkirDeliveryForShipment((int) $shipment->id))->handle();
-                $processedCount++;
+                $shipment->refresh();
+                if (filled($shipment->awb) || filled($shipment->tracking_number)) {
+                    $issuedCount++;
+                } else {
+                    $pickupPendingCount++;
+                }
             } catch (\Throwable $e) {
                 report($e);
                 $lastError = $e->getMessage();
@@ -147,16 +165,23 @@ final class KomerceOrderShipping extends Component
         $this->dispatch('order.updated');
         $this->dispatch('order.shipping.created');
 
-        if ($processedCount > 0) {
-            $this->successMessage = "Berhasil mendaftarkan Delivery Order Komerce untuk pesanan #{$this->order->number}.";
+        if ($issuedCount > 0) {
+            $this->successMessage = "Nomor resi Komerce terbit untuk pesanan #{$this->order->number}.";
+        } elseif ($pickupPendingCount > 0) {
+            $this->successMessage = 'Pickup Komerce diminta. Nomor resi muncul setelah kurir memproses paket.';
         } elseif ($lastError !== null) {
-            $this->overrideError = 'Gagal membuat Delivery Order Komerce: '.$lastError;
+            $this->overrideError = 'Gagal pickup/resi Komerce: '.$lastError;
         }
     }
 
     public function processAllDeliveryOrders(): void
     {
         $this->processDeliveryOrder(null);
+    }
+
+    public function requestPickup(?int $shipmentId = null): void
+    {
+        $this->processDeliveryOrder($shipmentId);
     }
 
     public function refreshTracking(?int $shipmentId = null): void
@@ -168,17 +193,40 @@ final class KomerceOrderShipping extends Component
         $shipments = OrderShipment::query()
             ->where('order_id', $this->order->id)
             ->when($shipmentId !== null, fn ($q) => $q->where('id', $shipmentId))
-            ->where(function ($q) {
-                $q->whereNotNull('awb')->orWhereNotNull('tracking_number');
-            })
             ->get();
 
         if ($shipments->isEmpty()) {
-            $this->overrideError = 'Belum ada nomor resi AWB yang dapat dilacak.';
+            $this->overrideError = 'Belum ada shipment yang dapat dilacak.';
 
             return;
         }
 
+        $reconcile = resolve(ReconcileKomerceShipment::class);
+        $trackable = collect();
+
+        foreach ($shipments as $shipment) {
+            if (filled(data_get($shipment->metadata, 'komerce.order_no'))) {
+                try {
+                    $shipment = $reconcile->handle($shipment);
+                } catch (\Throwable $e) {
+                    report($e);
+                    $this->overrideError = 'Gagal menyelaraskan data Komerce: '.$e->getMessage();
+                }
+            }
+
+            if (filled($shipment->awb) || filled($shipment->tracking_number)) {
+                $trackable->push($shipment);
+            }
+        }
+
+        if ($trackable->isEmpty()) {
+            $this->overrideError = $this->overrideError
+                ?? 'Belum ada nomor resi AWB. Request pickup dulu, atau tunggu Komerce menerbitkan resi.';
+
+            return;
+        }
+
+        $shipments = $trackable;
         $refresher = resolve(RefreshShipmentTracking::class);
         $refreshedCount = 0;
         $lastError = null;
@@ -213,19 +261,21 @@ final class KomerceOrderShipping extends Component
         $this->overrideError = null;
         $this->successMessage = null;
 
-        try {
-            $updates = ['payment_status' => PaymentStatus::Paid];
-            if ($this->order->status === OrderStatus::New) {
-                $updates['status'] = OrderStatus::Processing;
-            }
-            $this->order->update($updates);
-            $this->order->refresh();
+        $result = resolve(SyncKomercePaymentStatus::class)->handle($this->order);
+        $this->order->refresh();
 
-            $this->processDeliveryOrder(null);
-            $this->successMessage = "Pesanan #{$this->order->number} berhasil ditandai Lunas (Paid) dan didaftarkan ke Komerce!";
-        } catch (\Throwable $e) {
-            report($e);
-            $this->overrideError = 'Gagal menandai lunas & memproses Komerce: '.$e->getMessage();
+        if ($this->order->payment_status !== PaymentStatus::Paid) {
+            $this->overrideError = match ($result) {
+                'no_payment' => 'Tidak ada referensi pembayaran Komerce. Jangan tandai lunas manual.',
+                default => 'Komerce belum menandai pembayaran lunas. Status toko tidak diubah.',
+            };
+
+            return;
+        }
+
+        $this->processDeliveryOrder(null);
+        if ($this->overrideError === null) {
+            $this->successMessage = "Pembayaran selaras dengan Komerce. Pickup/resi diproses untuk #{$this->order->number}.";
         }
     }
 
@@ -236,7 +286,10 @@ final class KomerceOrderShipping extends Component
         $shipments = $presenter->shipments($this->order);
         $inventories = $presenter->inventories();
         $printableCount = $presenter->printableCount($shipments);
-        $hasUnprocessed = collect($shipments)->contains(fn (array $s): bool => ! $s['can_print_label']);
+        $hasUnprocessed = collect($shipments)->contains(
+            fn (array $s): bool => ! $s['can_print_label'] || ($s['needs_pickup'] ?? false),
+        );
+        $needsPickup = collect($shipments)->contains(fn (array $s): bool => (bool) ($s['needs_pickup'] ?? false));
         $hasTrackable = collect($shipments)->contains(fn (array $s): bool => filled($s['awb']) || filled($s['tracking_number']));
         $overridable = array_values(array_filter(
             $shipments,
@@ -250,6 +303,8 @@ final class KomerceOrderShipping extends Component
             'canPrintAnyLabel' => $printableCount > 0,
             'printableShipmentCount' => $printableCount,
             'hasUnprocessedShipment' => $hasUnprocessed,
+            'needsPickup' => $needsPickup,
+            'orderIsPaid' => $this->order->payment_status === PaymentStatus::Paid,
             'hasTrackableShipment' => $hasTrackable,
             'overridableShipments' => $overridable,
             'lineOptions' => collect($overridable)->flatMap(

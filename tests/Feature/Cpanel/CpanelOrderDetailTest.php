@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Cpanel;
 
+use App\Livewire\Shopper\KomerceOrderShipping;
 use App\Models\OrderShipment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -76,7 +77,7 @@ final class CpanelOrderDetailTest extends TestCase
             ->assertSee('QRIS Komerce', false);
 
         Livewire::actingAs($admin)
-            ->test(\App\Livewire\Shopper\KomerceOrderShipping::class, ['order' => $order])
+            ->test(KomerceOrderShipping::class, ['order' => $order])
             ->assertSee('Gudang Jakarta');
     }
 
@@ -86,9 +87,8 @@ final class CpanelOrderDetailTest extends TestCase
         $user = User::factory()->create();
         $order = Order::factory()->create();
 
-        // Under /cpanel, Shopper redirects AuthorizationException to its forbidden page.
         $this->actingAs($user)
             ->getJson(route('shopper.orders.fulfillment.print-label', $order))
-            ->assertRedirect(route('shopper.forbidden'));
+            ->assertForbidden();
     }
 }

@@ -27,10 +27,9 @@ final class OrderShipmentOpsPresenter
             ->get()
             ->map(function (OrderShipment $shipment) use ($order): array {
                 $deliveryOrderNo = $this->deliveryOrderNo($shipment);
-                $canPrint = $deliveryOrderNo !== null;
-                $canOverride = in_array($shipment->status, ['pending', 'ready'], true)
-                    && ! filled($shipment->awb)
-                    && ! filled($shipment->tracking_number);
+                $canPrint = $this->canPrintLabel($shipment);
+                $needsPickup = $this->needsPickup($shipment);
+                $canOverride = ! $this->isLockedForOverride($shipment);
 
                 $inventory = $shipment->inventory;
                 $shipperAddress = implode(', ', array_filter([
@@ -87,9 +86,12 @@ final class OrderShipmentOpsPresenter
                         ? (string) data_get($shipment->metadata, 'komerce.fulfillment_error')
                         : null,
                     'can_print_label' => $canPrint,
+                    'needs_pickup' => $needsPickup,
                     'print_hint' => $canPrint
                         ? null
-                        : 'Label unlocks after the RajaOngkir delivery order is created (usually right after payment clears).',
+                        : ($needsPickup
+                            ? 'Request pickup dulu. Stiker resi baru bisa dicetak setelah pickup Komerce berhasil.'
+                            : 'Daftarkan paket ke Komerce dulu, lalu request pickup. Setelah nomor resi terbit, stiker bisa dicetak.'),
                     'can_override' => $canOverride,
                     'shipper_name' => $inventory?->name ?? 'Gudang Utama',
                     'shipper_address' => $shipperAddress ?: 'Jl. Tuparev No. 109F, Cirebon',
@@ -153,15 +155,56 @@ final class OrderShipmentOpsPresenter
             : null;
     }
 
+    public function isLockedForOverride(OrderShipment $shipment): bool
+    {
+        if (! in_array($shipment->status, ['pending', 'ready'], true)) {
+            return true;
+        }
+
+        if ($this->filled($shipment->awb) || $this->filled($shipment->tracking_number)) {
+            return true;
+        }
+
+        return $this->deliveryOrderNo($shipment) !== null;
+    }
+
+    public function needsPickup(OrderShipment $shipment): bool
+    {
+        if ($this->filled($shipment->awb) || $this->filled($shipment->tracking_number)) {
+            return false;
+        }
+
+        return $this->deliveryOrderNo($shipment) !== null;
+    }
+
+    public function canPrintLabel(OrderShipment $shipment): bool
+    {
+        if ($this->deliveryOrderNo($shipment) === null) {
+            return false;
+        }
+
+        if ($this->filled($shipment->awb) || $this->filled($shipment->tracking_number)) {
+            return true;
+        }
+
+        return is_array(data_get($shipment->metadata, 'komerce.pickup_response'));
+    }
+
     public function statusLabel(?string $status): string
     {
         return match ($status) {
-            'pending', 'ready' => 'Waiting for label',
-            'labeled' => 'Labeled',
-            'picked_up' => 'Picked up',
-            'in_transit' => 'In transit',
-            'delivered' => 'Delivered',
-            default => $status ? str_replace('_', ' ', ucfirst($status)) : 'Unknown',
+            'pending', 'ready' => 'Menunggu resi',
+            'labeled' => 'Resi terbit',
+            'picked_up' => 'Sudah di-pickup',
+            'in_transit' => 'Dalam pengiriman',
+            'delivered' => 'Terkirim',
+            'cancelled' => 'Dibatalkan di Komerce',
+            default => $status ? str_replace('_', ' ', ucfirst($status)) : 'Tidak diketahui',
         };
+    }
+
+    private function filled(mixed $value): bool
+    {
+        return is_scalar($value) && trim((string) $value) !== '';
     }
 }

@@ -52,6 +52,7 @@
     "The provided two factor recovery code was invalid.": "Kode pemulihan dua faktor yang diberikan tidak valid.",
     "The response is not a streamed response.": "Responsnya bukan respons yang dialirkan.",
     "The response is not a view.": "Responsnya bukanlah pandangan.",
+    "This account cannot access the store operations panel.": "Akun ini tidak bisa masuk panel operasional toko.",
     "This action is unauthorized.": "Tindakan ini tidak sah.",
     "This password reset link will expire in :count minutes.": "Tautan pengaturan ulang kata sandi ini akan kedaluwarsa dalam :count menit.",
     "to": "kepada",

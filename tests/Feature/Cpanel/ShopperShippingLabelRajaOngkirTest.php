@@ -173,11 +173,16 @@ final class ShopperShippingLabelRajaOngkirTest extends TestCase
             'status' => 'pending',
             'metadata' => [
                 'rate' => [
-                    'provider' => 'shipping_cost',
+                    'provider' => 'shipping_delivery',
                     'shipping_name' => 'JNE',
                     'service_name' => 'REG',
                     'shipping_cost' => 18000,
-                    'amount' => 18000,
+                    'shipping_cashback' => 4500,
+                    'service_fee' => 0,
+                    'additional_cost' => 0,
+                    'grandtotal' => 118000,
+                    'cod_value' => 0,
+                    'insurance_value' => 0,
                     'carrier_code' => 'jne',
                 ],
             ],

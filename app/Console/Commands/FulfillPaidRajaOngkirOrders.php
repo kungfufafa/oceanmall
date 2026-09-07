@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Actions\Shipping\NormalizeShipmentStatus;
 use App\Jobs\CreateRajaOngkirDeliveryForShipment;
 use App\Models\OrderShipment;
 use Illuminate\Console\Command;
@@ -35,6 +36,10 @@ final class FulfillPaidRajaOngkirOrders extends Command
             })
             ->where(function ($query): void {
                 $query->whereNull('tracking_number')->orWhere('tracking_number', '');
+            })
+            ->where(function ($query): void {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', NormalizeShipmentStatus::CANCELLED);
             })
             ->orderBy('id')
             ->limit($limit)

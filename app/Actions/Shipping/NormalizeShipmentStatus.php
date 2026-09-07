@@ -16,6 +16,8 @@ final class NormalizeShipmentStatus
 
     public const DELIVERED = 'delivered';
 
+    public const CANCELLED = 'cancelled';
+
     /** @var list<string> */
     public const STABLE = [
         self::PENDING,
@@ -23,6 +25,7 @@ final class NormalizeShipmentStatus
         self::PICKED_UP,
         self::IN_TRANSIT,
         self::DELIVERED,
+        self::CANCELLED,
     ];
 
     /**
@@ -46,7 +49,7 @@ final class NormalizeShipmentStatus
             || str_contains($lower, 'undeliver')
             || in_array($upper, ['CANCELLED', 'CANCELED', 'DIBATALKAN'], true)
         ) {
-            return $this->stableOrNull($fallback) ?? self::LABELED;
+            return self::CANCELLED;
         }
 
         if (

@@ -111,9 +111,9 @@ final class SplitShipmentOrderTest extends TestCase
 
         $this->assertSame($defaultInventory->id, $shipments[0]->inventory_id);
         $this->assertSame('jne', $shipments[0]->carrier_code);
-        $this->assertSame('Jalur Nugraha Ekakurir (JNE)', $shipments[0]->carrier_name);
+        $this->assertSame('JNE', $shipments[0]->carrier_name);
         $this->assertSame('REG', $shipments[0]->service_code);
-        $this->assertSame('Reguler', $shipments[0]->service_name);
+        $this->assertSame('REGULER', $shipments[0]->service_name);
         $this->assertSame(12000, $shipments[0]->cost);
         $this->assertSame('pending', $shipments[0]->status);
         $this->assertSame([

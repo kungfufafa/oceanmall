@@ -295,6 +295,10 @@ final class ShippingDeliveryTest extends TestCase
         ]);
 
         $this->fakeDeliveryHttp([
+            'https://delivery.example.test/order/api/v1/orders/detail*' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => ['order_no' => 'RO-ORDER-RETRY'],
+            ]),
             'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
                 'meta' => ['code' => 201, 'status' => 'success'],
                 'data' => ['order_id' => 99999, 'order_no' => 'RO-SHOULD-NOT-BE-USED'],

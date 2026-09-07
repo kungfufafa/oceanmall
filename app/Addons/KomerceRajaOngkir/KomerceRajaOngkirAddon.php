@@ -11,6 +11,7 @@ use App\Livewire\Shopper\OrderFulfillment;
 use App\Livewire\Shopper\OrderSummary;
 use App\Livewire\Shopper\Pages\OrderShipments;
 use App\Livewire\Shopper\SlideOvers\CreateShippingLabel;
+use App\Livewire\Shopper\SlideOvers\ShipmentAddEvent;
 use Livewire\Livewire;
 use Shopper\Addon\BaseAddon;
 use Shopper\Core\Models\Order;
@@ -18,11 +19,9 @@ use Shopper\ShopperPanel;
 use Shopper\View\OrderRenderHook;
 
 /**
- * Shopper panel plugin for Komerce + RajaOngkir.
- *
- * Payment/shipping *drivers* stay on Shopper's Payment/Shipping managers
- * (same pattern as shopper/stripe). This addon owns the admin surface:
- * Livewire overrides, order-detail hook, and inventory origin field.
+ * OceanMall bridge: Shopper remains the store shell, Komerce remains the
+ * source of truth for pay/ship. This addon only replaces Shopper admin
+ * surfaces that would otherwise invent a second payment or AWB.
  */
 final class KomerceRajaOngkirAddon extends BaseAddon
 {
@@ -45,6 +44,7 @@ final class KomerceRajaOngkirAddon extends BaseAddon
             'order-fulfillment' => OrderFulfillment::class,
             'order-shipments' => OrderShipments::class,
             'slide-overs.create-shipping-label' => CreateShippingLabel::class,
+            'slide-overs.shipment-add-event' => ShipmentAddEvent::class,
         ]);
 
         Livewire::component('komerce-order-shipping', KomerceOrderShipping::class);

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Actions\Shipping\NormalizeShipmentStatus;
+use App\Actions\Shipping\ReconcileKomerceShipment;
 use App\Actions\Shipping\SyncOrderShippingFromShipments;
 use App\Models\OrderShipment;
 use App\Models\OrderShipmentLine;
@@ -116,6 +118,29 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         ]);
         $deliveryOrderNo = $this->firstScalar($metadata, ['komerce.order_no']);
         $storeResponse = $this->arrayAt($metadata, 'komerce.store_order_response');
+
+        if ($deliveryOrderNo !== null) {
+            $shipment = resolve(ReconcileKomerceShipment::class)->handle($shipment);
+            $shipment->refresh();
+
+            if (strtolower((string) $shipment->status) === NormalizeShipmentStatus::CANCELLED) {
+                throw new RuntimeException(sprintf(
+                    'Komerce delivery [%s] is cancelled. Pickup is blocked so local data stays aligned with Komerce.',
+                    $deliveryOrderNo,
+                ));
+            }
+
+            if (is_scalar($shipment->awb) && trim((string) $shipment->awb) !== '') {
+                return;
+            }
+
+            $metadata = $this->decodeMetadata($shipment->metadata);
+            $deliveryOrderId = $this->firstScalar($metadata, [
+                'komerce.order_id',
+                'komerce.store_order_response.data.order_id',
+            ]);
+            $storeResponse = $this->arrayAt($metadata, 'komerce.store_order_response');
+        }
 
         if ($deliveryOrderNo === null) {
             if ($deliveryOrderId !== null) {

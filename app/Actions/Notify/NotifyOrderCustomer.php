@@ -19,6 +19,15 @@ final class NotifyOrderCustomer
             return;
         }
 
+        $alreadySent = $customer->notifications()
+            ->where('data->order_id', $order->id)
+            ->where('data->type', $type->value)
+            ->exists();
+
+        if ($alreadySent) {
+            return;
+        }
+
         $customer->notify(new OrderStatusNotification($order, $type));
     }
 }

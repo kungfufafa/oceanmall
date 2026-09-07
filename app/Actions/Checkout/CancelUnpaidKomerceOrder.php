@@ -10,6 +10,7 @@ use App\Enums\OrderNotificationType;
 use Illuminate\Support\Facades\DB;
 use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
+use Shopper\Core\Events\Orders\OrderCancelled;
 use Shopper\Core\Models\Order;
 use Shopper\Payment\Enum\TransactionStatus;
 use Shopper\Payment\Facades\Payment;
@@ -57,6 +58,8 @@ final readonly class CancelUnpaidKomerceOrder
 
             $order = $order->refresh();
             $this->notifyOrderCustomer->handle($order, OrderNotificationType::Cancelled);
+
+            event(new OrderCancelled($order));
 
             return $order;
         });

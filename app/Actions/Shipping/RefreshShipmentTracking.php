@@ -42,7 +42,13 @@ final readonly class RefreshShipmentTracking
         $this->trackingContext->setLastPhoneNumber($this->receiverPhone($shipment));
 
         try {
-            if (komerce_shipping_cost_enabled() && $costCourier !== null) {
+            $hasDeliveryOrder = is_scalar(data_get($shipment->metadata, 'komerce.order_no'))
+                && trim((string) data_get($shipment->metadata, 'komerce.order_no')) !== '';
+
+            if ($hasDeliveryOrder && komerce_shipping_delivery_enabled()) {
+                $this->trackingContext->setCourier($shipping);
+                $info = Shipping::driver('komerce')->track($awb);
+            } elseif (komerce_shipping_cost_enabled() && $costCourier !== null) {
                 $this->trackingContext->setCourier($costCourier);
                 $info = Shipping::driver('rajaongkir')->track($awb);
             } elseif (komerce_shipping_delivery_enabled()) {

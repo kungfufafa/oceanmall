@@ -6,6 +6,7 @@ namespace App\Livewire\Shopper;
 
 use App\Actions\Shipping\IssueRajaOngkirFulfillment;
 use App\Models\OrderShipment;
+use App\Support\OrderShipmentOpsPresenter;
 use Filament\Notifications\Notification;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
@@ -81,7 +82,7 @@ final class OrderFulfillment extends ShopperFulfillment
             'orderIsPaid' => $this->order->payment_status === PaymentStatus::Paid,
             'rajaOngkirAwbs' => $awbs,
             'canPrintRajaOngkirLabel' => $shipments->contains(
-                static fn (OrderShipment $shipment): bool => filled(data_get($shipment->metadata, 'komerce.order_no')),
+                static fn (OrderShipment $shipment): bool => resolve(OrderShipmentOpsPresenter::class)->canPrintLabel($shipment),
             ),
             'printRajaOngkirRoute' => route('shopper.orders.fulfillment.print-label', $this->order),
         ]);

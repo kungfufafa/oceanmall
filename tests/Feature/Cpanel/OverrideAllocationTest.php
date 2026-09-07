@@ -80,6 +80,22 @@ final class OverrideAllocationTest extends TestCase
         $this->assertSame(4, $fixture['product']->fresh()->stockInventory($fixture['toInventory']->id));
     }
 
+    public function test_rejects_shipments_already_registered_with_komerce(): void
+    {
+        $fixture = $this->shipmentFixture([
+            'metadata' => ['komerce' => ['order_no' => 'RO-LOCKED-1', 'order_id' => '88']],
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        resolve(OverrideAllocation::class)->handle($fixture['order'], [[
+            'shipment_line_id' => $fixture['sourceLine']->id,
+            'qty' => 1,
+            'from_inventory_id' => $fixture['fromInventory']->id,
+            'to_inventory_id' => $fixture['toInventory']->id,
+        ]]);
+    }
+
     public function test_rejects_shipments_that_already_have_awb(): void
     {
         $fixture = $this->shipmentFixture(['awb' => 'AWB-123']);
@@ -189,7 +205,6 @@ final class OverrideAllocationTest extends TestCase
             $fixture['toInventory']->id => [$this->rate('jnt', 'EZ', 15000)],
         ]));
 
-        // Under /cpanel, Shopper redirects AuthorizationException to its forbidden page.
         $this->actingAs(User::factory()->create())
             ->postJson(route('shopper.orders.fulfillment.override-allocation', $fixture['order']), [
                 'moves' => [[
@@ -199,7 +214,7 @@ final class OverrideAllocationTest extends TestCase
                     'to_inventory_id' => $fixture['toInventory']->id,
                 ]],
             ])
-            ->assertRedirect(route('shopper.forbidden'));
+            ->assertForbidden();
 
         $admin = User::factory()->create();
         Role::query()->firstOrCreate(['name' => config('shopper.admin.roles.admin'), 'guard_name' => 'web']);
