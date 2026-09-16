@@ -224,6 +224,15 @@ final class MultiPackageCheckoutTest extends TestCase
         $this->assertCount(2, $jktOptions);
         $this->assertSame('jne:REG', $jktOptions[0]['service_code']);
         $this->assertSame(18000, $jktOptions[0]['amount']);
+
+        foreach ($data['allocation'] as $package) {
+            $this->assertFalse($package['origin_pin_ready']);
+            $this->assertFalse($package['destination_pin_ready']);
+            $this->assertSame(
+                'Resi Komerce membutuhkan pinpoint gudang dan tujuan. Pinpoint gudang belum diisi. Pinpoint tujuan belum diisi.',
+                $package['pin_ready_message'],
+            );
+        }
     }
 
     /**
