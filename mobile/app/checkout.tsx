@@ -6,6 +6,7 @@ import { Text } from '@/components/ui/text';
 import {
   api,
   errorMessage,
+  type AllocationPackage,
   type CheckoutPayload,
   type Destination,
   type PaymentMethodOption,
@@ -14,6 +15,7 @@ import {
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatIdr } from '@/lib/format';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -39,7 +41,10 @@ export default function CheckoutScreen() {
   const [destinationQuery, setDestinationQuery] = useState('');
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [destination, setDestination] = useState<Destination | null>(null);
+  const [pinPoint, setPinPoint] = useState('');
+  const [locating, setLocating] = useState(false);
   const [selectedRate, setSelectedRate] = useState<string | null>(null);
+  const [ratesByPackage, setRatesByPackage] = useState<Record<string, string>>({});
   const [selectedPayment, setSelectedPayment] = useState<number | null>(null);
 
   const applyCheckout = useCallback((data: CheckoutPayload) => {
@@ -50,6 +55,7 @@ export default function CheckoutScreen() {
       setLastName(address.last_name ?? '');
       setStreet(address.street_address ?? '');
       setPhone(address.phone_number ?? '');
+      setPinPoint(address.rajaongkir_pin_point ?? '');
       if (address.rajaongkir_destination_id) {
         setDestination({
           id: address.rajaongkir_destination_id,
@@ -58,6 +64,13 @@ export default function CheckoutScreen() {
       }
     }
     setSelectedRate(data.shipping_option?.service_code ?? null);
+    const perPackage: Record<string, string> = {};
+    for (const pkg of data.allocation ?? []) {
+      if (pkg.selected_service_code) {
+        perPackage[String(pkg.inventory_id)] = pkg.selected_service_code;
+      }
+    }
+    setRatesByPackage(perPackage);
   }, []);
 
   const load = useCallback(async () => {
@@ -94,6 +107,26 @@ export default function CheckoutScreen() {
     return () => clearTimeout(handle);
   }, [destinationQuery]);
 
+  async function useCurrentLocation() {
+    setLocating(true);
+    setError(null);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setError('Izin lokasi ditolak. Isi pin point manual (format: lat,long).');
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setPinPoint(`${position.coords.latitude.toFixed(6)},${position.coords.longitude.toFixed(6)}`);
+    } catch {
+      setError('Gagal membaca lokasi. Isi pin point manual (format: lat,long).');
+    } finally {
+      setLocating(false);
+    }
+  }
+
   async function saveAddress() {
     if (!destination) {
       setError('Pilih kecamatan RajaOngkir dulu.');
@@ -114,6 +147,7 @@ export default function CheckoutScreen() {
           phone_number: phone.trim(),
           rajaongkir_destination_id: destination.id,
           rajaongkir_destination_label: destination.label,
+          rajaongkir_pin_point: pinPoint.trim() || null,
         }),
       });
       applyCheckout(res.data);
@@ -150,6 +184,22 @@ export default function CheckoutScreen() {
       });
       applyCheckout(res.data);
       setSelectedRate(rate.service_code);
+    } catch (e) {
+      setError(errorMessage(e, 'Gagal memilih kurir'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitPackageRates() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api<{ data: CheckoutPayload }>('/checkout/shipping-option', {
+        method: 'POST',
+        body: JSON.stringify({ rates: ratesByPackage }),
+      });
+      applyCheckout(res.data);
     } catch (e) {
       setError(errorMessage(e, 'Gagal memilih kurir'));
     } finally {
@@ -204,6 +254,11 @@ export default function CheckoutScreen() {
       />
     );
   }
+
+  const packages: AllocationPackage[] = checkout.allocation ?? [];
+  const isMultiPackage = packages.length > 1;
+  const allPackagesSelected =
+    packages.length > 0 && packages.every((pkg) => !!ratesByPackage[String(pkg.inventory_id)]);
 
   return (
     <KeyboardAvoidingView
@@ -267,6 +322,21 @@ export default function CheckoutScreen() {
             </Pressable>
           ))}
         </View>
+        <View className="gap-1.5">
+          <Text className="text-sm font-medium">Pin point (lat,long)</Text>
+          <Input
+            placeholder="-6.238000,106.783000"
+            value={pinPoint}
+            onChangeText={setPinPoint}
+            autoCapitalize="none"
+          />
+          <Button variant="outline" disabled={locating} onPress={() => void useCurrentLocation()}>
+            <Text>{locating ? 'Membaca lokasi...' : 'Gunakan lokasi saat ini'}</Text>
+          </Button>
+          <Text className="text-xs text-muted-foreground">
+            Titik antar dipakai kurir instan & penerbitan resi RajaOngkir.
+          </Text>
+        </View>
         <Button
           variant="outline"
           disabled={busy || !firstName || !lastName || !street || !phone || !destination}
@@ -275,27 +345,84 @@ export default function CheckoutScreen() {
         </Button>
 
         <Text className="font-semibold">Kurir</Text>
-        {(checkout.shipping_rates ?? []).map((rate) => (
-          <Pressable
-            key={rate.service_code}
-            onPress={() => void chooseRate(rate)}
-            className={`rounded-xl border p-3 ${
-              selectedRate === rate.service_code ? 'border-primary bg-secondary' : 'border-border'
-            }`}>
-            <Text className="font-medium">
-              {rate.carrier_name ?? rate.carrier_code} · {rate.service_name}
+        {isMultiPackage ? (
+          <View className="gap-3">
+            <Text className="text-sm text-muted-foreground">
+              Pesanan dikirim dalam {packages.length} paket dari gudang berbeda. Pilih kurir untuk
+              setiap paket.
             </Text>
-            <Text className="text-muted-foreground">
-              {formatIdr(rate.amount)}
-              {rate.estimated_days
-                ? ` · ${String(rate.estimated_days)}${/hari|day|jam/i.test(String(rate.estimated_days)) ? '' : ' hari'}`
-                : ''}
-            </Text>
-          </Pressable>
-        ))}
-        {checkout.shipping_address && checkout.shipping_rates.length === 0 ? (
-          <Text className="text-muted-foreground">Ongkir belum tersedia untuk alamat ini.</Text>
-        ) : null}
+            {packages.map((pkg, index) => (
+              <View key={pkg.inventory_id} className="gap-2 rounded-xl border border-border p-3">
+                <Text className="font-medium">
+                  Paket {index + 1} · {pkg.inventory_name}
+                </Text>
+                {pkg.lines.map((line, lineIndex) => (
+                  <Text key={lineIndex} className="text-sm text-muted-foreground">
+                    {line.name || `Produk #${line.purchasable_id}`} × {line.qty}
+                  </Text>
+                ))}
+                {pkg.rates.map((rate) => (
+                  <Pressable
+                    key={rate.service_code}
+                    onPress={() =>
+                      setRatesByPackage((prev) => ({
+                        ...prev,
+                        [String(pkg.inventory_id)]: rate.service_code,
+                      }))
+                    }
+                    className={`rounded-xl border p-3 ${
+                      ratesByPackage[String(pkg.inventory_id)] === rate.service_code
+                        ? 'border-primary bg-secondary'
+                        : 'border-border'
+                    }`}>
+                    <Text className="font-medium">
+                      {rate.carrier_name ?? rate.carrier_code} · {rate.service_name}
+                    </Text>
+                    <Text className="text-muted-foreground">
+                      {formatIdr(rate.amount)}
+                      {rate.estimated_days
+                        ? ` · ${String(rate.estimated_days)}${/hari|day|jam/i.test(String(rate.estimated_days)) ? '' : ' hari'}`
+                        : ''}
+                    </Text>
+                  </Pressable>
+                ))}
+                {pkg.rates.length === 0 ? (
+                  <Text className="text-muted-foreground">Ongkir belum tersedia untuk paket ini.</Text>
+                ) : null}
+              </View>
+            ))}
+            <Button
+              variant="outline"
+              disabled={busy || !allPackagesSelected}
+              onPress={() => void submitPackageRates()}>
+              <Text>Simpan pilihan kurir</Text>
+            </Button>
+          </View>
+        ) : (
+          <>
+            {(checkout.shipping_rates ?? []).map((rate) => (
+              <Pressable
+                key={rate.service_code}
+                onPress={() => void chooseRate(rate)}
+                className={`rounded-xl border p-3 ${
+                  selectedRate === rate.service_code ? 'border-primary bg-secondary' : 'border-border'
+                }`}>
+                <Text className="font-medium">
+                  {rate.carrier_name ?? rate.carrier_code} · {rate.service_name}
+                </Text>
+                <Text className="text-muted-foreground">
+                  {formatIdr(rate.amount)}
+                  {rate.estimated_days
+                    ? ` · ${String(rate.estimated_days)}${/hari|day|jam/i.test(String(rate.estimated_days)) ? '' : ' hari'}`
+                    : ''}
+                </Text>
+              </Pressable>
+            ))}
+            {checkout.shipping_address && checkout.shipping_rates.length === 0 ? (
+              <Text className="text-muted-foreground">Ongkir belum tersedia untuk alamat ini.</Text>
+            ) : null}
+          </>
+        )}
 
         <Text className="font-semibold">Pembayaran</Text>
         {(checkout.payment_methods ?? []).map((method: PaymentMethodOption) => (

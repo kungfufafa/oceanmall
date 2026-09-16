@@ -144,7 +144,23 @@ export type SavedAddress = {
   phone_number?: string | null;
   rajaongkir_destination_id?: string | null;
   rajaongkir_destination_label?: string | null;
+  rajaongkir_pin_point?: string | null;
   shipping_default?: boolean;
+};
+
+export type AllocationPackage = {
+  inventory_id: number;
+  inventory_name: string;
+  lines: {
+    purchasable_type: string;
+    purchasable_id: number;
+    qty: number;
+    name?: string;
+    thumbnail?: string | null;
+    unit_price?: number | null;
+  }[];
+  rates: ShippingRate[];
+  selected_service_code?: string | null;
 };
 
 export type Destination = {
@@ -166,6 +182,7 @@ export type CheckoutPayload = {
     phone_number?: string;
     rajaongkir_destination_id?: string;
     rajaongkir_destination_label?: string;
+    rajaongkir_pin_point?: string | null;
   } | null;
   shipping_option: {
     service_code?: string;
@@ -174,6 +191,7 @@ export type CheckoutPayload = {
     carrier_name?: string | null;
   } | null;
   shipping_rates: ShippingRate[];
+  allocation: AllocationPackage[];
   payment_methods: PaymentMethodOption[];
   saved_addresses: SavedAddress[];
 };

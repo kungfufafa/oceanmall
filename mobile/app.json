@@ -38,7 +38,13 @@
       ],
       "expo-status-bar",
       "expo-secure-store",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Izinkan OceanMall memakai lokasi untuk menandai titik antar (pin point) alamat pengiriman."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
