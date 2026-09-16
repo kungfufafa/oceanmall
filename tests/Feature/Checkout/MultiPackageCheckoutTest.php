@@ -352,6 +352,7 @@ final class MultiPackageCheckoutTest extends TestCase
         $this->assertStringContainsString('pin_ready_message', $checkoutPage);
         $this->assertStringContainsString('destinationPinBlocked', $checkoutPage);
         $this->assertStringContainsString('errors.rajaongkir_pin_point', $checkoutPage);
+        $this->assertStringContainsString(':readonly="komerceEnabled"', $checkoutPage);
 
         $mobileCheckout = file_get_contents(base_path('mobile/app/checkout.tsx'));
         $this->assertIsString($mobileCheckout);

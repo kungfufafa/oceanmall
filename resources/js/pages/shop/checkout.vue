@@ -974,27 +974,39 @@ const steps = [
                                 id="state"
                                 v-model="addressForm.state"
                                 label="Provinsi"
-                                placeholder="Pilih dari kecamatan"
+                                :placeholder="
+                                    komerceEnabled
+                                        ? 'Pilih dari kecamatan'
+                                        : 'Contoh: DKI Jakarta'
+                                "
                                 :error="addressForm.errors.state"
-                                readonly
+                                :readonly="komerceEnabled"
                                 required
                             />
                             <AuthTextField
                                 id="city"
                                 v-model="addressForm.city"
                                 label="Kota"
-                                placeholder="Pilih dari kecamatan"
+                                :placeholder="
+                                    komerceEnabled
+                                        ? 'Pilih dari kecamatan'
+                                        : 'Contoh: Jakarta Selatan'
+                                "
                                 :error="addressForm.errors.city"
-                                readonly
+                                :readonly="komerceEnabled"
                                 required
                             />
                             <AuthTextField
                                 id="postal_code"
                                 v-model="addressForm.postal_code"
                                 label="Kode pos"
-                                placeholder="Pilih dari kecamatan"
+                                :placeholder="
+                                    komerceEnabled
+                                        ? 'Pilih dari kecamatan'
+                                        : 'Contoh: 12190'
+                                "
                                 :error="addressForm.errors.postal_code"
-                                readonly
+                                :readonly="komerceEnabled"
                                 required
                             />
                         </div>

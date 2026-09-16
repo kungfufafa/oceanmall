@@ -104,6 +104,33 @@ final class DestinationSearchTest extends TestCase
             ->assertSessionHasErrors('phone_number');
     }
 
+    public function test_shipping_address_accepts_typed_city_without_destination_when_cost_key_empty(): void
+    {
+        config()->set('komerce.shipping_cost_api_key', '');
+        config()->set('komerce.enabled', true);
+
+        $user = User::factory()->create();
+        $country = Country::factory()->create(['cca2' => 'ID']);
+        $zone = Zone::factory()->create(['is_enabled' => true]);
+        $zone->countries()->attach($country->id);
+
+        $this->actingAs($user)
+            ->withSession(['zone_country_code' => 'ID'])
+            ->post(route('shop.checkout.shipping-address'), [
+                'first_name' => 'Budi',
+                'last_name' => 'Santoso',
+                'street_address' => 'Jl. Merdeka 1',
+                'postal_code' => '10110',
+                'city' => 'Jakarta',
+                'state' => 'DKI Jakarta',
+                'phone_number' => '081234567890',
+            ])
+            ->assertRedirect(route('shop.checkout.index'))
+            ->assertSessionHas(CheckoutSession::SHIPPING_ADDRESS.'.city', 'Jakarta');
+
+        $this->assertTrue(blank(session(CheckoutSession::SHIPPING_ADDRESS.'.rajaongkir_destination_id')));
+    }
+
     public function test_shipping_address_accepts_numeric_rajaongkir_destination_id(): void
     {
         config()->set('komerce.shipping_cost_api_key', 'test-key');
