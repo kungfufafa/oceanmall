@@ -98,6 +98,38 @@ final class CatalogCartStockApiTest extends TestCase
         $this->assertSame(1, (int) $line->fresh()->quantity);
     }
 
+    public function test_cart_add_and_update_accept_quantity_above_ten_when_stock_allows(): void
+    {
+        $user = User::factory()->create();
+        $product = $this->stockedProduct(15);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 12,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.lines.0.quantity', 12)
+            ->assertJsonPath('data.lines.0.available_stock', 15);
+
+        $lineId = $this->getJson('/api/v1/cart')->json('data.lines.0.id');
+        $this->assertIsInt($lineId);
+
+        $this->patchJson('/api/v1/cart/items/'.$lineId, ['quantity' => 14])
+            ->assertOk()
+            ->assertJsonPath('data.lines.0.quantity', 14)
+            ->assertJsonPath('data.lines.0.available_stock', 15);
+
+        $this->patchJson('/api/v1/cart/items/'.$lineId, ['quantity' => 16])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Stok tidak mencukupi.');
+
+        $this->getJson('/api/v1/cart')
+            ->assertOk()
+            ->assertJsonPath('data.lines.0.quantity', 14);
+    }
+
     public function test_expo_product_caps_qty_at_available_stock_not_a_hardcoded_ten(): void
     {
         $page = file_get_contents(base_path('mobile/app/product/[slug].tsx'));
@@ -105,6 +137,17 @@ final class CatalogCartStockApiTest extends TestCase
         $this->assertIsString($page);
         $this->assertStringContainsString('available_stock', $page);
         $this->assertStringNotContainsString('Math.min(10, value + 1)', $page);
+        $this->assertStringNotContainsString('stock == null ? 10', $page);
+    }
+
+    public function test_expo_cart_caps_qty_at_available_stock_not_a_hardcoded_ten(): void
+    {
+        $page = file_get_contents(base_path('mobile/app/(tabs)/cart.tsx'));
+
+        $this->assertIsString($page);
+        $this->assertStringContainsString('available_stock', $page);
+        $this->assertStringNotContainsString('MAX_QTY_PER_LINE = 10', $page);
+        $this->assertStringNotContainsString('Math.min(line.available_stock ?? MAX_QTY_PER_LINE, MAX_QTY_PER_LINE)', $page);
     }
 
     public function test_vue_cart_stepper_uses_available_stock_as_max(): void
@@ -114,6 +157,17 @@ final class CatalogCartStockApiTest extends TestCase
         $this->assertIsString($page);
         $this->assertStringContainsString('availableStock', $page);
         $this->assertStringContainsString(':max="lineMax(line)"', $page);
+        $this->assertStringNotContainsString('Math.min(10, stock)', $page);
+        $this->assertStringNotContainsString('stock === null ? 10', $page);
+    }
+
+    public function test_vue_product_qty_uses_available_stock_not_a_hardcoded_ten(): void
+    {
+        $page = file_get_contents(resource_path('js/pages/shop/product.vue'));
+
+        $this->assertIsString($page);
+        $this->assertStringContainsString('maxQuantity', $page);
+        $this->assertStringNotContainsString('let maxAllowed = 10', $page);
     }
 
     private function stockedProduct(int $qty): Product

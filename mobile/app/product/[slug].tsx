@@ -28,7 +28,7 @@ export default function ProductScreen() {
   function maxQtyFor(item: Product, selectedId: number | null): number {
     const stock = stockFor(item, selectedId);
 
-    return stock == null ? 10 : Math.max(0, stock);
+    return stock == null ? Number.MAX_SAFE_INTEGER : Math.max(0, stock);
   }
 
   useEffect(() => {

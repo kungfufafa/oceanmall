@@ -111,6 +111,42 @@ final class BrowseAndCartTest extends TestCase
                 ->where('cart.lines.0.purchasable.stock', 4));
     }
 
+    public function test_cart_add_and_update_accept_quantity_above_ten_when_stock_allows(): void
+    {
+        $inventory = Inventory::factory()->create(['is_default' => true]);
+        $product = Product::factory()->standard()->create([
+            'name' => 'Bulk Cart Item',
+            'published_at' => now()->subDay(),
+        ]);
+        $product->mutateStock($inventory->id, 15);
+
+        $this->from(route('shop.product', $product))
+            ->post(route('shop.cart.add'), [
+                'product_id' => $product->id,
+                'quantity' => 12,
+            ])
+            ->assertRedirect();
+
+        $cart = resolve(CartSessionManager::class)->current();
+        $this->assertNotNull($cart);
+        $line = $cart->lines()->first();
+        $this->assertNotNull($line);
+        $this->assertSame(12, (int) $line->quantity);
+
+        $this->from(route('shop.cart'))
+            ->patch(route('shop.cart.update', $line->id), ['quantity' => 14])
+            ->assertRedirect();
+
+        $this->assertSame(14, (int) $line->fresh()->quantity);
+
+        $this->from(route('shop.cart'))
+            ->patch(route('shop.cart.update', $line->id), ['quantity' => 16])
+            ->assertRedirect(route('shop.cart'))
+            ->assertSessionHasErrors('cart');
+
+        $this->assertSame(14, (int) $line->fresh()->quantity);
+    }
+
     public function test_cart_update_rejects_insufficient_stock(): void
     {
         $inventory = Inventory::factory()->create(['is_default' => true]);

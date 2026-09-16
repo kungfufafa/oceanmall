@@ -79,10 +79,10 @@ function availableStock(line: Cart['lines'][number]): number | null {
     return typeof purchasable.stock === 'number' ? purchasable.stock : null;
 }
 
-function lineMax(line: Cart['lines'][number]): number {
+function lineMax(line: Cart['lines'][number]): number | null {
     const stock = availableStock(line);
 
-    return stock === null ? 10 : Math.max(1, Math.min(10, stock));
+    return stock === null ? null : Math.max(1, stock);
 }
 </script>
 

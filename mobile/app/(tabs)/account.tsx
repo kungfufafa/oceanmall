@@ -15,7 +15,7 @@ import { useAuth } from '@/lib/auth';
 import * as Location from 'expo-location';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 export default function AccountScreen() {
   const { user, logout } = useAuth();
@@ -23,6 +23,7 @@ export default function AccountScreen() {
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [countries, setCountries] = useState<AddressCountry[]>([]);
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [firstName, setFirstName] = useState('');
@@ -71,6 +72,7 @@ export default function AccountScreen() {
   }, [destinationQuery]);
 
   function resetForm() {
+    setEditingId(null);
     setFirstName(user?.first_name ?? '');
     setLastName(user?.last_name ?? '');
     setStreet('');
@@ -80,6 +82,30 @@ export default function AccountScreen() {
     setDestination(null);
     setPinPoint('');
     setError(null);
+  }
+
+  function startEdit(address: SavedAddress) {
+    setEditingId(address.id);
+    setFirstName(address.first_name);
+    setLastName(address.last_name);
+    setStreet(address.street_address);
+    setPhone(address.phone_number ?? '');
+    setPinPoint(address.rajaongkir_pin_point ?? '');
+    setDestinationQuery('');
+    setDestinations([]);
+    setDestination(
+      address.rajaongkir_destination_id
+        ? {
+            id: String(address.rajaongkir_destination_id),
+            label: address.rajaongkir_destination_label ?? address.city,
+            city_name: address.city,
+            province_name: address.state,
+            zip_code: address.postal_code,
+          }
+        : null
+    );
+    setError(null);
+    setAdding(true);
   }
 
   async function useCurrentLocation() {
@@ -108,7 +134,10 @@ export default function AccountScreen() {
       return;
     }
     const countryId =
-      countries.find((country) => country.cca2 === 'ID')?.id ?? countries[0]?.id ?? null;
+      (editingId ? addresses.find((row) => row.id === editingId)?.country_id : null) ??
+      countries.find((country) => country.cca2 === 'ID')?.id ??
+      countries[0]?.id ??
+      null;
     if (!countryId) {
       setError('Negara pengiriman belum tersedia.');
       return;
@@ -116,29 +145,69 @@ export default function AccountScreen() {
     setBusy(true);
     setError(null);
     try {
-      await api('/addresses', {
-        method: 'POST',
-        body: JSON.stringify({
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          street_address: street.trim(),
-          postal_code: destination.zip_code ?? '00000',
-          city: destination.city_name ?? destination.label,
-          state: destination.province_name,
-          phone_number: phone.trim(),
-          country_id: countryId,
-          type: 'shipping',
-          shipping_default: addresses.length === 0,
-          rajaongkir_destination_id: destination.id,
-          rajaongkir_destination_label: destination.label,
-          rajaongkir_pin_point: pinPoint.trim() || null,
-        }),
-      });
+      const payload = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        street_address: street.trim(),
+        postal_code: destination.zip_code ?? '00000',
+        city: destination.city_name ?? destination.label,
+        state: destination.province_name,
+        phone_number: phone.trim(),
+        country_id: countryId,
+        type: 'shipping',
+        rajaongkir_destination_id: destination.id,
+        rajaongkir_destination_label: destination.label,
+        rajaongkir_pin_point: pinPoint.trim() || null,
+      };
+      if (editingId) {
+        await api(`/addresses/${editingId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await api('/addresses', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...payload,
+            shipping_default: addresses.length === 0,
+          }),
+        });
+      }
       resetForm();
       setAdding(false);
       await loadAddresses();
     } catch (e) {
       setError(errorMessage(e, 'Gagal menyimpan alamat'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteAddress(address: SavedAddress) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`/addresses/${address.id}`, { method: 'DELETE' });
+      if (editingId === address.id) {
+        resetForm();
+        setAdding(false);
+      }
+      await loadAddresses();
+    } catch (e) {
+      setError(errorMessage(e, 'Gagal menghapus alamat'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setDefaultShipping(address: SavedAddress) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`/addresses/${address.id}/default-shipping`, { method: 'PATCH' });
+      await loadAddresses();
+    } catch (e) {
+      setError(errorMessage(e, 'Gagal menjadikan alamat utama'));
     } finally {
       setBusy(false);
     }
@@ -172,12 +241,18 @@ export default function AccountScreen() {
       </Button>
 
       <Separator />
+      {error && !adding ? <Text className="text-destructive">{error}</Text> : null}
       <Text className="font-semibold">Alamat tersimpan</Text>
       {addresses.map((address) => (
-        <View key={address.id} className="rounded-xl border border-border p-3">
-          <Text className="font-medium">
-            {address.first_name} {address.last_name}
-          </Text>
+        <View key={address.id} className="rounded-xl border border-border p-3 gap-2">
+          <View className="flex-row items-center justify-between gap-2">
+            <Text className="font-medium">
+              {address.first_name} {address.last_name}
+            </Text>
+            {address.shipping_default ? (
+              <Text className="text-xs text-muted-foreground">Utama</Text>
+            ) : null}
+          </View>
           <Text className="text-muted-foreground">
             {address.street_address}, {address.city} {address.postal_code}
           </Text>
@@ -187,6 +262,40 @@ export default function AccountScreen() {
           {address.rajaongkir_pin_point ? (
             <Text className="text-xs text-muted-foreground">Pin {address.rajaongkir_pin_point}</Text>
           ) : null}
+          <View className="flex-row flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy || adding}
+              onPress={() => startEdit(address)}>
+              <Text>Ubah</Text>
+            </Button>
+            {address.shipping_default ? null : (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onPress={() => void setDefaultShipping(address)}>
+                <Text>Jadikan utama</Text>
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onPress={() =>
+                Alert.alert('Hapus alamat', 'Yakin ingin menghapus alamat ini?', [
+                  { text: 'Tidak', style: 'cancel' },
+                  {
+                    text: 'Ya, hapus',
+                    style: 'destructive',
+                    onPress: () => void deleteAddress(address),
+                  },
+                ])
+              }>
+              <Text className="text-destructive">Hapus</Text>
+            </Button>
+          </View>
         </View>
       ))}
       {addresses.length === 0 && !adding ? (
@@ -238,7 +347,7 @@ export default function AccountScreen() {
           <Button
             disabled={busy || !firstName || !lastName || !street || !phone || !destination}
             onPress={() => void saveAddress()}>
-            <Text>{busy ? 'Menyimpan...' : 'Simpan alamat'}</Text>
+            <Text>{busy ? 'Menyimpan...' : editingId ? 'Simpan perubahan' : 'Simpan alamat'}</Text>
           </Button>
           <Button
             variant="ghost"

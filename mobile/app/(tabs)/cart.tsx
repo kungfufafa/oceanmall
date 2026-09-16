@@ -40,11 +40,8 @@ export default function CartScreen() {
     }, [load])
   );
 
-  // Server-side cart validation caps quantity at 10 per line.
-  const MAX_QTY_PER_LINE = 10;
-
   function maxQty(line: Cart['lines'][number]): number {
-    return Math.min(line.available_stock ?? MAX_QTY_PER_LINE, MAX_QTY_PER_LINE);
+    return line.available_stock ?? Number.MAX_SAFE_INTEGER;
   }
 
   async function changeQty(lineId: number, quantity: number) {

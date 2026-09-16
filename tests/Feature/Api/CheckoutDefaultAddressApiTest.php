@@ -124,4 +124,100 @@ final class CheckoutDefaultAddressApiTest extends TestCase
         $this->assertStringContainsString('/checkout/destinations', $page);
         $this->assertStringContainsString('Gunakan lokasi', $page);
     }
+
+    public function test_address_book_api_edits_deletes_and_sets_default_while_keeping_pin(): void
+    {
+        $user = User::factory()->create();
+        $country = Country::factory()->create(['cca2' => 'ID']);
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/addresses', [
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Melawai 1',
+            'postal_code' => '12220',
+            'city' => 'Jakarta Selatan',
+            'state' => 'DKI Jakarta',
+            'phone_number' => '081234567890',
+            'country_id' => $country->id,
+            'type' => 'shipping',
+            'rajaongkir_destination_id' => '17547',
+            'rajaongkir_destination_label' => 'KEBAYORAN BARU, JAKARTA SELATAN',
+            'rajaongkir_pin_point' => '-6.238000,106.783000',
+        ])->assertCreated();
+
+        $other = $this->postJson('/api/v1/addresses', [
+            'first_name' => 'Siti',
+            'last_name' => 'Aminah',
+            'street_address' => 'Jl. Asia Afrika 2',
+            'postal_code' => '40111',
+            'city' => 'Bandung',
+            'state' => 'Jawa Barat',
+            'phone_number' => '081298765432',
+            'country_id' => $country->id,
+            'type' => 'shipping',
+            'shipping_default' => true,
+            'rajaongkir_destination_id' => '9801',
+            'rajaongkir_destination_label' => 'BANDUNG WETAN, BANDUNG',
+            'rajaongkir_pin_point' => '-6.910000,107.610000',
+        ])->assertCreated();
+
+        $firstId = $user->addresses()->where('street_address', 'Jl. Melawai 1')->value('id');
+        $secondId = $other->json('data.id');
+        $this->assertIsInt($firstId);
+        $this->assertIsInt($secondId);
+
+        $this->patchJson("/api/v1/addresses/{$firstId}", [
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Melawai 9',
+            'postal_code' => '12220',
+            'city' => 'Jakarta Selatan',
+            'state' => 'DKI Jakarta',
+            'phone_number' => '081234567890',
+            'country_id' => $country->id,
+            'type' => 'shipping',
+            'rajaongkir_destination_id' => '17547',
+            'rajaongkir_destination_label' => 'KEBAYORAN BARU, JAKARTA SELATAN',
+            'rajaongkir_pin_point' => '-6.239111,106.784222',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.street_address', 'Jl. Melawai 9')
+            ->assertJsonPath('data.rajaongkir_destination_id', '17547')
+            ->assertJsonPath('data.rajaongkir_pin_point', '-6.239111,106.784222');
+
+        $this->patchJson("/api/v1/addresses/{$firstId}/default-shipping")
+            ->assertOk()
+            ->assertJsonPath('data.shipping_default', true);
+
+        $this->getJson('/api/v1/addresses')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $firstId)
+            ->assertJsonPath('data.0.shipping_default', true)
+            ->assertJsonPath('data.0.rajaongkir_pin_point', '-6.239111,106.784222');
+
+        $this->deleteJson("/api/v1/addresses/{$secondId}")
+            ->assertOk()
+            ->assertJsonPath('message', 'Alamat dihapus.');
+
+        $this->getJson('/api/v1/addresses')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $firstId)
+            ->assertJsonPath('data.0.rajaongkir_destination_id', '17547');
+    }
+
+    public function test_expo_address_book_edits_deletes_and_sets_default_shipping(): void
+    {
+        $page = file_get_contents(base_path('mobile/app/(tabs)/account.tsx'));
+
+        $this->assertIsString($page);
+        $this->assertStringContainsString("method: 'PATCH'", $page);
+        $this->assertStringContainsString("method: 'DELETE'", $page);
+        $this->assertStringContainsString('default-shipping', $page);
+        $this->assertStringContainsString('`/addresses/${', $page);
+        $this->assertStringContainsString('rajaongkir_destination_id', $page);
+        $this->assertStringContainsString('rajaongkir_pin_point', $page);
+        $this->assertStringContainsString('startEdit', $page);
+    }
 }
