@@ -97,6 +97,7 @@ const props = defineProps<{
     shipments: Shipment[];
     komercePayment?: KomercePaymentInstructions | null;
     canRetryPayment?: boolean;
+    canCancel?: boolean;
 }>();
 
 const page = usePage();
@@ -228,6 +229,31 @@ function syncPayment(): void {
             preserveScroll: true,
             onFinish: () => {
                 checkingPayment.value = false;
+            },
+        },
+    );
+}
+
+const cancellingOrder = ref(false);
+const cancelError = ref<string | null>(null);
+
+function cancelOrder(): void {
+    if (!window.confirm('Yakin ingin membatalkan pesanan ini?')) {
+        return;
+    }
+    cancellingOrder.value = true;
+    cancelError.value = null;
+    router.post(
+        `/account/orders/${props.order.id}/cancel`,
+        {},
+        {
+            preserveScroll: true,
+            onError: (errors) => {
+                cancelError.value =
+                    errors.cancel ?? 'Pesanan tidak bisa dibatalkan saat ini.';
+            },
+            onFinish: () => {
+                cancellingOrder.value = false;
             },
         },
     );
@@ -368,6 +394,22 @@ function syncPayment(): void {
             </div>
         </CardContent>
     </Card>
+
+    <div v-if="canCancel" class="mt-4">
+        <Button
+            type="button"
+            variant="outline"
+            size="xl"
+            class="text-destructive"
+            :disabled="cancellingOrder"
+            @click="cancelOrder"
+        >
+            {{ cancellingOrder ? 'Membatalkan…' : 'Batalkan pesanan' }}
+        </Button>
+        <p v-if="cancelError" class="mt-2 text-sm text-destructive">
+            {{ cancelError }}
+        </p>
+    </div>
 
     <div v-if="canConfirmReceived" class="mt-4">
         <Button

@@ -205,6 +205,7 @@ export type OrderSummary = {
   amount: number;
   currency?: string;
   created_at?: string | null;
+  cancelled_reason?: string | null;
 };
 
 export type OrderDetail = OrderSummary & {
@@ -221,4 +222,5 @@ export type OrderDetail = OrderSummary & {
   }[];
   payment?: PaymentInstructions | null;
   can_retry_payment?: boolean;
+  can_cancel?: boolean;
 };

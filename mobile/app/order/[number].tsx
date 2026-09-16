@@ -6,7 +6,17 @@ import { api, errorMessage, type OrderDetail } from '@/lib/api';
 import { formatIdr } from '@/lib/format';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, View } from 'react-native';
+
+function cancelledReasonLabel(reason?: string | null): string {
+  if (reason === 'Payment expired') {
+    return 'Pesanan dibatalkan otomatis karena pembayaran kedaluwarsa.';
+  }
+  if (reason === 'Cancelled by customer') {
+    return 'Pesanan dibatalkan oleh Anda.';
+  }
+  return reason ? `Pesanan dibatalkan: ${reason}` : 'Pesanan dibatalkan.';
+}
 
 export default function OrderScreen() {
   const { number } = useLocalSearchParams<{ number: string }>();
@@ -112,6 +122,14 @@ export default function OrderScreen() {
 
       {error ? <Text className="text-destructive">{error}</Text> : null}
 
+      {order.status === 'cancelled' ? (
+        <View className="rounded-xl border border-border bg-muted p-3">
+          <Text className="text-muted-foreground">
+            {cancelledReasonLabel(order.cancelled_reason)}
+          </Text>
+        </View>
+      ) : null}
+
       <View className="gap-1">
         <Text className="font-semibold">Barang</Text>
         {order.items.map((item, index) => (
@@ -121,9 +139,11 @@ export default function OrderScreen() {
         ))}
       </View>
 
-      {order.payment_status !== 'paid' ? <PaymentPanel payment={order.payment} /> : null}
+      {order.payment_status !== 'paid' && order.status !== 'cancelled' ? (
+        <PaymentPanel payment={order.payment} />
+      ) : null}
 
-      {order.payment_status !== 'paid' ? (
+      {order.payment_status !== 'paid' && order.status !== 'cancelled' ? (
         <View className="gap-2">
           <Button
             variant="outline"
@@ -162,6 +182,30 @@ export default function OrderScreen() {
                 })
               }>
               <Text>Buat pembayaran baru</Text>
+            </Button>
+          ) : null}
+          {order.can_cancel ? (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onPress={() =>
+                Alert.alert('Batalkan pesanan', 'Yakin ingin membatalkan pesanan ini?', [
+                  { text: 'Tidak', style: 'cancel' },
+                  {
+                    text: 'Ya, batalkan',
+                    style: 'destructive',
+                    onPress: () =>
+                      void run(async () => {
+                        const res = await api<{ data: OrderDetail }>(
+                          `/orders/${order.number}/cancel`,
+                          { method: 'POST' }
+                        );
+                        setOrder(res.data);
+                      }),
+                  },
+                ])
+              }>
+              <Text className="text-destructive">Batalkan pesanan</Text>
             </Button>
           ) : null}
         </View>
