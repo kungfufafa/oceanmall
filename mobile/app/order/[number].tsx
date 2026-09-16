@@ -94,6 +94,8 @@ export default function OrderScreen() {
   }
 
   const canConfirm =
+    order.status !== 'cancelled' &&
+    order.status !== 'completed' &&
     order.payment_status === 'paid' &&
     order.shipments.some((shipment) => Boolean(shipment.awb || shipment.tracking_number));
 
@@ -255,7 +257,7 @@ export default function OrderScreen() {
         )}
       </View>
 
-      {canConfirm && order.status !== 'completed' ? (
+      {canConfirm ? (
         <Button
           disabled={busy}
           onPress={() =>

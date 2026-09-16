@@ -31,10 +31,30 @@ type Order = {
     payment_status?: string;
 };
 
+type TrackingEvent = {
+    description: string;
+    datetime: string | null;
+    location: string | null;
+};
+
+type Shipment = {
+    id: number;
+    inventory_name: string | null;
+    status: string;
+    awb: string | null;
+    tracking_number: string | null;
+    carrier: string | null;
+    service: string | null;
+    tracking_history: TrackingEvent[];
+};
+
 const props = defineProps<{
     order: Order;
+    shipments?: Shipment[];
     komercePayment?: KomercePaymentInstructions | null;
 }>();
+
+const shipments = computed(() => props.shipments ?? []);
 
 const page = usePage();
 const flashError = computed(() => {
@@ -381,6 +401,77 @@ watch(shouldPollPayment, (needs) => {
                                     Lanjut belanja
                                 </Link>
                             </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card
+                    v-if="shipments.length"
+                    class="mt-5 gap-0 rounded-md border-border bg-card py-0 text-left text-card-foreground shadow-none"
+                >
+                    <CardHeader class="p-6 pb-3">
+                        <CardTitle class="text-base">Pengiriman</CardTitle>
+                        <CardDescription>
+                            Riwayat resi yang sama dengan detail pesanan.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent class="flex flex-col gap-5 p-6 pt-0">
+                        <div
+                            v-for="shipment in shipments"
+                            :key="shipment.id"
+                            class="border-t border-border pt-4 first:border-t-0 first:pt-0"
+                        >
+                            <p class="text-sm font-medium text-foreground">
+                                {{
+                                    [shipment.carrier, shipment.service]
+                                        .filter(Boolean)
+                                        .join(' / ') || 'Kurir menunggu'
+                                }}
+                                <span
+                                    v-if="shipment.inventory_name"
+                                    class="font-normal text-muted-foreground"
+                                >
+                                    · {{ shipment.inventory_name }}
+                                </span>
+                            </p>
+                            <p class="mt-1 text-sm text-muted-foreground">
+                                {{
+                                    shipment.awb ||
+                                    shipment.tracking_number ||
+                                    'Label menunggu'
+                                }}
+                            </p>
+                            <ol
+                                v-if="shipment.tracking_history.length"
+                                class="mt-3 flex flex-col gap-2 border-l border-border pl-4"
+                            >
+                                <li
+                                    v-for="(event, eventIndex) in shipment.tracking_history"
+                                    :key="eventIndex"
+                                >
+                                    <p class="text-sm text-foreground">
+                                        {{ event.description }}
+                                    </p>
+                                    <p
+                                        v-if="event.datetime || event.location"
+                                        class="mt-0.5 text-xs text-muted-foreground"
+                                    >
+                                        <span v-if="event.datetime">{{
+                                            event.datetime
+                                        }}</span>
+                                        <span
+                                            v-if="
+                                                event.datetime && event.location
+                                            "
+                                        >
+                                            ·
+                                        </span>
+                                        <span v-if="event.location">{{
+                                            event.location
+                                        }}</span>
+                                    </p>
+                                </li>
+                            </ol>
                         </div>
                     </CardContent>
                 </Card>
