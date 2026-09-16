@@ -76,7 +76,14 @@ export type Product = {
   compare_price?: number | null;
   currency?: string;
   description?: string | null;
-  variants?: { id: number; sku?: string | null; name?: string | null; price?: number | null }[];
+  available_stock?: number | null;
+  variants?: {
+    id: number;
+    sku?: string | null;
+    name?: string | null;
+    price?: number | null;
+    available_stock?: number | null;
+  }[];
 };
 
 export type Collection = {
@@ -143,10 +150,17 @@ export type SavedAddress = {
   postal_code: string;
   state?: string | null;
   phone_number?: string | null;
+  country_id?: number | null;
   rajaongkir_destination_id?: string | null;
   rajaongkir_destination_label?: string | null;
   rajaongkir_pin_point?: string | null;
   shipping_default?: boolean;
+};
+
+export type AddressCountry = {
+  id: number;
+  name: string;
+  cca2: string;
 };
 
 export type AllocationPackage = {

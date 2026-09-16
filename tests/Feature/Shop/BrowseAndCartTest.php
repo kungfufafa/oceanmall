@@ -88,6 +88,29 @@ final class BrowseAndCartTest extends TestCase
         $this->assertSame(0, $cart->fresh()->lines()->count());
     }
 
+    public function test_cart_page_exposes_purchasable_stock_for_the_qty_stepper(): void
+    {
+        $inventory = Inventory::factory()->create(['is_default' => true]);
+        $product = Product::factory()->standard()->create([
+            'name' => 'Stocked Cart Item',
+            'published_at' => now()->subDay(),
+        ]);
+        $product->mutateStock($inventory->id, 4);
+
+        $this->from(route('shop.product', $product))
+            ->post(route('shop.cart.add'), [
+                'product_id' => $product->id,
+                'quantity' => 1,
+            ])
+            ->assertRedirect();
+
+        $this->get(route('shop.cart'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('shop/cart')
+                ->where('cart.lines.0.purchasable.stock', 4));
+    }
+
     public function test_cart_update_rejects_insufficient_stock(): void
     {
         $inventory = Inventory::factory()->create(['is_default' => true]);

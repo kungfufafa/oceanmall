@@ -124,12 +124,13 @@ final class CatalogController extends Controller
 
         $payload = $this->presenter->product($product);
         $payload['description'] = $product->description;
-        $payload['variants'] = $product->variants->map(static function ($variant): array {
+        $payload['variants'] = $product->variants->map(function ($variant): array {
             return [
                 'id' => $variant->id,
                 'sku' => $variant->sku,
                 'name' => $variant->name,
                 'price' => $variant->prices->first()?->amount,
+                'available_stock' => $this->presenter->availableStock($variant),
             ];
         })->values()->all();
 

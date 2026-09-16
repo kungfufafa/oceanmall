@@ -16,6 +16,7 @@ use Inertia\Response;
 use Shopper\Cart\CartManager;
 use Shopper\Cart\CartSessionManager;
 use Shopper\Cart\Exceptions\InsufficientStockException;
+use Shopper\Cart\Models\CartLine;
 
 final class CartController extends Controller
 {
@@ -24,6 +25,13 @@ final class CartController extends Controller
         $cart = resolve(CartSessionManager::class)->current();
 
         $cart?->load(['lines.purchasable.media']);
+        $cart?->lines->each(function (CartLine $line): void {
+            $purchasable = $line->purchasable;
+            if (is_object($purchasable) && method_exists($purchasable, 'getStock')) {
+                $purchasable->setAttribute('real_stock', $purchasable->getStock());
+                $purchasable->append('stock');
+            }
+        });
 
         $context = $cart
             ? resolve(CartManager::class)->calculate($cart)

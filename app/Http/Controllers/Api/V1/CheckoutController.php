@@ -48,6 +48,15 @@ final class CheckoutController extends Controller
         $state = $this->checkoutState->get($user);
         $address = is_array($state['shipping_address'] ?? null) ? $state['shipping_address'] : null;
 
+        if (! is_array($address) || $address === []) {
+            $applied = resolve(PersistUserShippingAddress::class)->defaultCheckoutShippingAddress($user);
+            if ($applied !== null) {
+                $this->checkoutState->putShippingAddress($user, $applied);
+                $address = $applied;
+                $state = $this->checkoutState->get($user);
+            }
+        }
+
         $rates = [];
         $allocation = [];
         if (is_array($address) && $cart->lines->isNotEmpty()) {

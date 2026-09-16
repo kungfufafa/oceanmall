@@ -74,19 +74,11 @@ final class CheckoutController extends Controller
         if (! is_array($shippingAddress) || $shippingAddress === []) {
             $user = Auth::user();
             if ($user) {
-                $defaultAddress = $user->addresses()
-                    ->where('shipping_default', true)
-                    ->orderByDesc('updated_at')
-                    ->first()
-                    ?? $user->addresses()->orderByDesc('updated_at')->first();
-
-                if ($defaultAddress) {
-                    $applied = $persistAddress->toCheckoutShippingAddress($defaultAddress);
-                    if ($applied !== null) {
-                        session()->put(CheckoutSession::SHIPPING_ADDRESS, $applied);
-                        $shippingAddress = $applied;
-                        $checkout = session()->get(CheckoutSession::KEY, []);
-                    }
+                $applied = $persistAddress->defaultCheckoutShippingAddress($user);
+                if ($applied !== null) {
+                    session()->put(CheckoutSession::SHIPPING_ADDRESS, $applied);
+                    $shippingAddress = $applied;
+                    $checkout = session()->get(CheckoutSession::KEY, []);
                 }
             }
         }

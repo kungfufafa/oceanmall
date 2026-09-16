@@ -60,6 +60,27 @@ final class PersistUserShippingAddress
     }
 
     /**
+     * Returning customers: reuse the default saved address (incl. district)
+     * so they land on shipping rates instead of retyping the form.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function defaultCheckoutShippingAddress(User $user): ?array
+    {
+        $defaultAddress = $user->addresses()
+            ->where('shipping_default', true)
+            ->orderByDesc('updated_at')
+            ->first()
+            ?? $user->addresses()->orderByDesc('updated_at')->first();
+
+        if (! $defaultAddress) {
+            return null;
+        }
+
+        return $this->toCheckoutShippingAddress($defaultAddress);
+    }
+
+    /**
      * Build checkout session shipping address from a saved address book row.
      *
      * @return array<string, mixed>|null

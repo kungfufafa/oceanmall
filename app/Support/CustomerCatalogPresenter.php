@@ -40,7 +40,21 @@ final class CustomerCatalogPresenter
             'price' => $price?->amount,
             'compare_price' => $price?->compare_amount,
             'currency' => current_currency(),
+            'available_stock' => $this->availableStock($product),
         ];
+    }
+
+    public function availableStock(mixed $purchasable): ?int
+    {
+        if (
+            $purchasable instanceof Stockable
+            && $purchasable->tracksInventory()
+            && ! $purchasable->getAttribute('allow_backorder')
+        ) {
+            return max(0, (int) $purchasable->stock);
+        }
+
+        return null;
     }
 
     /**
@@ -71,15 +85,6 @@ final class CustomerCatalogPresenter
                     $thumbnail = $purchasable->thumbnail ?? null;
                 }
 
-                $availableStock = null;
-                if (
-                    $purchasable instanceof Stockable
-                    && $purchasable->tracksInventory()
-                    && ! $purchasable->getAttribute('allow_backorder')
-                ) {
-                    $availableStock = max(0, (int) $purchasable->stock);
-                }
-
                 return [
                     'id' => $line->id,
                     'quantity' => (int) $line->quantity,
@@ -88,7 +93,7 @@ final class CustomerCatalogPresenter
                     'thumbnail' => $thumbnail,
                     'purchasable_type' => $line->purchasable_type,
                     'purchasable_id' => $line->purchasable_id,
-                    'available_stock' => $availableStock,
+                    'available_stock' => $this->availableStock($purchasable),
                 ];
             })->values()->all(),
             'totals' => $context ? [
