@@ -316,6 +316,46 @@ final class MultiShipmentFulfillmentApiTest extends TestCase
         $this->assertCount(2, OrderShipment::query()->where('order_id', $order->id)->whereNotNull('awb')->get());
     }
 
+    public function test_api_sync_payment_returns_full_order_with_awb_like_show(): void
+    {
+        [$user, $paymentMethod] = $this->seedSplitFulfillmentScene();
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/checkout/shipping-address', [
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Melawai 1',
+            'postal_code' => '12220',
+            'city' => 'Jakarta Selatan',
+            'state' => 'DKI Jakarta',
+            'phone_number' => '081234567890',
+            'rajaongkir_destination_id' => '17547',
+            'rajaongkir_pin_point' => '-6.2380,106.7830',
+        ])->assertOk();
+
+        $this->postJson('/api/v1/checkout/shipping-option', [
+            'rates' => $this->splitRates(),
+        ])->assertOk();
+
+        $orderResponse = $this->postJson('/api/v1/checkout/place-order', [
+            'payment_method_id' => $paymentMethod->id,
+        ])->assertCreated();
+
+        $order = Order::query()->findOrFail($orderResponse->json('data.order_id'));
+        $this->assertSame(PaymentStatus::Pending, $order->payment_status);
+
+        $this->postJson("/api/v1/orders/{$order->number}/sync-payment")
+            ->assertOk()
+            ->assertJsonPath('data.number', $order->number)
+            ->assertJsonPath('data.payment_status', 'paid')
+            ->assertJsonPath('data.shipments.0.awb', 'AWB-RO-JNE-1')
+            ->assertJsonPath('data.shipments.1.awb', 'AWB-RO-JNT-1');
+
+        $this->assertSame(PaymentStatus::Paid, $order->refresh()->payment_status);
+        $this->assertCount(2, OrderShipment::query()->where('order_id', $order->id)->whereNotNull('awb')->get());
+    }
+
     /**
      * Cost quotes, payment creation/status, and Delivery calculate/store/pickup/label.
      * Delivery fakes answer per request so each shipment gets its own order + AWB.

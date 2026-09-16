@@ -152,19 +152,11 @@ export default function OrderScreen() {
             disabled={busy}
             onPress={() =>
               void run(async () => {
-                const res = await api<{ data: { payment_status: string; payment: OrderDetail['payment'] } }>(
+                const res = await api<{ data: OrderDetail }>(
                   `/orders/${order.number}/sync-payment`,
                   { method: 'POST' }
                 );
-                setOrder((current) =>
-                  current
-                    ? {
-                        ...current,
-                        payment_status: res.data.payment_status,
-                        payment: res.data.payment,
-                      }
-                    : current
-                );
+                setOrder(res.data);
               })
             }>
             <Text>Cek status bayar</Text>

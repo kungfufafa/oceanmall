@@ -114,22 +114,14 @@ final class OrderController extends Controller
         $order = $this->ownedOrder($request, $number);
 
         try {
-            $result = resolve(SyncKomercePaymentStatus::class)->handle($order);
+            resolve(SyncKomercePaymentStatus::class)->handle($order);
         } catch (Throwable $e) {
             report($e);
 
             return response()->json(['message' => 'Belum bisa cek status pembayaran.'], 422);
         }
 
-        $order->refresh();
-
-        return response()->json([
-            'data' => [
-                'sync' => $result,
-                'payment_status' => $order->payment_status->value,
-                'payment' => resolve(ResolveKomercePaymentInstructions::class)->handle($order),
-            ],
-        ]);
+        return $this->show($request, $number);
     }
 
     public function track(Request $request, string $number, int $shipment): JsonResponse

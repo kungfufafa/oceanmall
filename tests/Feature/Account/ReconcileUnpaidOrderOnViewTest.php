@@ -175,6 +175,48 @@ final class ReconcileUnpaidOrderOnViewTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_api_sync_payment_returns_the_same_order_shape_as_show(): void
+    {
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/status/KOMPAY-SYNC-API' => Http::response([
+                'success' => true,
+                'data' => [
+                    'payment_id' => 'KOMPAY-SYNC-API',
+                    'status' => 'PAID',
+                    'amount' => 55000,
+                ],
+            ]),
+        ]);
+
+        [$user, $order] = $this->pendingKomerceOrder('KOMPAY-SYNC-API', 55000);
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/v1/orders/{$order->number}/sync-payment")
+            ->assertOk()
+            ->assertJsonPath('data.number', (string) $order->number)
+            ->assertJsonPath('data.payment_status', 'paid')
+            ->assertJsonPath('data.status', 'processing')
+            ->assertJsonPath('data.shipments', [])
+            ->assertJsonMissingPath('data.sync');
+
+        $this->assertSame(PaymentStatus::Paid, $order->refresh()->payment_status);
+    }
+
+    public function test_expo_applies_full_order_after_sync_payment_like_cancel_and_track(): void
+    {
+        $page = file_get_contents(base_path('mobile/app/order/[number].tsx'));
+
+        $this->assertIsString($page);
+        $this->assertMatchesRegularExpression(
+            '/sync-payment[\s\S]{0,400}setOrder\(res\.data\)/',
+            $page,
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/sync-payment[\s\S]{0,500}payment_status:\s*res\.data\.payment_status/',
+            $page,
+        );
+    }
+
     /**
      * @return array{0: User, 1: Order}
      */
