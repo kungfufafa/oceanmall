@@ -1,3 +1,4 @@
+import { CouponField } from '@/components/coupon-field';
 import { EmptyState } from '@/components/empty-state';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
@@ -121,6 +122,10 @@ export default function CartScreen() {
       ))}
       {cart?.lines?.length ? (
         <View className="mt-2 gap-3">
+          <CouponField couponCode={cart.coupon_code} onCart={setCart} />
+          {cart.totals.discount > 0 ? (
+            <Text className="text-emerald-600">Diskon −{formatIdr(cart.totals.discount)}</Text>
+          ) : null}
           <Text className="text-lg font-bold">Total {formatIdr(cart.totals.total)}</Text>
           <Link href="/checkout" asChild>
             <Button>

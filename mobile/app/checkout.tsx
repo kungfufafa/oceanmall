@@ -1,3 +1,4 @@
+import { CouponField } from '@/components/coupon-field';
 import { EmptyState } from '@/components/empty-state';
 import { Field } from '@/components/field';
 import { Badge } from '@/components/ui/badge';
@@ -274,6 +275,13 @@ export default function CheckoutScreen() {
     (sum, entry) => sum + (entry.rate?.amount ?? 0),
     0
   );
+  const selectedSingleRate =
+    checkout.shipping_rates.find((rate) => rate.service_code === selectedRate) ??
+    (checkout.shipping_option?.service_code === selectedRate ? checkout.shipping_option : null);
+  const shippingAmount = isMultiPackage
+    ? shippingTotal
+    : (selectedSingleRate?.amount ?? 0);
+  const shippingKnown = isMultiPackage ? allPackagesSelected : Boolean(selectedRate);
 
   return (
     <KeyboardAvoidingView
@@ -288,7 +296,27 @@ export default function CheckoutScreen() {
             {line.name} × {line.quantity} · {formatIdr(line.unit_price * line.quantity)}
           </Text>
         ))}
-        <Text className="font-medium">Subtotal {formatIdr(checkout.cart.totals.total)}</Text>
+        <Text className="text-muted-foreground">
+          Subtotal {formatIdr(checkout.cart.totals.subtotal)}
+        </Text>
+        {checkout.cart.totals.discount > 0 ? (
+          <Text className="text-emerald-600">
+            Diskon −{formatIdr(checkout.cart.totals.discount)}
+          </Text>
+        ) : null}
+        <CouponField
+          couponCode={checkout.cart.coupon_code}
+          disabled={busy}
+          onCart={(cart) =>
+            setCheckout((current) => (current ? { ...current, cart } : current))
+          }
+        />
+        {shippingKnown ? (
+          <Text className="text-muted-foreground">Ongkir {formatIdr(shippingAmount)}</Text>
+        ) : null}
+        <Text className="font-medium">
+          Total {formatIdr(checkout.cart.totals.total + (shippingKnown ? shippingAmount : 0))}
+        </Text>
 
         {(checkout.saved_addresses ?? []).length > 0 ? (
           <View className="gap-2">
