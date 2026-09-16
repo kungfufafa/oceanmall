@@ -82,4 +82,39 @@ class KomerceConfigTest extends TestCase
             'README must document the same RAJAONGKIR_COURIERS default as config/komerce.php',
         );
     }
+
+    public function test_operator_docs_list_every_scheduled_komerce_command(): void
+    {
+        $console = (string) file_get_contents(base_path('routes/console.php'));
+        $readme = (string) file_get_contents(base_path('README.md'));
+
+        preg_match_all(
+            "/Schedule::command\\('([^']+)'\\)/",
+            $console,
+            $matches,
+        );
+
+        $commands = array_values(array_filter(
+            $matches[1] ?? [],
+            static fn (string $command): bool => str_starts_with($command, 'komerce:'),
+        ));
+
+        $this->assertSame(
+            [
+                'komerce:fulfill-paid-orders',
+                'komerce:refresh-shipment-tracking',
+                'komerce:expire-unpaid-orders',
+            ],
+            $commands,
+            'Lock the living-path schedule so README cannot drift from routes/console.php',
+        );
+
+        foreach ($commands as $command) {
+            $this->assertStringContainsString(
+                $command,
+                $readme,
+                'README ops must name '.$command.' or operators following README will never run that job',
+            );
+        }
+    }
 }

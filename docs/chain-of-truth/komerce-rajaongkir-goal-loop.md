@@ -122,7 +122,7 @@ Sumber komunitas dan dokumentasi legacy `api.rajaongkir.com` tidak dipakai sebag
 
 | Evidence ID | Lokasi | Fakta as-is, bukan business intent |
 |---|---|---|
-| CODE-001 | `app/Services/Komerce/Concerns/UsesKomerceHttp.php` | Empat HTTP builder dan generic API-key fallback |
+| CODE-001 | `app/Services/Komerce/Concerns/UsesKomerceHttp.php` | Empat HTTP builder; dedicated key per service; empty key fail-closed (`KomerceNotConfiguredException`). Tidak ada fallback `KOMERCE_API_KEY`. |
 | CODE-002 | `app/Services/Komerce/ShippingCostClient.php` | Search dan calculate Shipping Cost |
 | CODE-003 | `app/Services/Komerce/ShippingDeliveryClient.php` | Store, pickup, label, dan tracking Delivery |
 | CODE-004 | `app/Services/Komerce/PaymentClient.php` | Create, status, dan cancel Payment |
@@ -352,7 +352,7 @@ QRIS pada SVC-PY dan SVC-QR adalah alternatif provider path. Fallback dari QRISL
 
 | Drift ID | Evidence | As-is | Risiko | Repair source pertama |
 |---|---|---|---|---|
-| DRIFT-001 | CODE-001, CODE-010 | Dedicated key dapat fallback ke `KOMERCE_API_KEY`. | Key service salah dapat terkirim ke host lain; auth failure atau boundary leak. | FR-001 + service config contract |
+| DRIFT-001 | CODE-001, CODE-010 | **Closed.** Dedicated keys fail-closed: `UsesKomerceHttp::apiKey()` throws if the service key is empty. `config/komerce.php` reads only `KOMERCE_PAYMENT_API_KEY`, `KOMERCE_SHIPPING_COST_API_KEY`, `KOMERCE_SHIPPING_DELIVERY_API_KEY`, and `KOMERCE_QRISLY_API_KEY`. A generic `KOMERCE_API_KEY` is unused and must not be set as a substitute. | Operator yang hanya mengisi `KOMERCE_API_KEY` akan melihat service disabled (no outbound). | FR-001 + `KomerceConfigTest::test_legacy_general_api_key_is_not_a_service_fallback` |
 | DRIFT-002 | CODE-008, TEST-001 | Parser tarif primer mengharapkan courier dengan nested `costs`, sementara V2 resmi memberi flat row service. | Rate resmi dapat hilang/empty walau response sukses. | API-SC-002 mapping |
 | DRIFT-003 | CODE-008 | Adapter lama memanggil `createPickupOrder`/`trackWaybill` yang tidak ada pada CODE-003. | Runtime failure bila binding tersebut aktif. | UC-102/103 dan API-SD contracts |
 | DRIFT-004 | CODE-009 | Adapter lama memanggil method QRISLY yang tidak ada pada CODE-005 dan memetakan field legacy. | Runtime failure atau payment reference salah. | UC-301 dan API-QR-002 |
