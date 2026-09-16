@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Actions\Account\CancelOrderByCustomer;
 use App\Models\OrderShipment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -86,6 +87,8 @@ final class OrderShipmentOpsPresenter
                     'fulfillment_error' => is_string(data_get($shipment->metadata, 'komerce.fulfillment_error'))
                         ? (string) data_get($shipment->metadata, 'komerce.fulfillment_error')
                         : null,
+                    'origin_pin_ready' => $this->inventoryHasPinPoint($inventory),
+                    'destination_pin_ready' => $this->orderHasDestinationPin($order),
                     'can_print_label' => $canPrint,
                     'print_hint' => $canPrint
                         ? null
@@ -146,6 +149,11 @@ final class OrderShipmentOpsPresenter
         ];
     }
 
+    public function cancelledReasonLabel(Order $order): ?string
+    {
+        return CancelOrderByCustomer::cancelledReasonLabel($order, 'admin');
+    }
+
     /**
      * @return list<array<string, mixed>>
      */
@@ -154,13 +162,15 @@ final class OrderShipmentOpsPresenter
         return Inventory::query()
             ->orderByDesc('is_default')
             ->orderBy('name')
-            ->get(['id', 'name', 'is_default', 'rajaongkir_origin_id'])
-            ->map(static fn (Inventory $inventory): array => [
+            ->get(['id', 'name', 'is_default', 'rajaongkir_origin_id', 'latitude', 'longitude'])
+            ->map(fn (Inventory $inventory): array => [
                 'id' => $inventory->id,
                 'name' => $inventory->name,
                 'is_default' => (bool) $inventory->is_default,
                 'rajaongkir_origin_id' => $inventory->rajaongkir_origin_id,
-                'ready_for_shipping' => filled($inventory->rajaongkir_origin_id),
+                'has_pin_point' => $this->inventoryHasPinPoint($inventory),
+                'ready_for_shipping' => filled($inventory->rajaongkir_origin_id)
+                    && $this->inventoryHasPinPoint($inventory),
             ])
             ->values()
             ->all();
@@ -186,12 +196,55 @@ final class OrderShipmentOpsPresenter
     public function statusLabel(?string $status): string
     {
         return match ($status) {
-            'pending', 'ready' => 'Waiting for label',
-            'labeled' => 'Labeled',
-            'picked_up' => 'Picked up',
-            'in_transit' => 'In transit',
-            'delivered' => 'Delivered',
+            'pending', 'ready' => 'Menunggu resi',
+            'labeled' => 'Resi terbit',
+            'picked_up' => 'Sudah dijemput',
+            'in_transit' => 'Dalam pengiriman',
+            'delivered' => 'Terkirim',
             default => $status ? str_replace('_', ' ', ucfirst($status)) : 'Unknown',
         };
+    }
+
+    private function inventoryHasPinPoint(?Inventory $inventory): bool
+    {
+        return $inventory !== null
+            && is_numeric($inventory->getAttribute('latitude'))
+            && is_numeric($inventory->getAttribute('longitude'));
+    }
+
+    private function orderHasDestinationPin(Order $order): bool
+    {
+        $metadata = $order->getAttribute('metadata');
+
+        if (is_string($metadata) && trim($metadata) !== '') {
+            $decoded = json_decode($metadata, true);
+            $metadata = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($metadata)) {
+            $metadata = [];
+        }
+
+        $address = data_get($metadata, 'shipping_address', []);
+        if (! is_array($address)) {
+            $address = [];
+        }
+
+        foreach ([$address, $metadata] as $source) {
+            $pin = $source['rajaongkir_pin_point'] ?? $source['pin_point'] ?? null;
+            if (is_string($pin) && str_contains($pin, ',')) {
+                return true;
+            }
+
+            if (is_numeric($source['latitude'] ?? null) && is_numeric($source['longitude'] ?? null)) {
+                return true;
+            }
+        }
+
+        $shippingAddress = $order->shippingAddress;
+        $lat = $shippingAddress?->getAttribute('latitude');
+        $lng = $shippingAddress?->getAttribute('longitude');
+
+        return is_numeric($lat) && is_numeric($lng);
     }
 }

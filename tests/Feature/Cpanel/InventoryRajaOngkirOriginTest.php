@@ -44,4 +44,36 @@ final class InventoryRajaOngkirOriginTest extends TestCase
 
         $this->assertSame('17248', (string) $inventory->fresh()->getAttribute('rajaongkir_origin_id'));
     }
+
+    public function test_shopper_location_form_saves_warehouse_pin_point_coordinates(): void
+    {
+        $this->configureShopperCpanel();
+
+        $admin = User::factory()->create();
+        Role::query()->firstOrCreate([
+            'name' => config('shopper.admin.roles.admin'),
+            'guard_name' => 'web',
+        ]);
+        $admin->assignRole(config('shopper.admin.roles.admin'));
+
+        $country = Country::factory()->create(['cca2' => 'ID']);
+        $inventory = Inventory::factory()->create([
+            'country_id' => $country->id,
+            'name' => 'Gudang Cirebon',
+            'latitude' => null,
+            'longitude' => null,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(InventoryForm::class, ['inventory' => $inventory])
+            ->set('data.priority', 0)
+            ->set('data.latitude', '-6.7366')
+            ->set('data.longitude', '108.5414')
+            ->call('store')
+            ->assertHasNoErrors();
+
+        $fresh = $inventory->fresh();
+        $this->assertEqualsWithDelta(-6.7366, (float) $fresh->getAttribute('latitude'), 0.0001);
+        $this->assertEqualsWithDelta(108.5414, (float) $fresh->getAttribute('longitude'), 0.0001);
+    }
 }

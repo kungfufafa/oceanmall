@@ -34,7 +34,7 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
-            @if ($order->payment_status !== \Shopper\Core\Enum\PaymentStatus::Paid)
+            @if ($order->status !== \Shopper\Core\Enum\OrderStatus::Cancelled && $order->payment_status !== \Shopper\Core\Enum\PaymentStatus::Paid)
                 <x-filament::button
                     type="button"
                     wire:click="markPaidAndProcessDelivery"
@@ -99,6 +99,13 @@
                 <span>Integrasi Komerce belum aktif. Pastikan API key terpasang di file .env.</span>
             </div>
         @endunless
+
+        @if ($cancelledReasonLabel)
+            <div class="flex items-start gap-2.5 rounded-lg bg-slate-50 border border-slate-200 p-3.5 text-xs text-slate-800 dark:bg-slate-500/10 dark:border-slate-500/20 dark:text-slate-200" role="status">
+                <x-heroicon-o-information-circle class="size-5 text-slate-600 dark:text-slate-300 shrink-0" />
+                <span class="font-medium">{{ $cancelledReasonLabel }}</span>
+            </div>
+        @endif
 
         @if ($paymentAlert)
             <div class="flex items-start gap-2.5 rounded-lg bg-rose-50 border border-rose-200 p-3.5 text-xs text-rose-900 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-300" role="alert">
@@ -184,6 +191,17 @@
                         @if (! empty($shipment['fulfillment_error']))
                             <p class="text-xs text-rose-700 dark:text-rose-300">
                                 Gagal otomatis ke RajaOngkir: {{ $shipment['fulfillment_error'] }}
+                            </p>
+                        @endif
+                        @if (empty($shipment['can_print_label']) && (empty($shipment['origin_pin_ready']) || empty($shipment['destination_pin_ready'])))
+                            <p class="text-xs text-amber-800 dark:text-amber-300">
+                                Resi Komerce membutuhkan pinpoint gudang dan tujuan.
+                                @if (empty($shipment['origin_pin_ready']))
+                                    Pinpoint gudang belum diisi.
+                                @endif
+                                @if (empty($shipment['destination_pin_ready']))
+                                    Pinpoint tujuan belum diisi.
+                                @endif
                             </p>
                         @endif
                     </div>

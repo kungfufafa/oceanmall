@@ -896,14 +896,14 @@ const steps = [
                             class="flex flex-col gap-1.5"
                         >
                             <Label for="rajaongkir_pin_point">
-                                Pinpoint lokasi (opsional)
+                                Pinpoint lokasi
                             </Label>
                             <p
                                 class="text-[11px] leading-snug text-muted-foreground"
                             >
-                                Koordinat alamat membantu kurir mengantar lebih
-                                akurat. Gunakan tombol lokasi atau isi manual
-                                (format: latitude,longitude).
+                                Titik antar dipakai kurir instan dan penerbitan
+                                resi RajaOngkir. Gunakan tombol lokasi atau isi
+                                manual (format: latitude,longitude).
                             </p>
                             <div class="flex gap-2">
                                 <Input

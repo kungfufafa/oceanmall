@@ -9,6 +9,7 @@ use App\Actions\Checkout\ResolveKomercePaymentInstructions;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Shopper\Cart\Models\Cart;
 use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Order;
@@ -194,6 +195,7 @@ final class KomercePaymentInstructionsTest extends TestCase
                 ->component('account/order-show')
                 ->where('komercePayment.payment_type', 'qris')
                 ->where('komercePayment.amount', 75000)
+                ->where('komercePayment.expiry_date', '2026-08-05T12:00:00+07:00')
                 ->where('canRetryPayment', true)
             );
     }
@@ -432,7 +434,7 @@ final class KomercePaymentInstructionsTest extends TestCase
             ], JSON_THROW_ON_ERROR),
         ]);
 
-        $cart = \Shopper\Cart\Models\Cart::query()->create([
+        $cart = Cart::query()->create([
             'currency_code' => 'IDR',
             'customer_id' => $user->id,
         ]);

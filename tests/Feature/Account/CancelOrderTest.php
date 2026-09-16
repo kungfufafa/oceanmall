@@ -74,4 +74,32 @@ final class CancelOrderTest extends TestCase
 
         $this->assertSame(PaymentStatus::Paid, $order->fresh()->payment_status);
     }
+
+    public function test_account_order_show_exposes_cancelled_reason_for_storefront(): void
+    {
+        $this->withoutVite();
+
+        $customer = User::factory()->create();
+        $order = Order::factory()->create([
+            'customer_id' => $customer->id,
+            'status' => OrderStatus::Cancelled,
+            'payment_status' => PaymentStatus::Voided,
+            'metadata' => json_encode([
+                'komerce' => [
+                    'cancelled_reason' => 'Payment expired',
+                    'cancelled_at' => now()->toIso8601String(),
+                ],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        $this->actingAs($customer)
+            ->get(route('account.orders.show', $order))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('account/order-show')
+                ->where('cancelledReason', 'Payment expired')
+                ->where('cancelledReasonLabel', 'Pesanan dibatalkan otomatis karena pembayaran kedaluwarsa.')
+                ->where('canCancel', false)
+            );
+    }
 }

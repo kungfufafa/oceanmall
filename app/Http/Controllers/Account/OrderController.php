@@ -83,6 +83,8 @@ final class OrderController extends Controller
             'komercePayment' => $resolvePayment->handle($order),
             'canRetryPayment' => $resolvePayment->canRetry($order),
             'canCancel' => CancelOrderByCustomer::isCancellable($order),
+            'cancelledReason' => CancelOrderByCustomer::cancelledReason($order),
+            'cancelledReasonLabel' => CancelOrderByCustomer::cancelledReasonLabel($order),
         ]);
     }
 }

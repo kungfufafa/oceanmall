@@ -98,7 +98,32 @@ const props = defineProps<{
     komercePayment?: KomercePaymentInstructions | null;
     canRetryPayment?: boolean;
     canCancel?: boolean;
+    cancelledReason?: string | null;
+    cancelledReasonLabel?: string | null;
 }>();
+
+// Prefer the server label so Shopper, Vue, and mobile stay on one mapping.
+const cancelledReasonLabel = computed(() => {
+    if (props.cancelledReasonLabel) {
+        return props.cancelledReasonLabel;
+    }
+
+    if (props.order.status !== 'cancelled') {
+        return null;
+    }
+
+    if (props.cancelledReason === 'Payment expired') {
+        return 'Pesanan dibatalkan otomatis karena pembayaran kedaluwarsa.';
+    }
+
+    if (props.cancelledReason === 'Cancelled by customer') {
+        return 'Pesanan dibatalkan oleh Anda.';
+    }
+
+    return props.cancelledReason
+        ? `Pesanan dibatalkan: ${props.cancelledReason}`
+        : 'Pesanan dibatalkan.';
+});
 
 const page = usePage();
 const paymentError = computed(
@@ -303,6 +328,10 @@ function cancelOrder(): void {
             <OrderStatusBadge :status="order.shipping_status" type="shipping" />
         </template>
     </div>
+
+    <Alert v-if="cancelledReasonLabel" variant="info" class="mt-5">
+        <AlertDescription>{{ cancelledReasonLabel }}</AlertDescription>
+    </Alert>
 
     <Alert
         v-if="flashSuccess && !(komercePayment || canRetryPayment)"

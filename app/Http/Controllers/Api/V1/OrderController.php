@@ -191,25 +191,8 @@ final class OrderController extends Controller
             'amount' => (int) $order->price_amount,
             'currency' => $order->currency_code,
             'created_at' => optional($order->created_at)?->toIso8601String(),
-            'cancelled_reason' => $this->cancelledReason($order),
+            'cancelled_reason' => CancelOrderByCustomer::cancelledReason($order),
         ];
-    }
-
-    private function cancelledReason(Order $order): ?string
-    {
-        if ($order->status->value !== 'cancelled') {
-            return null;
-        }
-
-        $metadata = $order->getAttribute('metadata');
-        if (is_string($metadata) && trim($metadata) !== '') {
-            $decoded = json_decode($metadata, true);
-            $metadata = is_array($decoded) ? $decoded : [];
-        }
-
-        $reason = data_get($metadata, 'komerce.cancelled_reason');
-
-        return is_string($reason) && trim($reason) !== '' ? $reason : null;
     }
 
     private function ownedOrder(Request $request, string $number): Order

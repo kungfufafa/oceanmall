@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Cpanel;
 
+use App\Livewire\Shopper\KomerceOrderShipping;
 use App\Models\OrderShipment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Shopper\Core\Enum\OrderStatus;
+use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
 use Shopper\Core\Models\PaymentMethod;
@@ -76,8 +79,63 @@ final class CpanelOrderDetailTest extends TestCase
             ->assertSee('QRIS Komerce', false);
 
         Livewire::actingAs($admin)
-            ->test(\App\Livewire\Shopper\KomerceOrderShipping::class, ['order' => $order])
+            ->test(KomerceOrderShipping::class, ['order' => $order])
             ->assertSee('Gudang Jakarta');
+    }
+
+    public function test_komerce_panel_shows_cancelled_reason_aligned_with_storefront(): void
+    {
+        $admin = $this->admin();
+        $order = Order::factory()->create([
+            'currency_code' => 'IDR',
+            'status' => OrderStatus::Cancelled,
+            'payment_status' => PaymentStatus::Voided,
+            'metadata' => json_encode([
+                'komerce' => [
+                    'cancelled_reason' => 'Payment expired',
+                ],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KomerceOrderShipping::class, ['order' => $order])
+            ->assertSee('Pesanan dibatalkan otomatis karena pembayaran kedaluwarsa.');
+    }
+
+    public function test_komerce_panel_warns_when_warehouse_or_destination_pin_is_missing(): void
+    {
+        $admin = $this->admin();
+        $order = Order::factory()->create([
+            'currency_code' => 'IDR',
+            'status' => OrderStatus::Processing,
+            'payment_status' => PaymentStatus::Paid,
+            'metadata' => json_encode([
+                'shipping_address' => [
+                    'city' => 'Jakarta',
+                ],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        $inventory = Inventory::factory()->create([
+            'name' => 'Gudang Cirebon',
+            'rajaongkir_origin_id' => '17248',
+            'latitude' => null,
+            'longitude' => null,
+        ]);
+        OrderShipment::query()->create([
+            'order_id' => $order->id,
+            'inventory_id' => $inventory->id,
+            'carrier_code' => 'jne',
+            'service_code' => 'REG',
+            'cost' => 15000,
+            'currency_code' => 'IDR',
+            'status' => 'pending',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KomerceOrderShipping::class, ['order' => $order])
+            ->assertSee('Gudang Cirebon')
+            ->assertSee('Pinpoint gudang belum diisi')
+            ->assertSee('Pinpoint tujuan belum diisi');
     }
 
     public function test_non_admin_cannot_print_fulfillment_label(): void

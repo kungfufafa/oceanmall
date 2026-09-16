@@ -247,6 +247,7 @@ final class KomerceOrderShipping extends Component
             'shipments' => $shipments,
             'inventories' => $inventories,
             'paymentAlert' => $presenter->paymentAlert($this->order),
+            'cancelledReasonLabel' => $presenter->cancelledReasonLabel($this->order),
             'komerceEnabled' => komerce_shipping_delivery_enabled(),
             'canPrintAnyLabel' => $printableCount > 0,
             'printableShipmentCount' => $printableCount,
