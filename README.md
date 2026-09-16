@@ -185,6 +185,11 @@ Checkout Komerce bergantung pada background jobs. Tanpa ini AWB/tracking/expire 
 
 Inventory gudang **harus** punya `rajaongkir_origin_id` — tanpa itu checkout step 2 kosong.
 
+Setiap Inventory (gudang) juga **wajib** diisi **latitude/longitude (pin point)** di cpanel
+(Settings → Locations). RajaOngkir Delivery `calculate` menolak request tanpa koordinat origin,
+sehingga AWB tidak bisa terbit. Checkout (web & mobile) juga mengumpulkan pin point pelanggan
+untuk sisi tujuan.
+
 Di Collaborator → Developer → Webhook:
 
 - **Webhook Payment** — log callback; URL payment dikirim per-order via `callback_url` (tidak perlu set di form itu).
