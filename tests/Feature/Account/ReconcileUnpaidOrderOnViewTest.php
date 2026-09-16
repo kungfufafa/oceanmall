@@ -217,6 +217,21 @@ final class ReconcileUnpaidOrderOnViewTest extends TestCase
         );
     }
 
+    public function test_expo_applies_full_order_after_retry_payment_like_vue_reload(): void
+    {
+        $page = file_get_contents(base_path('mobile/app/order/[number].tsx'));
+
+        $this->assertIsString($page);
+        $this->assertMatchesRegularExpression(
+            '/retry-payment[\s\S]{0,400}setOrder\(res\.data\)/',
+            $page,
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/retry-payment[\s\S]{0,500}payment:\s*res\.data\.payment/',
+            $page,
+        );
+    }
+
     /**
      * @return array{0: User, 1: Order}
      */

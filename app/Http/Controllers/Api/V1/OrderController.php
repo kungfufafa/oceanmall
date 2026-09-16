@@ -101,12 +101,14 @@ final class OrderController extends Controller
         $order = $this->ownedOrder($request, $number);
 
         try {
-            $instructions = resolve(RetryKomercePayment::class)->handle($order);
+            resolve(RetryKomercePayment::class)->handle($order);
         } catch (Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['data' => ['payment' => $instructions]]);
+        // Same full order as cancel/sync/track so Expo can replace state the
+        // way Vue Inertia reloads after retry-payment.
+        return $this->show($request, $number);
     }
 
     public function syncPayment(Request $request, string $number): JsonResponse

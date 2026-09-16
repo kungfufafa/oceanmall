@@ -9,6 +9,7 @@ use App\Actions\Checkout\ResolveKomercePaymentInstructions;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Laravel\Sanctum\Sanctum;
 use Shopper\Cart\Models\Cart;
 use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
@@ -418,6 +419,107 @@ final class KomercePaymentInstructionsTest extends TestCase
             ->from(route('shop.checkout.success', ['order' => $order->id]))
             ->post(route('account.orders.retry-payment', $order))
             ->assertRedirect(route('shop.checkout.success', ['order' => $order->id]));
+    }
+
+    public function test_api_retry_payment_returns_the_same_order_as_show(): void
+    {
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/status/KOMPAY-RETRY-API' => Http::response([
+                'data' => [
+                    'payment_id' => 'KOMPAY-RETRY-API',
+                    'status' => 'PENDING',
+                ],
+            ], 200),
+            'https://payment.example.test/user/api/v1/user/payment/cancel' => Http::response([
+                'data' => [
+                    'payment_id' => 'KOMPAY-RETRY-API',
+                    'status' => 'CANCELED',
+                ],
+            ], 200),
+            'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
+                'success' => true,
+                'data' => [
+                    'payment_id' => 'KOMPAY-RETRY-API-2',
+                    'virtual_account_number' => '7777888899',
+                    'bank_code' => 'BCA',
+                    'amount' => 55000,
+                    'expiry_date' => '2026-08-05T18:00:00+07:00',
+                ],
+            ], 200),
+            'https://payment.example.test/user/api/v1/user/payment/status/KOMPAY-RETRY-API-2' => Http::response([
+                'success' => true,
+                'data' => [
+                    'payment_id' => 'KOMPAY-RETRY-API-2',
+                    'status' => 'PENDING',
+                    'amount' => 55000,
+                ],
+            ], 200),
+        ]);
+
+        $user = User::factory()->create();
+        $method = PaymentMethod::factory()->create([
+            'driver' => 'komerce',
+            'is_enabled' => true,
+            'metadata' => json_encode(['channel_code' => 'BCA', 'payment_type' => 'bank_transfer']),
+        ]);
+
+        $order = Order::factory()->create([
+            'customer_id' => $user->id,
+            'payment_method_id' => $method->id,
+            'payment_status' => PaymentStatus::Pending,
+            'status' => OrderStatus::New,
+            'price_amount' => 55000,
+            'currency_code' => 'IDR',
+            'number' => 'ORD-RETRY-API-1',
+            'metadata' => json_encode([
+                'komerce' => [
+                    'payment_ref' => 'KOMPAY-RETRY-API',
+                    'provider' => 'payment_api',
+                    'payment_type' => 'bank_transfer',
+                    'channel_code' => 'BCA',
+                    'payment_instructions' => [
+                        'payment_id' => 'KOMPAY-RETRY-API',
+                        'payment_type' => 'bank_transfer',
+                        'provider' => 'payment_api',
+                        'virtual_account_number' => '1111222233',
+                        'bank_code' => 'BCA',
+                        'amount' => 55000,
+                        'currency_code' => 'IDR',
+                    ],
+                ],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        OrderItem::factory()->create([
+            'order_id' => $order->id,
+            'name' => 'Produk OceanMall',
+            'quantity' => 1,
+            'unit_price_amount' => 55000,
+        ]);
+
+        PaymentTransaction::query()->create([
+            'order_id' => $order->id,
+            'payment_method_id' => $method->id,
+            'driver' => 'komerce',
+            'reference' => 'KOMPAY-RETRY-API',
+            'type' => TransactionType::Initiate,
+            'amount' => 55000,
+            'currency_code' => 'IDR',
+            'status' => TransactionStatus::Pending,
+            'metadata' => ['komerce_payment_ref' => 'KOMPAY-RETRY-API'],
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/v1/orders/{$order->number}/retry-payment")
+            ->assertOk()
+            ->assertJsonPath('data.number', 'ORD-RETRY-API-1')
+            ->assertJsonPath('data.payment_status', 'pending')
+            ->assertJsonPath('data.payment.payment_id', 'KOMPAY-RETRY-API-2')
+            ->assertJsonPath('data.payment.virtual_account_number', '7777888899')
+            ->assertJsonPath('data.can_retry_payment', true)
+            ->assertJsonPath('data.can_cancel', true)
+            ->assertJsonPath('data.shipments', [])
+            ->assertJsonMissingPath('data.sync');
     }
 
     public function test_customer_can_sync_pending_komerce_payment_to_paid(): void

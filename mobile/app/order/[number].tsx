@@ -166,13 +166,11 @@ export default function OrderScreen() {
               disabled={busy}
               onPress={() =>
                 void run(async () => {
-                  const res = await api<{ data: { payment: OrderDetail['payment'] } }>(
-                    `/orders/${order.number}/retry-payment`,
-                    { method: 'POST' }
-                  );
-                  setOrder((current) =>
-                    current ? { ...current, payment: res.data.payment } : current
-                  );
+                const res = await api<{ data: OrderDetail }>(
+                  `/orders/${order.number}/retry-payment`,
+                  { method: 'POST' }
+                );
+                setOrder(res.data);
                 })
               }>
               <Text>Buat pembayaran baru</Text>
