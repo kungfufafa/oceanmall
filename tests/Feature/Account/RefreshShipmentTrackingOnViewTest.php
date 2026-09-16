@@ -331,6 +331,10 @@ final class RefreshShipmentTrackingOnViewTest extends TestCase
         $this->assertIsString($orderShowPage);
         $this->assertStringContainsString('Lacak paket', $orderShowPage);
         $this->assertStringContainsString('@click="trackShipment(shipment)"', $orderShowPage);
+        $this->assertStringContainsString(
+            'v-if="shipment.awb || shipment.tracking_number"',
+            $orderShowPage,
+        );
         $this->assertSame(1, substr_count($orderShowPage, 'setInterval(()'));
         $this->assertStringContainsString('shouldPollPayment', $orderShowPage);
         $this->assertStringNotContainsString('shouldPollTracking', $orderShowPage);

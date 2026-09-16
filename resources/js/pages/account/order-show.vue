@@ -674,7 +674,11 @@ function cancelOrder(): void {
                     <div>
                         <dt class="text-muted-foreground">AWB</dt>
                         <dd class="mt-1 text-[var(--om-navy)]">
-                            {{ shipment.awb ?? 'Label menunggu' }}
+                            {{
+                                shipment.awb ||
+                                shipment.tracking_number ||
+                                'Label menunggu'
+                            }}
                         </dd>
                     </div>
                     <div>
@@ -695,7 +699,10 @@ function cancelOrder(): void {
                     </div>
                 </dl>
 
-                <div v-if="shipment.awb" class="mt-4">
+                <div
+                    v-if="shipment.awb || shipment.tracking_number"
+                    class="mt-4"
+                >
                     <Button
                         type="button"
                         :disabled="trackingShipmentId === shipment.id"
@@ -717,41 +724,41 @@ function cancelOrder(): void {
                     >
                         {{ trackingError.message }}
                     </p>
-
-                    <ol
-                        v-if="shipment.tracking_history.length"
-                        class="mt-4 flex flex-col gap-3 border-l border-border pl-4"
-                    >
-                        <li
-                            v-for="(
-                                event, eventIndex
-                            ) in shipment.tracking_history"
-                            :key="eventIndex"
-                            class="relative"
-                        >
-                            <span
-                                class="absolute top-1 -left-[21px] size-2 rounded-full bg-muted-foreground/50"
-                            />
-                            <p class="text-sm text-[var(--om-navy)]">
-                                {{ event.description }}
-                            </p>
-                            <p
-                                v-if="event.datetime || event.location"
-                                class="mt-0.5 text-xs text-muted-foreground"
-                            >
-                                <span v-if="event.datetime">{{
-                                    event.datetime
-                                }}</span>
-                                <span v-if="event.datetime && event.location">
-                                    ·
-                                </span>
-                                <span v-if="event.location">{{
-                                    event.location
-                                }}</span>
-                            </p>
-                        </li>
-                    </ol>
                 </div>
+
+                <ol
+                    v-if="shipment.tracking_history.length"
+                    class="mt-4 flex flex-col gap-3 border-l border-border pl-4"
+                >
+                    <li
+                        v-for="(
+                            event, eventIndex
+                        ) in shipment.tracking_history"
+                        :key="eventIndex"
+                        class="relative"
+                    >
+                        <span
+                            class="absolute top-1 -left-[21px] size-2 rounded-full bg-muted-foreground/50"
+                        />
+                        <p class="text-sm text-[var(--om-navy)]">
+                            {{ event.description }}
+                        </p>
+                        <p
+                            v-if="event.datetime || event.location"
+                            class="mt-0.5 text-xs text-muted-foreground"
+                        >
+                            <span v-if="event.datetime">{{
+                                event.datetime
+                            }}</span>
+                            <span v-if="event.datetime && event.location">
+                                ·
+                            </span>
+                            <span v-if="event.location">{{
+                                event.location
+                            }}</span>
+                        </p>
+                    </li>
+                </ol>
             </div>
         </CardContent>
     </Card>

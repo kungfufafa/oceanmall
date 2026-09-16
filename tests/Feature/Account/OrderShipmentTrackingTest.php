@@ -28,7 +28,14 @@ final class OrderShipmentTrackingTest extends TestCase
         $this->assertStringContainsString('shipment.tracking_number', $orderShowPage);
         $this->assertStringContainsString('Pengiriman / Paket', $orderShowPage);
         $this->assertStringContainsString('Label menunggu', $orderShowPage);
-        $this->assertStringContainsString('shipment.tracking_number', $orderShowPage);
+        $this->assertStringContainsString(
+            'v-if="shipment.awb || shipment.tracking_number"',
+            $orderShowPage,
+        );
+        $this->assertStringContainsString(
+            'shipment.awb ||',
+            $orderShowPage,
+        );
         $this->assertStringContainsString('event.datetime', $orderShowPage);
         $this->assertStringContainsString('shouldPollPayment', $orderShowPage);
         $this->assertStringContainsString('10_000', $orderShowPage);
