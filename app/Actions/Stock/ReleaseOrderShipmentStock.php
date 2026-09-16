@@ -14,7 +14,8 @@ final class ReleaseOrderShipmentStock
 {
     public function handle(Order $order): void
     {
-        $released = data_get($order->metadata, 'komerce.stock_released_at');
+        $metadata = $this->decodeMetadata($order->getAttribute('metadata'));
+        $released = data_get($metadata, 'komerce.stock_released_at');
 
         if (is_string($released) && $released !== '') {
             return;
@@ -31,11 +32,28 @@ final class ReleaseOrderShipmentStock
             }
         }
 
-        $metadata = is_array($order->metadata) ? $order->metadata : [];
         $komerce = is_array($metadata['komerce'] ?? null) ? $metadata['komerce'] : [];
         $komerce['stock_released_at'] = now()->toIso8601String();
         $metadata['komerce'] = $komerce;
-        $order->forceFill(['metadata' => $metadata])->save();
+        $order->forceFill(['metadata' => json_encode($metadata, JSON_THROW_ON_ERROR)])->save();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeMetadata(mixed $metadata): array
+    {
+        if (is_array($metadata)) {
+            return $metadata;
+        }
+
+        if (! is_string($metadata) || trim($metadata) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($metadata, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     private function releaseLine(OrderShipment $shipment, OrderShipmentLine $line, Order $order): void

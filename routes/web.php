@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Account\AddressController;
+use App\Http\Controllers\Account\CancelOrderController;
 use App\Http\Controllers\Account\ConfirmOrderReceivedController;
 use App\Http\Controllers\Account\NotificationController;
 use App\Http\Controllers\Account\OrderController as AccountOrderController;
@@ -120,6 +121,8 @@ Route::middleware(['auth', 'verified'])->prefix('account')->name('account.')->gr
         ->name('orders.shipments.track');
     Route::post('orders/{order}/confirm-received', ConfirmOrderReceivedController::class)
         ->name('orders.confirm-received');
+    Route::post('orders/{order}/cancel', CancelOrderController::class)
+        ->name('orders.cancel');
 
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications');
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])

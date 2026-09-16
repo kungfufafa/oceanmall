@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Account\CancelOrderByCustomer;
 use App\Actions\Account\ConfirmOrderReceived;
 use App\Actions\Checkout\ResolveKomercePaymentInstructions;
 use App\Actions\Checkout\RetryKomercePayment;
@@ -82,8 +83,25 @@ final class OrderController extends Controller
                 'shipments' => $shipments,
                 'payment' => $resolve->handle($order),
                 'can_retry_payment' => $resolve->canRetry($order),
+                'can_cancel' => CancelOrderByCustomer::isCancellable($order),
             ],
         ]);
+    }
+
+    public function cancel(Request $request, string $number): JsonResponse
+    {
+        $order = $this->ownedOrder($request, $number);
+
+        try {
+            resolve(CancelOrderByCustomer::class)->handle($order);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => collect($e->errors())->flatten()->first() ?? 'Pesanan tidak bisa dibatalkan.',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        return $this->show($request, $number);
     }
 
     public function retryPayment(Request $request, string $number): JsonResponse
@@ -173,7 +191,25 @@ final class OrderController extends Controller
             'amount' => (int) $order->price_amount,
             'currency' => $order->currency_code,
             'created_at' => optional($order->created_at)?->toIso8601String(),
+            'cancelled_reason' => $this->cancelledReason($order),
         ];
+    }
+
+    private function cancelledReason(Order $order): ?string
+    {
+        if ($order->status->value !== 'cancelled') {
+            return null;
+        }
+
+        $metadata = $order->getAttribute('metadata');
+        if (is_string($metadata) && trim($metadata) !== '') {
+            $decoded = json_decode($metadata, true);
+            $metadata = is_array($decoded) ? $decoded : [];
+        }
+
+        $reason = data_get($metadata, 'komerce.cancelled_reason');
+
+        return is_string($reason) && trim($reason) !== '' ? $reason : null;
     }
 
     private function ownedOrder(Request $request, string $number): Order

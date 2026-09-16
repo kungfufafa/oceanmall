@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Account;
 
+use App\Actions\Account\CancelOrderByCustomer;
 use App\Actions\Checkout\ResolveKomercePaymentInstructions;
 use App\Http\Controllers\Controller;
 use App\Models\OrderShipment;
@@ -80,6 +81,7 @@ final class OrderController extends Controller
             'shipments' => $shipments,
             'komercePayment' => $resolvePayment->handle($order),
             'canRetryPayment' => $resolvePayment->canRetry($order),
+            'canCancel' => CancelOrderByCustomer::isCancellable($order),
         ]);
     }
 }

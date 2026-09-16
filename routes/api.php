@@ -50,6 +50,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('orders', [OrderController::class, 'index']);
         Route::get('orders/{number}', [OrderController::class, 'show']);
+        Route::post('orders/{number}/cancel', [OrderController::class, 'cancel']);
         Route::post('orders/{number}/retry-payment', [OrderController::class, 'retryPayment']);
         Route::post('orders/{number}/sync-payment', [OrderController::class, 'syncPayment'])->middleware('throttle:12,1');
         Route::post('orders/{number}/shipments/{shipment}/track', [OrderController::class, 'track']);

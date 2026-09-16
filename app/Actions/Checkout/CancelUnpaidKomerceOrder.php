@@ -42,9 +42,16 @@ final readonly class CancelUnpaidKomerceOrder
 
             $this->cancelRemotePayment($order, $reason);
 
+            $metadata = $this->decodeMetadata($order->getAttribute('metadata'));
+            $komerce = is_array($metadata['komerce'] ?? null) ? $metadata['komerce'] : [];
+            $komerce['cancelled_reason'] = $reason;
+            $komerce['cancelled_at'] = now()->toIso8601String();
+            $metadata['komerce'] = $komerce;
+
             $order->forceFill([
                 'status' => OrderStatus::Cancelled,
                 'payment_status' => PaymentStatus::Voided,
+                'metadata' => json_encode($metadata, JSON_THROW_ON_ERROR),
             ])->save();
 
             PaymentTransaction::query()
