@@ -82,6 +82,7 @@ type Shipment = {
     id: number;
     inventory_name: string | null;
     status: string;
+    status_label?: string | null;
     awb: string | null;
     tracking_number: string | null;
     carrier: string | null;
@@ -167,6 +168,15 @@ function formatShipmentStatus(value: string): string {
     return value
         .replace(/[-_]/g, ' ')
         .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+// Prefer the server label so Shopper, Vue, and Expo stay on one mapping.
+function shipmentStatusLabel(shipment: Shipment): string {
+    if (shipment.status_label) {
+        return shipment.status_label;
+    }
+
+    return formatShipmentStatus(shipment.status);
 }
 
 function shipmentCarrierService(shipment: Shipment): string | null {
@@ -656,7 +666,7 @@ function cancelOrder(): void {
                         </div>
                     </div>
                     <p class="text-sm font-medium text-[var(--om-navy)]">
-                        {{ formatShipmentStatus(shipment.status) }}
+                        {{ shipmentStatusLabel(shipment) }}
                     </p>
                 </div>
 

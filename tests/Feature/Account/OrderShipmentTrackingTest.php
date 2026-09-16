@@ -22,6 +22,8 @@ final class OrderShipmentTrackingTest extends TestCase
 
         $this->assertIsString($orderShowPage);
         $this->assertStringContainsString('type Shipment', $orderShowPage);
+        $this->assertStringContainsString('status_label', $orderShowPage);
+        $this->assertStringContainsString('shipmentStatusLabel', $orderShowPage);
         $this->assertStringContainsString('formatShipmentStatus', $orderShowPage);
         $this->assertStringContainsString('shipment.tracking_number', $orderShowPage);
         $this->assertStringContainsString('Pengiriman / Paket', $orderShowPage);
@@ -45,6 +47,7 @@ final class OrderShipmentTrackingTest extends TestCase
         $this->assertStringContainsString('!isCancelled.value', $checkoutSuccess);
         $this->assertStringContainsString('retryPayment', $checkoutSuccess);
         $this->assertStringContainsString('cancelOrder', $checkoutSuccess);
+        $this->assertStringContainsString('shipment.status_label ?? shipment.status', $checkoutSuccess);
         $this->assertStringContainsString('Buat ulang pembayaran', $checkoutSuccess);
         $this->assertStringContainsString('Batalkan pesanan', $checkoutSuccess);
     }
@@ -63,6 +66,8 @@ final class OrderShipmentTrackingTest extends TestCase
         $this->assertStringNotContainsString('event.date ?', $orderScreen);
         $this->assertStringContainsString('cancelled_reason_label', $apiTypes);
         $this->assertStringContainsString('order.cancelled_reason_label', $orderScreen);
+        $this->assertStringContainsString('status_label?:', $apiTypes);
+        $this->assertStringContainsString('shipment.status_label ?? shipment.status', $orderScreen);
     }
 
     public function test_order_show_vue_source_computes_shipping_price_from_shipments_when_present(): void
@@ -128,6 +133,7 @@ final class OrderShipmentTrackingTest extends TestCase
                     ->has('shipments', 2)
                     ->where('shipments.0.inventory_name', 'Gudang Jakarta')
                     ->where('shipments.0.status', 'label_created')
+                    ->where('shipments.0.status_label', 'Label created')
                     ->where('shipments.0.awb', 'JNE123456789')
                     ->where('shipments.0.tracking_number', 'TRK-JNE-001')
                     ->where('shipments.0.carrier', 'JNE')
@@ -136,6 +142,7 @@ final class OrderShipmentTrackingTest extends TestCase
                     ->where('shipments.0.currency', 'IDR')
                     ->where('shipments.1.inventory_name', 'Gudang Cirebon')
                     ->where('shipments.1.status', 'pending')
+                    ->where('shipments.1.status_label', 'Menunggu resi')
                     ->where('shipments.1.awb', null)
                     ->where('shipments.1.tracking_number', null)
                     ->where('shipments.1.carrier', 'J&T Express')

@@ -20,6 +20,9 @@ final class BuyerShipmentPresenter
             'id' => $shipment->id,
             'inventory_name' => $shipment->inventory?->name,
             'status' => $shipment->status,
+            'status_label' => ShipmentStatusLabel::for(
+                is_string($shipment->status) ? $shipment->status : null,
+            ),
             'awb' => $shipment->awb,
             'tracking_number' => $shipment->tracking_number,
             'carrier' => $shipment->carrier_name ?? $shipment->carrier_code,

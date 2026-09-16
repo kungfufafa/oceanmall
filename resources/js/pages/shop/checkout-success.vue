@@ -41,6 +41,7 @@ type Shipment = {
     id: number;
     inventory_name: string | null;
     status: string;
+    status_label?: string | null;
     awb: string | null;
     tracking_number: string | null;
     carrier: string | null;
@@ -585,6 +586,9 @@ watch(shouldPollPayment, (needs) => {
                                 >
                                     · {{ shipment.inventory_name }}
                                 </span>
+                            </p>
+                            <p class="mt-1 text-sm text-muted-foreground">
+                                {{ shipment.status_label ?? shipment.status }}
                             </p>
                             <p class="mt-1 text-sm text-muted-foreground">
                                 {{

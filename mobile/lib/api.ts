@@ -230,6 +230,7 @@ export type OrderDetail = OrderSummary & {
     id: number;
     inventory_name?: string | null;
     status: string;
+    status_label?: string | null;
     awb?: string | null;
     tracking_number?: string | null;
     carrier?: string | null;

@@ -56,6 +56,8 @@ final class OrderTrackingApiTest extends TestCase
         $this->getJson("/api/v1/orders/{$order->number}")
             ->assertOk()
             ->assertJsonPath('data.shipments.0.inventory_name', 'Gudang Jakarta')
+            ->assertJsonPath('data.shipments.0.status', 'in_transit')
+            ->assertJsonPath('data.shipments.0.status_label', 'Dalam pengiriman')
             ->assertJsonPath('data.shipments.0.currency', 'IDR')
             ->assertJsonPath('data.shipments.0.awb', 'JNE123456789')
             ->assertJsonPath('data.shipments.0.tracking_history.0.description', 'Paket dijemput kurir')

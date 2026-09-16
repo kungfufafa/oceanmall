@@ -218,7 +218,9 @@ export default function OrderScreen() {
               {shipment.inventory_name ? (
                 <Text className="text-muted-foreground">{shipment.inventory_name}</Text>
               ) : null}
-              <Text className="text-muted-foreground">{shipment.status}</Text>
+              <Text className="text-muted-foreground">
+                {shipment.status_label ?? shipment.status}
+              </Text>
               <Text selectable>{shipment.awb || shipment.tracking_number || 'AWB belum ada'}</Text>
               {(shipment.tracking_history ?? []).slice(0, 5).map((event, index) => (
                 <Text key={index} className="text-xs text-muted-foreground">

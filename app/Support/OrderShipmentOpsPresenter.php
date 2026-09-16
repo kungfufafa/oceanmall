@@ -196,14 +196,7 @@ final class OrderShipmentOpsPresenter
 
     public function statusLabel(?string $status): string
     {
-        return match ($status) {
-            'pending', 'ready' => 'Menunggu resi',
-            'labeled' => 'Resi terbit',
-            'picked_up' => 'Sudah dijemput',
-            'in_transit' => 'Dalam pengiriman',
-            'delivered' => 'Terkirim',
-            default => $status ? str_replace('_', ' ', ucfirst($status)) : 'Unknown',
-        };
+        return ShipmentStatusLabel::for($status);
     }
 
     private function inventoryHasPinPoint(?Inventory $inventory): bool
