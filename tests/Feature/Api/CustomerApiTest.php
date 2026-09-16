@@ -82,6 +82,23 @@ final class CustomerApiTest extends TestCase
 
         $this->getJson('/api/v1/addresses')->assertOk()->assertJsonPath('data.0.postal_code', '12220');
 
+        $addressId = $user->addresses()->value('id');
+        $this->assertNotNull($addressId);
+
+        $this->patchJson("/api/v1/addresses/{$addressId}", [
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Melawai 2',
+            'postal_code' => '12220',
+            'city' => 'Jakarta Selatan',
+            'phone_number' => '081234567890',
+            'country_id' => $country->id,
+            'type' => 'shipping',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.street_address', 'Jl. Melawai 2')
+            ->assertJsonPath('data.rajaongkir_destination_id', '17547');
+
         $this->getJson('/api/v1/notifications')->assertOk()->assertJsonStructure(['data', 'meta']);
 
         $this->patchJson('/api/v1/auth/profile', [

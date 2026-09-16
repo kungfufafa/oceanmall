@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Account;
 
+use App\Actions\Checkout\PersistUserShippingAddress;
 use App\Actions\GetCountriesByZone;
 use App\Actions\ZoneSessionManager;
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Support\AddressRajaOngkirMetadata;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -27,15 +30,17 @@ final class AddressController extends Controller
             ->when($currentZoneId, fn ($items) => $items->where('zoneId', $currentZoneId))
             ->pluck('countryId');
 
+        /** @var User $user */
+        $user = auth()->user();
+
         return Inertia::render('account/addresses', [
-            'addresses' => auth()->user()
-                ->addresses()
-                ->with('country')
-                ->get(),
+            'addresses' => resolve(PersistUserShippingAddress::class)
+                ->mapSavedAddressesForCheckout($user),
             'countries' => Country::query()
                 ->when($allowedCountryIds->isNotEmpty(), fn ($q) => $q->whereIn('id', $allowedCountryIds))
                 ->orderBy('name')
                 ->get(['id', 'name', 'cca2']),
+            'komerceEnabled' => komerce_shipping_cost_enabled(),
         ]);
     }
 
@@ -43,7 +48,7 @@ final class AddressController extends Controller
     {
         $data = $this->validateAddress($request);
 
-        auth()->user()->addresses()->create($data);
+        auth()->user()->addresses()->create($this->withRajaOngkirMetadata($request, $data));
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -59,7 +64,7 @@ final class AddressController extends Controller
 
         $data = $this->validateAddress($request);
 
-        $address->update($data);
+        $address->update($this->withRajaOngkirMetadata($request, $data, $address));
 
         Inertia::flash('toast', [
             'type' => 'success',
@@ -125,7 +130,7 @@ final class AddressController extends Controller
      */
     private function validateAddress(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'street_address' => ['required', 'string', 'max:255'],
@@ -136,6 +141,33 @@ final class AddressController extends Controller
             'phone_number' => ['nullable', 'string', 'max:30'],
             'country_id' => ['required', 'integer', 'exists:'.(new Country)->getTable().',id'],
             'type' => ['required', Rule::enum(AddressType::class)],
+            'rajaongkir_destination_id' => ['nullable', 'string', 'max:50'],
+            'rajaongkir_destination_label' => ['nullable', 'string', 'max:255'],
+            'rajaongkir_pin_point' => ['nullable', 'string', 'max:64'],
         ]);
+
+        unset(
+            $data['rajaongkir_destination_id'],
+            $data['rajaongkir_destination_label'],
+            $data['rajaongkir_pin_point'],
+        );
+
+        return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function withRajaOngkirMetadata(Request $request, array $data, ?Address $existing = null): array
+    {
+        $posted = AddressRajaOngkirMetadata::posted(
+            $request->all(),
+            static fn (string $key): bool => $request->exists($key),
+        );
+        $metadata = AddressRajaOngkirMetadata::merge($existing?->metadata, $posted);
+        $data['metadata'] = $metadata === [] ? null : json_encode($metadata, JSON_THROW_ON_ERROR);
+
+        return $data;
     }
 }

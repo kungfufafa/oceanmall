@@ -8,6 +8,7 @@ use App\Actions\Checkout\PersistUserShippingAddress;
 use App\Actions\GetCountriesByZone;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\AddressRajaOngkirMetadata;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -34,7 +35,7 @@ final class AddressController extends Controller
     {
         $user = $this->customer($request);
         $data = $this->validated($request);
-        $address = $user->addresses()->create($data);
+        $address = $user->addresses()->create($this->withRajaOngkirMetadata($request, $data));
 
         if ($request->boolean('shipping_default')) {
             $this->applyDefault($user, $address, 'shipping_default');
@@ -47,7 +48,7 @@ final class AddressController extends Controller
     {
         $user = $this->customer($request);
         $row = $this->owned($user, $address);
-        $row->update($this->validated($request));
+        $row->update($this->withRajaOngkirMetadata($request, $this->validated($request), $row));
 
         return response()->json(['data' => $this->payload($row->fresh())]);
     }
@@ -98,13 +99,22 @@ final class AddressController extends Controller
             'rajaongkir_pin_point' => ['nullable', 'string', 'max:64'],
         ]);
 
-        $metadata = array_filter([
-            'rajaongkir_destination_id' => $data['rajaongkir_destination_id'] ?? null,
-            'rajaongkir_destination_label' => $data['rajaongkir_destination_label'] ?? null,
-            'rajaongkir_pin_point' => $data['rajaongkir_pin_point'] ?? null,
-        ], static fn (mixed $value): bool => is_string($value) && $value !== '');
-
         unset($data['rajaongkir_destination_id'], $data['rajaongkir_destination_label'], $data['rajaongkir_pin_point']);
+
+        return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function withRajaOngkirMetadata(Request $request, array $data, ?Address $existing = null): array
+    {
+        $posted = AddressRajaOngkirMetadata::posted(
+            $request->all(),
+            static fn (string $key): bool => $request->exists($key),
+        );
+        $metadata = AddressRajaOngkirMetadata::merge($existing?->metadata, $posted);
         $data['metadata'] = $metadata === [] ? null : json_encode($metadata, JSON_THROW_ON_ERROR);
 
         return $data;
