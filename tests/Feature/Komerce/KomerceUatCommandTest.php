@@ -66,14 +66,67 @@ final class KomerceUatCommandTest extends TestCase
         $this->assertStringNotContainsString('super-secret-webhook-xyz', $payload['raw']);
     }
 
-    public function test_origins_are_partial_when_every_location_has_an_id_but_cost_is_offline(): void
+    public function test_origins_fail_when_origin_id_exists_but_warehouse_pin_is_missing(): void
     {
         $inventory = Inventory::factory()->create([
             'name' => 'OceanMall Cirebon',
             'city' => 'Cirebon',
+            'latitude' => null,
+            'longitude' => null,
         ]);
         $inventory->setAttribute('rajaongkir_origin_id', '17248');
         $inventory->save();
+
+        Http::fake([
+            '*' => Http::response(['meta' => ['code' => 401]], 401),
+        ]);
+
+        $payload = $this->runUat();
+        $origins = $this->gate($payload, 'inventory_rajaongkir_origins');
+
+        $this->assertSame(1, $payload['exit']);
+        $this->assertSame('FAIL', $origins['status']);
+        $this->assertStringContainsString('17248', $origins['detail']);
+        $this->assertStringContainsString('Pinpoint gudang belum diisi.', $origins['detail']);
+    }
+
+    public function test_origins_are_blocked_when_pins_exist_but_cost_key_is_empty(): void
+    {
+        $inventory = Inventory::factory()->create([
+            'name' => 'OceanMall Cirebon',
+            'city' => 'Cirebon',
+            'latitude' => '-6.7366',
+            'longitude' => '108.5414',
+        ]);
+        $inventory->setAttribute('rajaongkir_origin_id', '17248');
+        $inventory->save();
+
+        config()->set('komerce.shipping_cost_api_key', '');
+
+        Http::fake([
+            '*' => Http::response(['meta' => ['code' => 401]], 401),
+        ]);
+
+        $payload = $this->runUat();
+        $origins = $this->gate($payload, 'inventory_rajaongkir_origins');
+
+        $this->assertSame(1, $payload['exit']);
+        $this->assertSame('BLOCKED', $origins['status']);
+        $this->assertStringContainsString('17248', $origins['detail']);
+    }
+
+    public function test_origins_are_partial_when_pins_exist_and_cost_key_is_set_but_live_probe_fails(): void
+    {
+        $inventory = Inventory::factory()->create([
+            'name' => 'OceanMall Cirebon',
+            'city' => 'Cirebon',
+            'latitude' => '-6.7366',
+            'longitude' => '108.5414',
+        ]);
+        $inventory->setAttribute('rajaongkir_origin_id', '17248');
+        $inventory->save();
+
+        config()->set('komerce.shipping_cost_api_key', 'test-cost-key');
 
         Http::fake([
             '*' => Http::response(['meta' => ['code' => 401]], 401),

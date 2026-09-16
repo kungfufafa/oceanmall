@@ -517,6 +517,14 @@ final class CheckoutController extends Controller
             'payment_method_id' => ['required', 'integer'],
         ]);
 
+        $shippingAddress = session()->get(CheckoutSession::SHIPPING_ADDRESS, []);
+        $pinError = resolve(KomercePinReady::class)->placeOrderDestinationError(
+            is_array($shippingAddress) ? $shippingAddress : [],
+        );
+        if ($pinError !== null) {
+            return back()->withErrors(['rajaongkir_pin_point' => $pinError]);
+        }
+
         [$selectedMethod, $error] = $this->resolveSelectedMethod((int) $data['payment_method_id']);
 
         if ($error) {

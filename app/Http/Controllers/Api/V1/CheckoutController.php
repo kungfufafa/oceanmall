@@ -344,6 +344,17 @@ final class CheckoutController extends Controller
             return response()->json(['message' => 'Keranjang kosong.'], 422);
         }
 
+        $address = $checkout['shipping_address'] ?? [];
+        $pinError = resolve(KomercePinReady::class)->placeOrderDestinationError(
+            is_array($address) ? $address : [],
+        );
+        if ($pinError !== null) {
+            return response()->json([
+                'message' => $pinError,
+                'errors' => ['rajaongkir_pin_point' => [$pinError]],
+            ], 422);
+        }
+
         // Mirror web placeKomerceOrder: once CreateOrder succeeds the cart is
         // completed and reserved. Payment-setup failure must still return the
         // order so Expo can open retry (Vue already redirects to the account order).

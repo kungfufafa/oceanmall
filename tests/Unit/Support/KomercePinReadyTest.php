@@ -52,4 +52,28 @@ final class KomercePinReadyTest extends TestCase
             'rajaongkir_destination_id' => '152',
         ]));
     }
+
+    public function test_place_order_allows_missing_destination_pin_when_delivery_is_disabled(): void
+    {
+        config()->set('komerce.shipping_delivery_api_key', '');
+
+        $this->assertNull(resolve(KomercePinReady::class)->placeOrderDestinationError([
+            'rajaongkir_destination_id' => '152',
+        ]));
+    }
+
+    public function test_place_order_blocks_missing_destination_pin_when_delivery_is_enabled(): void
+    {
+        config()->set('komerce.shipping_delivery_api_key', 'test-delivery-key');
+
+        $this->assertSame(
+            'Resi Komerce membutuhkan pinpoint gudang dan tujuan. Pinpoint tujuan belum diisi.',
+            resolve(KomercePinReady::class)->placeOrderDestinationError([
+                'rajaongkir_destination_id' => '152',
+            ]),
+        );
+        $this->assertNull(resolve(KomercePinReady::class)->placeOrderDestinationError([
+            'rajaongkir_pin_point' => '-6.2380,106.7830',
+        ]));
+    }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\OrderShipment;
+use App\Support\KomercePinReady;
 use Illuminate\Console\Command;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\DB;
@@ -308,7 +309,15 @@ final class KomerceUat extends Command
             return;
         }
 
-        $inventories = Inventory::query()->get(['id', 'name', 'city', 'postal_code', 'rajaongkir_origin_id']);
+        $inventories = Inventory::query()->get([
+            'id',
+            'name',
+            'city',
+            'postal_code',
+            'rajaongkir_origin_id',
+            'latitude',
+            'longitude',
+        ]);
         if ($inventories->isEmpty()) {
             $this->gate(
                 'inventory_rajaongkir_origins',
@@ -320,28 +329,51 @@ final class KomerceUat extends Command
             return;
         }
 
-        $missing = $inventories
+        $pinReady = resolve(KomercePinReady::class);
+
+        $missingOrigin = $inventories
             ->filter(static fn (Inventory $inventory): bool => trim((string) $inventory->getAttribute('rajaongkir_origin_id')) === '')
             ->map(static fn (Inventory $inventory): string => '#'.$inventory->id.' '.$inventory->name)
             ->values()
             ->all();
 
+        $missingPin = $inventories
+            ->filter(static fn (Inventory $inventory): bool => ! $pinReady->inventoryHasPinPoint($inventory))
+            ->map(static fn (Inventory $inventory): string => '#'.$inventory->id.' '.$inventory->name)
+            ->values()
+            ->all();
+
         $rows = $inventories
-            ->map(static function (Inventory $inventory): string {
+            ->map(static function (Inventory $inventory) use ($pinReady): string {
                 $origin = trim((string) $inventory->getAttribute('rajaongkir_origin_id'));
 
-                return $inventory->name.' city='.(string) $inventory->city.' origin='.($origin !== '' ? $origin : 'KOSONG');
+                return $inventory->name
+                    .' city='.(string) $inventory->city
+                    .' origin='.($origin !== '' ? $origin : 'KOSONG')
+                    .' pin='.($pinReady->inventoryHasPinPoint($inventory) ? 'yes' : 'KOSONG');
             })
             ->implode('; ');
 
         $costLive = $this->probeOk($probes, 'cost_destination');
 
-        if ($missing !== []) {
+        if ($missingOrigin !== []) {
             $this->gate(
                 'inventory_rajaongkir_origins',
                 'Origin gudang + destinasi RajaOngkir lengkap di semua lokasi',
                 'FAIL',
-                'Origin kosong: '.implode(', ', $missing).'. '.$rows,
+                'Origin kosong: '.implode(', ', $missingOrigin).'. '.$rows,
+            );
+
+            return;
+        }
+
+        if ($missingPin !== []) {
+            $this->gate(
+                'inventory_rajaongkir_origins',
+                'Origin gudang + destinasi RajaOngkir lengkap di semua lokasi',
+                'FAIL',
+                KomercePinReady::INTRO.' '.KomercePinReady::ORIGIN_MISSING
+                .' Pin kosong: '.implode(', ', $missingPin).'. '.$rows,
             );
 
             return;
@@ -352,7 +384,18 @@ final class KomerceUat extends Command
                 'inventory_rajaongkir_origins',
                 'Origin gudang + destinasi RajaOngkir lengkap di semua lokasi',
                 'PASS',
-                'Semua '.$inventories->count().' lokasi punya rajaongkir_origin_id; Cost destination search 2xx. '.$rows,
+                'Semua '.$inventories->count().' lokasi punya rajaongkir_origin_id dan pinpoint; Cost destination search 2xx. '.$rows,
+            );
+
+            return;
+        }
+
+        if (! komerce_shipping_cost_enabled()) {
+            $this->gate(
+                'inventory_rajaongkir_origins',
+                'Origin gudang + destinasi RajaOngkir lengkap di semua lokasi',
+                'BLOCKED',
+                'Semua '.$inventories->count().' lokasi punya origin id dan pinpoint, tapi Cost key kosong. Live Cost tidak dijalankan. '.$rows.'. Probe: '.$this->probeSummary($probes, 'cost_destination'),
             );
 
             return;
@@ -362,7 +405,7 @@ final class KomerceUat extends Command
             'inventory_rajaongkir_origins',
             'Origin gudang + destinasi RajaOngkir lengkap di semua lokasi',
             'PARTIAL',
-            'Semua '.$inventories->count().' lokasi punya origin id, tapi Cost key/search live belum memverifikasi id itu di RajaOngkir. '.$rows.'. Probe: '.$this->probeSummary($probes, 'cost_destination'),
+            'Semua '.$inventories->count().' lokasi punya origin id dan pinpoint, tapi Cost search live belum memverifikasi id itu di RajaOngkir. '.$rows.'. Probe: '.$this->probeSummary($probes, 'cost_destination'),
         );
     }
 

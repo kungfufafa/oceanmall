@@ -338,6 +338,10 @@ const warehousePinMessage = computed<string | null>(() => {
     return null;
 });
 
+const destinationPinBlocked = computed<boolean>(() =>
+    (props.allocation ?? []).some((pkg) => pkg.destination_pin_ready === false),
+);
+
 const ratesByShipment = ref<Record<number | string, string>>({
     ...props.selectedRatesByShipment,
 });
@@ -1181,6 +1185,26 @@ const steps = [
                             </p>
                         </div>
 
+                        <Alert v-if="warehousePinMessage" variant="warning">
+                            <AlertDescription class="text-sm text-current">
+                                {{ warehousePinMessage }}
+                            </AlertDescription>
+                        </Alert>
+
+                        <p
+                            v-if="paymentForm.errors.rajaongkir_pin_point"
+                            class="text-xs text-red-600"
+                        >
+                            {{ paymentForm.errors.rajaongkir_pin_point }}
+                        </p>
+
+                        <p
+                            v-if="paymentForm.errors.order"
+                            class="text-xs text-red-600"
+                        >
+                            {{ paymentForm.errors.order }}
+                        </p>
+
                         <p
                             v-if="paymentForm.errors.payment_method_id"
                             class="text-xs text-red-600"
@@ -1279,7 +1303,10 @@ const steps = [
                                         <Button
                                             type="button"
                                             size="xl"
-                                            :disabled="paymentForm.processing"
+                                            :disabled="
+                                                paymentForm.processing ||
+                                                destinationPinBlocked
+                                            "
                                             @click="placeOrder"
                                         >
                                             {{

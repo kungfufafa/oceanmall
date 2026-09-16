@@ -215,6 +215,12 @@ export default function CheckoutScreen() {
       setError('Pilih metode pembayaran.');
       return;
     }
+    const destinationBlocked = packages.some((pkg) => pkg.destination_pin_ready === false);
+    const destinationMessage = packages.find((pkg) => pkg.pin_ready_message)?.pin_ready_message;
+    if (destinationBlocked && destinationMessage) {
+      setError(destinationMessage);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -262,6 +268,7 @@ export default function CheckoutScreen() {
   }
 
   const packages: AllocationPackage[] = checkout.allocation ?? [];
+  const destinationBlocked = packages.some((pkg) => pkg.destination_pin_ready === false);
   const isMultiPackage = packages.length > 1;
   const allPackagesSelected =
     packages.length > 0 && packages.every((pkg) => !!ratesByPackage[String(pkg.inventory_id)]);
@@ -519,7 +526,9 @@ export default function CheckoutScreen() {
           </Pressable>
         ))}
 
-        <Button disabled={busy || !selectedRate || !selectedPayment} onPress={() => void placeOrder()}>
+        <Button
+          disabled={busy || !selectedRate || !selectedPayment || destinationBlocked}
+          onPress={() => void placeOrder()}>
           <Text>{busy ? 'Memproses...' : 'Buat pesanan'}</Text>
         </Button>
       </ScrollView>

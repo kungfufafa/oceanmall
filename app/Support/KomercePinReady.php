@@ -69,6 +69,25 @@ final class KomercePinReady
         return $this->arrayHasPinPoint($address);
     }
 
+    /**
+     * Cost quotes work without a destination pin. Delivery AWB does not.
+     * Fail closed before payment when Shipping Delivery is enabled.
+     *
+     * @param  array<string, mixed>  $address
+     */
+    public function placeOrderDestinationError(array $address): ?string
+    {
+        if (! komerce_shipping_delivery_enabled()) {
+            return null;
+        }
+
+        if ($this->addressHasDestinationPin($address)) {
+            return null;
+        }
+
+        return $this->message(true, false);
+    }
+
     public function message(bool $originReady, bool $destinationReady): ?string
     {
         if ($originReady && $destinationReady) {
