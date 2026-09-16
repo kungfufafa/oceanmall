@@ -18,9 +18,9 @@ use Shopper\Payment\Models\PaymentTransaction;
 use Tests\TestCase;
 
 /**
- * Vue order-show and Expo order screen poll GET every 10s. Without an inbound
- * payment webhook (localhost / empty public URL) that poll must still move
- * pending → paid so the living flow can reach AWB.
+ * Vue checkout-success, Vue order-show, and Expo poll GET every 10s. Without
+ * an inbound payment webhook (localhost / empty public URL) that poll must
+ * still move pending → paid so the living flow can reach AWB.
  */
 final class ReconcileUnpaidOrderOnViewTest extends TestCase
 {
@@ -80,6 +80,34 @@ final class ReconcileUnpaidOrderOnViewTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('account/order-show')
+                ->where('order.payment_status', 'paid')
+                ->where('komercePayment', null));
+
+        $this->assertSame(PaymentStatus::Paid, $order->refresh()->payment_status);
+    }
+
+    public function test_vue_checkout_success_marks_paid_when_provider_already_captured(): void
+    {
+        $this->withoutVite();
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/status/KOMPAY-VIEW-SUCCESS' => Http::response([
+                'success' => true,
+                'data' => [
+                    'payment_id' => 'KOMPAY-VIEW-SUCCESS',
+                    'status' => 'PAID',
+                    'amount' => 88000,
+                ],
+            ]),
+        ]);
+
+        [$user, $order] = $this->pendingKomerceOrder('KOMPAY-VIEW-SUCCESS', 88000);
+
+        $this->actingAs($user)
+            ->get(route('shop.checkout.success', ['order' => $order->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('shop/checkout-success')
                 ->where('order.payment_status', 'paid')
                 ->where('komercePayment', null));
 

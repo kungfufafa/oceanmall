@@ -32,6 +32,18 @@ final class OrderShipmentTrackingTest extends TestCase
         $this->assertStringContainsString('10_000', $orderShowPage);
     }
 
+    public function test_checkout_success_polls_unpaid_payments_every_10s_like_mobile(): void
+    {
+        $checkoutSuccess = file_get_contents(resource_path('js/pages/shop/checkout-success.vue'));
+
+        $this->assertIsString($checkoutSuccess);
+        $this->assertStringContainsString('router.reload', $checkoutSuccess);
+        $this->assertStringContainsString('10_000', $checkoutSuccess);
+        $this->assertStringContainsString('tiap 10 detik', $checkoutSuccess);
+        $this->assertStringNotContainsString('15000', $checkoutSuccess);
+        $this->assertStringNotContainsString('15 detik', $checkoutSuccess);
+    }
+
     public function test_mobile_order_screen_uses_shared_datetime_tracking_history(): void
     {
         $orderScreen = file_get_contents(base_path('mobile/app/order/[number].tsx'));

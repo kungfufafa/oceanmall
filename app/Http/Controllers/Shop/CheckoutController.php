@@ -239,7 +239,7 @@ final class CheckoutController extends Controller
             'postal_code' => ['required', 'string', 'max:20'],
             'city' => ['required', 'string', 'max:255'],
             'state' => ['nullable', 'string', 'max:255'],
-            'phone_number' => ['nullable', 'string', 'max:20'],
+            'phone_number' => ['required', 'string', 'max:20'],
             'rajaongkir_destination_id' => $destinationRule,
             'rajaongkir_destination_label' => ['nullable', 'string', 'max:255'],
             'rajaongkir_pin_point' => ['nullable', 'string', 'max:64'],

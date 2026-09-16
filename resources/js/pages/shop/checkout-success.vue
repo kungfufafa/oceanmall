@@ -92,20 +92,11 @@ return 'Pesanan dibuat';
 });
 
 const checkingPayment = ref(false);
-let pollTimer: ReturnType<typeof setInterval> | null = null;
-let pollCount = 0;
-
-function stopPolling(): void {
-    if (pollTimer) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-    }
-}
 
 function syncPayment(silent = false): void {
     if (!needsPayment.value || checkingPayment.value) {
-return;
-}
+        return;
+    }
 
     checkingPayment.value = true;
     router.post(
@@ -120,32 +111,49 @@ return;
     );
 }
 
-onMounted(() => {
-    if (!needsPayment.value) {
-return;
+// Same as Vue order-show and Expo: reload the GET every 10s so a captured
+// Komerce payment reconciles (and can issue AWB) without a webhook.
+const shouldPollPayment = computed(
+    () =>
+        paymentStatus.value !== 'paid' &&
+        Boolean(props.komercePayment),
+);
+
+let paymentPollTimer: ReturnType<typeof setInterval> | null = null;
+
+function stopPaymentPoll(): void {
+    if (paymentPollTimer) {
+        clearInterval(paymentPollTimer);
+        paymentPollTimer = null;
+    }
 }
 
-    pollTimer = setInterval(() => {
-        pollCount += 1;
+function startPaymentPoll(): void {
+    stopPaymentPoll();
 
-        if (pollCount > 12 || !needsPayment.value) {
-            stopPolling();
+    if (!shouldPollPayment.value) {
+        return;
+    }
+
+    paymentPollTimer = setInterval(() => {
+        if (!shouldPollPayment.value) {
+            stopPaymentPoll();
 
             return;
         }
 
-        syncPayment(true);
-    }, 15000);
-});
-
-watch(needsPayment, (needs) => {
-    if (!needs) {
-stopPolling();
+        router.reload({ preserveScroll: true });
+    }, 10_000);
 }
-});
 
-onBeforeUnmount(() => {
-    stopPolling();
+onMounted(startPaymentPoll);
+onBeforeUnmount(stopPaymentPoll);
+watch(shouldPollPayment, (needs) => {
+    if (needs) {
+        startPaymentPoll();
+    } else {
+        stopPaymentPoll();
+    }
 });
 </script>
 
@@ -224,7 +232,7 @@ onBeforeUnmount(() => {
                     }}
                 </Button>
                 <p class="mt-2 text-center text-[11px] text-muted-foreground">
-                    Status dicek otomatis tiap 15 detik. Atau ketuk tombol di
+                    Status dicek otomatis tiap 10 detik. Atau ketuk tombol di
                     atas setelah transfer/scan.
                 </p>
 

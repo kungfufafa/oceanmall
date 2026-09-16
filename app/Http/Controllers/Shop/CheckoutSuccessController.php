@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
+use App\Actions\Checkout\ReconcileUnpaidKomerceOrderOnView;
 use App\Actions\Checkout\ResolveKomercePaymentInstructions;
 use App\CheckoutSession;
 use App\Http\Controllers\Controller;
@@ -18,7 +19,7 @@ final class CheckoutSuccessController extends Controller
     {
         abort_unless($order->customer_id === auth()->id(), 403);
 
-        $order->refresh();
+        $order = resolve(ReconcileUnpaidKomerceOrderOnView::class)->handle($order);
 
         $komercePayment = null;
 

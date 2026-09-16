@@ -9,9 +9,10 @@ use Shopper\Core\Models\Order;
 use Throwable;
 
 /**
- * Vue order-show and Expo poll GET every 10s. When the payment webhook cannot
- * reach this host, that read must still reconcile a captured Komerce payment
- * so the living flow can continue to AWB.
+ * Vue checkout-success, Vue order-show, Shopper order panel, and Expo poll
+ * GET every 10s. When the payment webhook cannot reach this host, that read
+ * must still reconcile a captured Komerce payment so the living flow can
+ * continue to AWB.
  */
 final class ReconcileUnpaidKomerceOrderOnView
 {

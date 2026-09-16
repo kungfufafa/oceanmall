@@ -4,7 +4,7 @@ E-commerce storefront starter berbasis [Laravel](https://laravel.com) + [Shopper
 
 ## Stack
 
-- PHP 8.3+, Laravel 13
+- PHP 8.4, Laravel 13
 - Shopper 2.11
 - Inertia.js 3 + Vue 3 + TypeScript
 - Tailwind CSS 4 + Vite 8
@@ -22,7 +22,7 @@ E-commerce storefront starter berbasis [Laravel](https://laravel.com) + [Shopper
 
 ## Requirements
 
-- PHP 8.3+ dengan ekstensi umum Laravel
+- PHP 8.4 dengan ekstensi umum Laravel (`composer.lock` mem-pin paket yang menolak 8.3)
 - Composer 2
 - Node.js 20+ / npm
 - Lisensi Shopper (paket private) — siapkan `auth.json` Composer di mesin lokal
