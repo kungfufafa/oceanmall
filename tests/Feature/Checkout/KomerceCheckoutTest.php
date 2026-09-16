@@ -12,6 +12,7 @@ use App\Actions\Checkout\MarkOrderPaidFromKomerce;
 use App\Actions\CreateOrder;
 use App\Jobs\CreateRajaOngkirDeliveryForShipment;
 use App\Models\User;
+use App\Support\KomercePinReady;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\Bus;
@@ -213,6 +214,43 @@ final class KomerceCheckoutTest extends TestCase
             ->assertJsonPath('props.selectedPaymentMethod', $paymentMethod->id)
             ->assertJsonPath('props.komercePayment', null)
             ->assertJsonPath('props.stripeData', null);
+    }
+
+    public function test_place_order_rejects_destination_without_pin_when_delivery_is_enabled(): void
+    {
+        $this->komerceFakeConfig();
+        config()->set('komerce.shipping_delivery_api_key', 'test-delivery-key');
+
+        $user = User::factory()->create([
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'email' => 'budi@example.test',
+        ]);
+
+        [$country, , $paymentMethod] = $this->seedCountryZoneAndPaymentMethod();
+
+        $this->app->instance(CreateOrder::class, new class
+        {
+            public function handle(): never
+            {
+                throw new RuntimeException('CreateOrder should not run without destination pin.');
+            }
+        });
+
+        $session = ['checkout' => $this->makeCheckoutSession($country->id, $paymentMethod->id)];
+
+        $response = $this->actingAs($user)
+            ->withSession($session)
+            ->from(route('shop.checkout.index', ['step' => 3]))
+            ->post(route('shop.checkout.place-order'), [
+                'payment_method_id' => $paymentMethod->id,
+            ]);
+
+        $response->assertRedirect(route('shop.checkout.index', ['step' => 3]));
+        $response->assertSessionHasErrors([
+            'rajaongkir_pin_point' => KomercePinReady::INTRO.' '.KomercePinReady::DESTINATION_MISSING,
+        ]);
+        $this->assertSame(0, Order::query()->count());
     }
 
     public function test_place_order_creates_komerce_va_and_pending_transaction(): void

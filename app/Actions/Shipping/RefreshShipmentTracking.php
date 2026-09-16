@@ -6,6 +6,7 @@ namespace App\Actions\Shipping;
 
 use App\Models\OrderShipment;
 use App\Support\KomerceTrackingContext;
+use App\Support\ShipmentTrackingRefreshThrottle;
 use RuntimeException;
 use Shopper\Shipping\Exceptions\ShippingException;
 use Shopper\Shipping\Facades\Shipping;
@@ -42,7 +43,12 @@ final readonly class RefreshShipmentTracking
         $this->trackingContext->setLastPhoneNumber($this->receiverPhone($shipment));
 
         try {
-            if (komerce_shipping_cost_enabled() && $costCourier !== null) {
+            // Delivery AWBs are tracked with API-SD-004. Cost tracking (API-SC-003)
+            // is a different product and must not be used just because both keys exist.
+            if (komerce_shipping_delivery_enabled() && $this->hasDeliveryReference($shipment)) {
+                $this->trackingContext->setCourier($shipping);
+                $info = Shipping::driver('komerce')->track($awb);
+            } elseif (komerce_shipping_cost_enabled() && $costCourier !== null) {
                 $this->trackingContext->setCourier($costCourier);
                 $info = Shipping::driver('rajaongkir')->track($awb);
             } elseif (komerce_shipping_delivery_enabled()) {
@@ -56,6 +62,7 @@ final readonly class RefreshShipmentTracking
         } finally {
             $response = $this->trackingContext->lastRaw();
             $this->trackingContext->clear();
+            ShipmentTrackingRefreshThrottle::mark((int) $shipment->id);
         }
 
         $providerAwb = data_get($response, 'data.airway_bill')
@@ -99,9 +106,16 @@ final readonly class RefreshShipmentTracking
         return $shipment->refresh();
     }
 
+    private function hasDeliveryReference(OrderShipment $shipment): bool
+    {
+        $orderNo = data_get($shipment->metadata, 'komerce.order_no');
+
+        return is_scalar($orderNo) && trim((string) $orderNo) !== '';
+    }
+
     private function airwayBill(OrderShipment $shipment): ?string
     {
-        foreach ([$shipment->awb, data_get($shipment->metadata, 'komerce.awb')] as $candidate) {
+        foreach ([$shipment->awb, $shipment->tracking_number, data_get($shipment->metadata, 'komerce.awb')] as $candidate) {
             if (is_scalar($candidate) && trim((string) $candidate) !== '') {
                 return trim((string) $candidate);
             }

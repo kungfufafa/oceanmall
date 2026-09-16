@@ -1,3 +1,4 @@
+import { CouponField } from '@/components/coupon-field';
 import { EmptyState } from '@/components/empty-state';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
@@ -40,7 +41,12 @@ export default function CartScreen() {
     }, [load])
   );
 
+  function maxQty(line: Cart['lines'][number]): number {
+    return line.available_stock ?? Number.MAX_SAFE_INTEGER;
+  }
+
   async function changeQty(lineId: number, quantity: number) {
+    setError(null);
     try {
       if (quantity < 1) {
         const res = await api<{ data: Cart }>(`/cart/items/${lineId}`, { method: 'DELETE' });
@@ -98,16 +104,28 @@ export default function CartScreen() {
               </Pressable>
               <Text>{line.quantity}</Text>
               <Pressable
+                disabled={line.quantity >= maxQty(line)}
                 onPress={() => void changeQty(line.id, line.quantity + 1)}
-                className="h-8 w-8 items-center justify-center rounded-md border border-border">
+                className={`h-8 w-8 items-center justify-center rounded-md border border-border ${
+                  line.quantity >= maxQty(line) ? 'opacity-40' : ''
+                }`}>
                 <Text>+</Text>
               </Pressable>
             </View>
+            {line.available_stock != null && line.quantity >= line.available_stock ? (
+              <Text className="text-xs text-muted-foreground">
+                Stok maksimal ({line.available_stock})
+              </Text>
+            ) : null}
           </View>
         </View>
       ))}
       {cart?.lines?.length ? (
         <View className="mt-2 gap-3">
+          <CouponField couponCode={cart.coupon_code} onCart={setCart} />
+          {cart.totals.discount > 0 ? (
+            <Text className="text-emerald-600">Diskon −{formatIdr(cart.totals.discount)}</Text>
+          ) : null}
           <Text className="text-lg font-bold">Total {formatIdr(cart.totals.total)}</Text>
           <Link href="/checkout" asChild>
             <Button>

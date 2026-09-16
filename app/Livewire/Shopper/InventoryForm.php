@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Shopper;
 
+use App\Support\KomercePinReady;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Shopper\Components\Section;
@@ -30,6 +31,18 @@ final class InventoryForm extends ShopperInventoryForm
                         ->helperText(__('shopper::pages/settings/global.location.rajaongkir_origin_helper'))
                         ->numeric()
                         ->minValue(1),
+                    TextInput::make('latitude')
+                        ->label(__('shopper::pages/settings/global.location.rajaongkir_latitude'))
+                        ->helperText(__('shopper::pages/settings/global.location.rajaongkir_pin_point_helper'))
+                        ->numeric()
+                        ->minValue(-90)
+                        ->maxValue(90),
+                    TextInput::make('longitude')
+                        ->label(__('shopper::pages/settings/global.location.rajaongkir_longitude'))
+                        ->helperText(KomercePinReady::INTRO.' '.KomercePinReady::ORIGIN_MISSING)
+                        ->numeric()
+                        ->minValue(-180)
+                        ->maxValue(180),
                 ]),
         ]);
     }

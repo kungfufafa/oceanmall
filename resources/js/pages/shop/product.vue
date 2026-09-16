@@ -246,22 +246,26 @@ const outOfStock = computed<boolean>(() => {
     return stock <= 0 && !props.product.allow_backorder;
 });
 
-const maxQuantity = computed<number>(() => {
-    let maxAllowed = 10;
-    
+const maxQuantity = computed<number | null>(() => {
     if (hasVariants.value && selectedVariant.value) {
-        if (!selectedVariant.value.allow_backorder) {
-            maxAllowed = Math.min(maxAllowed, selectedVariant.value.stock);
+        if (selectedVariant.value.allow_backorder) {
+            return null;
         }
-    } else if (!hasVariants.value) {
+
+        return Math.max(1, selectedVariant.value.stock);
+    }
+
+    if (!hasVariants.value) {
+        if (props.product.allow_backorder) {
+            return null;
+        }
+
         const stock = (props.product as { stock?: number }).stock ?? 0;
 
-        if (!props.product.allow_backorder) {
-            maxAllowed = Math.min(maxAllowed, stock);
-        }
+        return Math.max(1, stock);
     }
-    
-    return Math.max(1, maxAllowed);
+
+    return 1;
 });
 
 const canAdd = computed(

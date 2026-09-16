@@ -6,12 +6,15 @@ namespace Tests\Feature\Api;
 
 use App\Models\Product;
 use App\Models\User;
+use App\Support\CustomerCheckoutState;
+use App\Support\KomercePinReady;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
 use Shopper\Core\Models\Country;
 use Shopper\Core\Models\Currency;
 use Shopper\Core\Models\Inventory;
+use Shopper\Core\Models\Order;
 use Shopper\Core\Models\PaymentMethod;
 use Shopper\Core\Models\Price;
 use Shopper\Core\Models\Zone;
@@ -62,6 +65,59 @@ final class CustomerApiTest extends TestCase
             ->assertJsonStructure(['data' => ['slug', 'reviews']]);
     }
 
+    public function test_checkout_and_addresses_accept_typed_city_when_cost_key_empty(): void
+    {
+        config()->set('komerce.shipping_cost_api_key', '');
+        config()->set('komerce.enabled', true);
+
+        $user = User::factory()->create();
+        $country = Country::factory()->create(['cca2' => 'ID']);
+        $zone = Zone::factory()->create(['is_enabled' => true]);
+        $zone->countries()->attach($country->id);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/checkout')
+            ->assertOk()
+            ->assertJsonPath('data.komerce_enabled', false);
+
+        $this->getJson('/api/v1/addresses')
+            ->assertOk()
+            ->assertJsonPath('komerce_enabled', false);
+
+        $this->postJson('/api/v1/checkout/shipping-address', [
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Merdeka 1',
+            'postal_code' => '10110',
+            'city' => 'Jakarta',
+            'state' => 'DKI Jakarta',
+            'phone_number' => '081234567890',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.shipping_address.city', 'Jakarta')
+            ->assertJsonPath('data.shipping_address.state', 'DKI Jakarta')
+            ->assertJsonPath('data.shipping_address.postal_code', '10110')
+            ->assertJsonPath('data.shipping_address.rajaongkir_destination_id', null)
+            ->assertJsonPath('data.komerce_enabled', false);
+
+        $this->postJson('/api/v1/addresses', [
+            'first_name' => 'Siti',
+            'last_name' => 'Aminah',
+            'street_address' => 'Jl. Asia Afrika 2',
+            'postal_code' => '40111',
+            'city' => 'Bandung',
+            'state' => 'Jawa Barat',
+            'phone_number' => '081298765432',
+            'country_id' => $country->id,
+            'type' => 'shipping',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.city', 'Bandung')
+            ->assertJsonPath('data.postal_code', '40111')
+            ->assertJsonPath('data.rajaongkir_destination_id', null);
+    }
+
     public function test_customer_can_manage_address_book_and_profile(): void
     {
         $user = User::factory()->create();
@@ -81,6 +137,23 @@ final class CustomerApiTest extends TestCase
         ])->assertCreated()->assertJsonPath('data.city', 'Jakarta Selatan');
 
         $this->getJson('/api/v1/addresses')->assertOk()->assertJsonPath('data.0.postal_code', '12220');
+
+        $addressId = $user->addresses()->value('id');
+        $this->assertNotNull($addressId);
+
+        $this->patchJson("/api/v1/addresses/{$addressId}", [
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Melawai 2',
+            'postal_code' => '12220',
+            'city' => 'Jakarta Selatan',
+            'phone_number' => '081234567890',
+            'country_id' => $country->id,
+            'type' => 'shipping',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.street_address', 'Jl. Melawai 2')
+            ->assertJsonPath('data.rajaongkir_destination_id', '17547');
 
         $this->getJson('/api/v1/notifications')->assertOk()->assertJsonStructure(['data', 'meta']);
 
@@ -208,6 +281,224 @@ final class CustomerApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.payment.payment_id', 'KPAY-API-1')
             ->assertJsonPath('data.payment.virtual_account_number', '1234567890');
+    }
+
+    public function test_place_order_rejects_destination_without_pin_when_delivery_is_enabled(): void
+    {
+        config()->set('komerce.payment_api_key', 'test-payment-key');
+        config()->set('komerce.shipping_cost_api_key', 'test-cost-key');
+        config()->set('komerce.shipping_delivery_api_key', 'test-delivery-key');
+        config()->set('komerce.rajaongkir.cost_base_url', 'https://shipping.example.test');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+        config()->set('komerce.webhook_secret', 'webhook-secret');
+
+        $country = Country::factory()->create(['cca2' => 'ID']);
+        $zone = Zone::factory()->create(['is_enabled' => true]);
+        $zone->countries()->attach($country->id);
+
+        $paymentMethod = PaymentMethod::factory()->create([
+            'title' => 'BCA Virtual Account',
+            'driver' => 'komerce',
+            'is_enabled' => true,
+            'metadata' => json_encode([
+                'channel_code' => 'BCA',
+                'payment_type' => 'bank_transfer',
+            ]),
+        ]);
+        $zone->paymentMethods()->attach($paymentMethod->id);
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/methods' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [[
+                    'payment_type' => 'va',
+                    'bank_code' => 'BCA',
+                    'min_amount' => 10000,
+                    'max_amount' => 999999999,
+                ]],
+            ]),
+            'https://shipping.example.test/api/v1/calculate/domestic-cost' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [[
+                    'name' => 'J&T Express',
+                    'code' => 'jnt',
+                    'service' => 'EZ',
+                    'cost' => 11000,
+                    'etd' => '1-2',
+                ]],
+            ]),
+        ]);
+
+        $user = User::factory()->create();
+        $product = $this->stockedProduct([
+            'weight_value' => 0.05,
+            'weight_unit' => 'kg',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 1,
+        ])->assertOk();
+
+        $this->postJson('/api/v1/checkout/shipping-address', [
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Melawai 1',
+            'postal_code' => '12220',
+            'city' => 'Jakarta Selatan',
+            'state' => 'DKI Jakarta',
+            'phone_number' => '081234567890',
+            'rajaongkir_destination_id' => '17547',
+        ])->assertOk();
+
+        $rates = $this->getJson('/api/v1/checkout')->json('data.shipping_rates');
+        $serviceCode = is_array($rates) && $rates !== [] ? $rates[0]['service_code'] : 'jnt:EZ';
+
+        $this->postJson('/api/v1/checkout/shipping-option', [
+            'service_code' => $serviceCode,
+        ])->assertOk();
+
+        $this->postJson('/api/v1/checkout/place-order', [
+            'payment_method_id' => $paymentMethod->id,
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath(
+                'message',
+                KomercePinReady::INTRO.' '.KomercePinReady::DESTINATION_MISSING,
+            )
+            ->assertJsonPath(
+                'errors.rajaongkir_pin_point.0',
+                KomercePinReady::INTRO.' '.KomercePinReady::DESTINATION_MISSING,
+            );
+
+        $this->assertSame(0, Order::query()->where('customer_id', $user->id)->count());
+    }
+
+    public function test_place_order_returns_order_when_komerce_payment_setup_fails(): void
+    {
+        config()->set('komerce.payment_api_key', 'test-payment-key');
+        config()->set('komerce.shipping_cost_api_key', 'test-cost-key');
+        config()->set('komerce.rajaongkir.cost_base_url', 'https://shipping.example.test');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+        config()->set('komerce.webhook_secret', 'webhook-secret');
+
+        $country = Country::factory()->create(['cca2' => 'ID']);
+        $zone = Zone::factory()->create(['is_enabled' => true]);
+        $zone->countries()->attach($country->id);
+
+        $paymentMethod = PaymentMethod::factory()->create([
+            'title' => 'BCA Virtual Account',
+            'driver' => 'komerce',
+            'is_enabled' => true,
+            'metadata' => json_encode([
+                'channel_code' => 'BCA',
+                'payment_type' => 'bank_transfer',
+            ]),
+        ]);
+        $zone->paymentMethods()->attach($paymentMethod->id);
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/methods' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [[
+                    'payment_type' => 'va',
+                    'bank_code' => 'BCA',
+                    'min_amount' => 10000,
+                    'max_amount' => 999999999,
+                ]],
+            ]),
+            'https://shipping.example.test/api/v1/calculate/domestic-cost' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [[
+                    'name' => 'J&T Express',
+                    'code' => 'jnt',
+                    'service' => 'EZ',
+                    'cost' => 11000,
+                    'etd' => '1-2',
+                ]],
+            ]),
+            'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
+                'meta' => ['status' => 'error', 'code' => 500, 'message' => 'Gateway unavailable.'],
+                'data' => ['payment_id' => ''],
+            ], 200),
+        ]);
+
+        $user = User::factory()->create();
+        $product = $this->stockedProduct([
+            'weight_value' => 0.05,
+            'weight_unit' => 'kg',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 1,
+        ])->assertOk();
+
+        $this->postJson('/api/v1/checkout/shipping-address', [
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Melawai 1',
+            'postal_code' => '12220',
+            'city' => 'Jakarta Selatan',
+            'state' => 'DKI Jakarta',
+            'phone_number' => '081234567890',
+            'rajaongkir_destination_id' => '17547',
+            'rajaongkir_pin_point' => '-6.2380,106.7830',
+        ])->assertOk();
+
+        $rates = $this->getJson('/api/v1/checkout')->json('data.shipping_rates');
+        $serviceCode = is_array($rates) && $rates !== [] ? $rates[0]['service_code'] : 'jnt:EZ';
+
+        $this->postJson('/api/v1/checkout/shipping-option', [
+            'service_code' => $serviceCode,
+        ])->assertOk();
+
+        $response = $this->postJson('/api/v1/checkout/place-order', [
+            'payment_method_id' => $paymentMethod->id,
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.payment', null)
+            ->assertJsonPath('data.can_retry_payment', true)
+            ->assertJsonPath(
+                'message',
+                'Your order was placed but payment setup failed. You can retry payment from this order page.',
+            );
+
+        $number = $response->json('data.number');
+        $this->assertIsString($number);
+        $this->assertSame(1, Order::query()->where('customer_id', $user->id)->count());
+        $this->assertSame([], resolve(CustomerCheckoutState::class)->get($user));
+
+        $this->getJson("/api/v1/orders/{$number}")
+            ->assertOk()
+            ->assertJsonPath('data.number', $number)
+            ->assertJsonPath('data.can_retry_payment', true)
+            ->assertJsonPath('data.payment', null);
+
+        $this->postJson('/api/v1/checkout/place-order', [
+            'payment_method_id' => $paymentMethod->id,
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Keranjang kosong.');
+
+        $this->assertSame(1, Order::query()->where('customer_id', $user->id)->count());
+    }
+
+    public function test_expo_checkout_opens_the_order_after_place_order_like_vue(): void
+    {
+        $page = file_get_contents(base_path('mobile/app/checkout.tsx'));
+
+        $this->assertIsString($page);
+        $this->assertStringContainsString('/checkout/place-order', $page);
+        $this->assertStringContainsString('router.replace(`/order/${res.data.number}`)', $page);
+        $this->assertStringContainsString('Alert.alert', $page);
+        $this->assertStringContainsString('res.message', $page);
     }
 
     /**

@@ -4,7 +4,7 @@ E-commerce storefront starter berbasis [Laravel](https://laravel.com) + [Shopper
 
 ## Stack
 
-- PHP 8.3+, Laravel 13
+- PHP 8.4, Laravel 13
 - Shopper 2.11
 - Inertia.js 3 + Vue 3 + TypeScript
 - Tailwind CSS 4 + Vite 8
@@ -22,7 +22,7 @@ E-commerce storefront starter berbasis [Laravel](https://laravel.com) + [Shopper
 
 ## Requirements
 
-- PHP 8.3+ dengan ekstensi umum Laravel
+- PHP 8.4 dengan ekstensi umum Laravel (`composer.lock` mem-pin paket yang menolak 8.3)
 - Composer 2
 - Node.js 20+ / npm
 - Lisensi Shopper (paket private) — siapkan `auth.json` Composer di mesin lokal
@@ -155,7 +155,7 @@ Stripe **tetap mati** by default.
 | `KOMERCE_PAYMENT_BASE_URL` | Default sandbox: `https://api-sandbox.collaborator.komerce.id/user` |
 | `RAJAONGKIR_COST_BASE_URL` | Default: `https://rajaongkir.komerce.id` |
 | `RAJAONGKIR_DELIVERY_BASE_URL` | Sandbox delivery / AWB base URL |
-| `RAJAONGKIR_COURIERS` | Kurir aktif, comma-separated (default: `jne,jnt,sicepat`) |
+| `RAJAONGKIR_COURIERS` | Kurir aktif, comma-separated (default: `jne,jnt,sicepat,ide,anteraja,pos,tiki,lion,ninja,wahana,rpx,ncs`) |
 | `KOMERCE_WEBHOOK_SECRET` | Secret buatan sendiri untuk **Payment callback**; dikirim sebagai `callback_API_KEY` dan diverifikasi melalui HMAC-SHA256 raw body |
 | `KOMERCE_PICKUP_VEHICLE` | Kendaraan pickup (default: `Motor`) |
 | `KOMERCE_PICKUP_TIME` | Jam pickup format `HH:mm:ss` (default: `10:00:00`) |
@@ -180,10 +180,18 @@ Checkout Komerce bergantung pada background jobs. Tanpa ini AWB/tracking/expire 
 | --- | --- |
 | Queue worker | `php artisan queue:work` (atau `composer run dev`) |
 | Scheduler | Cron tiap menit: `* * * * * php artisan schedule:run` (dev: `schedule:work`) |
-| Expire unpaid | `komerce:expire-unpaid-orders` (jadwal di `routes/console.php`) |
+| Fulfill AWB | `komerce:fulfill-paid-orders` (setiap 5 menit) — retry paid order yang belum AWB |
+| Expire unpaid | `komerce:expire-unpaid-orders` (setiap 15 menit) |
 | Tracking poll | `komerce:refresh-shipment-tracking` (hourly) |
 
 Inventory gudang **harus** punya `rajaongkir_origin_id` — tanpa itu checkout step 2 kosong.
+
+Setiap Inventory (gudang) juga **wajib** diisi **latitude/longitude (pin point)** di cpanel
+(Settings → Locations). RajaOngkir Delivery `calculate` menolak request tanpa koordinat origin,
+sehingga AWB tidak bisa terbit. Checkout (web & mobile) juga mengumpulkan pin point pelanggan
+untuk sisi tujuan. `StoreConfigSeeder` mengisi gudang default **OceanMall Cirebon**
+(`oceanmall-cirebon`, origin `17248`) dengan pin yang sama dipakai fixture Cirebon di repo
+(`-6.7366,108.5414`). Jangan mengarang koordinat lain tanpa keputusan operator.
 
 Di Collaborator → Developer → Webhook:
 
@@ -197,9 +205,9 @@ Jangan commit `.env` atau API key asli.
 
 1. Set keempat API key dari collaborator settings + `KOMERCE_WEBHOOK_SECRET`, biarkan `PAYMENT_STRIPE_ENABLED=false`.
 2. `php artisan migrate` — pastikan kolom `rajaongkir_origin_id` ada di inventories.
-3. Di admin Shopper (`/cpanel`): buat / set **Inventory default** (mis. Gudang Jakarta) dan isi `rajaongkir_origin_id` (ID origin dari RajaOngkir destination search).
+3. Di admin Shopper (`/cpanel`): verifikasi Inventory default **OceanMall Cirebon** (seeder) punya `rajaongkir_origin_id` + latitude/longitude. Gudang tambahan wajib diisi origin + pin yang sama (Settings → Locations).
 4. Buat Payment Method dengan `driver=komerce` (metadata `payment_type` = `bank_transfer` + `channel_code` bank, atau `qris`), aktifkan di zone Indonesia.
-5. Jalankan queue worker (`composer run dev` sudah include) + scheduler (`php artisan schedule:work`) untuk AWB create, tracking poll, dan expire unpaid.
+5. Jalankan queue worker (`composer run dev` sudah include) + scheduler (`php artisan schedule:work`) agar `komerce:fulfill-paid-orders` (AWB), `komerce:refresh-shipment-tracking`, dan `komerce:expire-unpaid-orders` jalan sesuai `routes/console.php`.
 6. Di storefront checkout: isi alamat + **cari district** (RajaOngkir destination) → pilih kurir → pilih **QRIS** (atau VA) → Place order.
 7. Salin instruksi bayar (nomor VA / QRIS). Response Payment API memakai field `va_number` / `qr_string` / `expired_at` / `payment_url` — storefront sudah memetakan ke panel VA/QRIS.
 8. Order harus beralih ke `payment_status=paid`; job membuat AWB per shipment.
@@ -216,6 +224,7 @@ Catatan QRISLY: tanpa `KOMERCE_QRISLY_QRIS_ID`, QRISLY dimatikan otomatis dan QR
 | --- | --- | --- |
 | Customer | Cari district → checkout → bayar | `/checkout` |
 | System | Webhook paid → create AWB | `POST /webhooks/komerce/payment` + queue |
+| System | Retry AWB bila job pertama gagal | `komerce:fulfill-paid-orders` (setiap 5 menit) |
 | Admin | Print label / override | `/cpanel/orders/{id}/detail` (panel RajaOngkir) |
 | Customer | Track / mark received | `/account/orders/{id}` |
 | System | Expire unpaid + release stock | `komerce:expire-unpaid-orders` (setiap 15 mnt) |

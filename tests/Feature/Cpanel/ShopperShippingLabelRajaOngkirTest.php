@@ -57,6 +57,21 @@ final class ShopperShippingLabelRajaOngkirTest extends TestCase
         [$order] = $this->paidOrderWithShipment();
 
         Http::fake([
+            'https://delivery.example.test/tariff/api/v1/calculate*' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [
+                    'calculate_reguler' => [[
+                        'shipping_name' => 'JNE',
+                        'service_name' => 'REG',
+                        'shipping_cost' => 18000,
+                        'shipping_cashback' => 4500,
+                        'service_fee' => 0,
+                        'grandtotal' => 118000,
+                    ]],
+                    'calculate_cargo' => [],
+                    'calculate_instant' => [],
+                ],
+            ]),
             'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
                 'meta' => ['message' => 'Success Create New Order', 'code' => 201, 'status' => 'success'],
                 'data' => ['order_id' => 31001, 'order_no' => 'RO-SHOPPER-1'],
@@ -147,7 +162,10 @@ final class ShopperShippingLabelRajaOngkirTest extends TestCase
             'shipping_address_id' => $address->id,
             'metadata' => json_encode([
                 'komerce' => ['payment_type' => 'bank_transfer'],
-                'shipping_address' => ['rajaongkir_destination_id' => '152'],
+                'shipping_address' => [
+                    'rajaongkir_destination_id' => '152',
+                    'rajaongkir_pin_point' => '-6.2380,106.7830',
+                ],
             ], JSON_THROW_ON_ERROR),
         ]);
 
@@ -159,6 +177,8 @@ final class ShopperShippingLabelRajaOngkirTest extends TestCase
             'city' => 'Cirebon',
             'postal_code' => '45111',
             'rajaongkir_origin_id' => '501',
+            'latitude' => '-6.7366',
+            'longitude' => '108.5414',
         ]);
 
         $shipment = OrderShipment::query()->create([

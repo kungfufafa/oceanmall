@@ -122,15 +122,15 @@ Sumber komunitas dan dokumentasi legacy `api.rajaongkir.com` tidak dipakai sebag
 
 | Evidence ID | Lokasi | Fakta as-is, bukan business intent |
 |---|---|---|
-| CODE-001 | `app/Services/Komerce/Concerns/UsesKomerceHttp.php` | Empat HTTP builder dan generic API-key fallback |
-| CODE-002 | `app/Services/Komerce/ShippingCostClient.php` | Search dan calculate Shipping Cost |
-| CODE-003 | `app/Services/Komerce/ShippingDeliveryClient.php` | Store, pickup, label, dan tracking Delivery |
+| CODE-001 | `app/Services/Komerce/Concerns/UsesKomerceHttp.php` | Empat HTTP builder; dedicated key per service; empty key fail-closed (`KomerceNotConfiguredException`). Tidak ada fallback `KOMERCE_API_KEY`. |
+| CODE-002 | `app/Services/Komerce/ShippingCostClient.php` | Search, calculate, dan `trackWaybill` (API-SC-003) Shipping Cost |
+| CODE-003 | `app/Services/Komerce/ShippingDeliveryClient.php` | Search, calculate, store, pickup, label, dan tracking Delivery |
 | CODE-004 | `app/Services/Komerce/PaymentClient.php` | Create, status, dan cancel Payment |
 | CODE-005 | `app/Services/Komerce/QrislyClient.php` | Generate dan status QRISLY |
-| CODE-006 | `app/Http/Controllers/Concerns/VerifiesKomerceWebhookSecret.php` | HMAC yang digunakan oleh tiga webhook |
+| CODE-006 | `app/Http/Controllers/Concerns/VerifiesKomerceWebhookSecret.php` | Trait HMAC **tidak dipakai** oleh controller manapun. Payment memverifikasi HMAC di `KomerceDriver::handleWebhook`. Delivery/QRISLY tidak memakai Payment HMAC (sinyal + fetch status ber-key). |
 | CODE-007 | `app/Support/KomerceCallbackSignature.php` | Implementasi HMAC Payment |
-| CODE-008 | `app/Domain/Shipping/Adapters/RajaOngkirShippingAdapter.php` | Mapping tarif dan adapter lama |
-| CODE-009 | `app/Domain/Payment/Adapters/KomercePaymentAdapter.php` | Mapping Payment dan adapter lama |
+| CODE-008 | `app/Shipping/RajaOngkirRateMapper.php` + `app/Shipping/Drivers/RajaOngkirDriver.php` | Mapper flat V2 (`code`/`service`/`cost`/`etd`); driver Cost rates + tracking. Adapter lama `app/Domain/Shipping/Adapters/RajaOngkirShippingAdapter.php` **tidak ada**. |
+| CODE-009 | `app/Payment/KomerceDriver.php` | Mapping Payment termasuk `CANCELED`/`CANCELLED`. Adapter lama `app/Domain/Payment/Adapters/KomercePaymentAdapter.php` **tidak ada**. |
 | CODE-010 | `config/komerce.php` | Default base URL, key, feature switch, timeout |
 | CODE-011 | `README.md` dan `.env.example` | Instruksi konfigurasi saat ini |
 | TEST-001 | `tests/Unit/Services/Komerce/*Test.php` | Contract tests parsial untuk outbound client |
@@ -352,16 +352,16 @@ QRIS pada SVC-PY dan SVC-QR adalah alternatif provider path. Fallback dari QRISL
 
 | Drift ID | Evidence | As-is | Risiko | Repair source pertama |
 |---|---|---|---|---|
-| DRIFT-001 | CODE-001, CODE-010 | Dedicated key dapat fallback ke `KOMERCE_API_KEY`. | Key service salah dapat terkirim ke host lain; auth failure atau boundary leak. | FR-001 + service config contract |
-| DRIFT-002 | CODE-008, TEST-001 | Parser tarif primer mengharapkan courier dengan nested `costs`, sementara V2 resmi memberi flat row service. | Rate resmi dapat hilang/empty walau response sukses. | API-SC-002 mapping |
-| DRIFT-003 | CODE-008 | Adapter lama memanggil `createPickupOrder`/`trackWaybill` yang tidak ada pada CODE-003. | Runtime failure bila binding tersebut aktif. | UC-102/103 dan API-SD contracts |
-| DRIFT-004 | CODE-009 | Adapter lama memanggil method QRISLY yang tidak ada pada CODE-005 dan memetakan field legacy. | Runtime failure atau payment reference salah. | UC-301 dan API-QR-002 |
-| DRIFT-005 | CODE-006, Delivery/Qrisly controllers | Payment HMAC diwajibkan juga untuk Delivery dan QRISLY. | Webhook resmi tanpa header tersebut dapat selalu 401 dan provider terus retry. | CON-011/016; jangan patch sebelum UAT auth |
-| DRIFT-006 | CODE-009 | Normalizer Payment tidak mencakup official `CANCELED` single-L. | Canceled payment dapat diperlakukan pending. | API-PY-003 status mapping |
-| DRIFT-007 | CODE-002 | Shipping Cost client belum menyediakan API-SC-003 tracking. | UC-002 tidak tersedia melalui client ini; tracking mungkin bercampur ke Delivery. | FR-004/API-SC-003 decision |
-| DRIFT-008 | CODE-003 | Search dan calculate Delivery belum tersedia; Store/Pickup/Label schema belum ditrace penuh. | Contract coverage timpang dan unit berat belum terkontrol. | CON-020 lalu API-SD-001/002/003 |
+| DRIFT-001 | CODE-001, CODE-010 | **Closed.** Dedicated keys fail-closed: `UsesKomerceHttp::apiKey()` throws if the service key is empty. `config/komerce.php` reads only `KOMERCE_PAYMENT_API_KEY`, `KOMERCE_SHIPPING_COST_API_KEY`, `KOMERCE_SHIPPING_DELIVERY_API_KEY`, and `KOMERCE_QRISLY_API_KEY`. A generic `KOMERCE_API_KEY` is unused and must not be set as a substitute. | Operator yang hanya mengisi `KOMERCE_API_KEY` akan melihat service disabled (no outbound). | FR-001 + `KomerceConfigTest::test_legacy_general_api_key_is_not_a_service_fallback` |
+| DRIFT-002 | CODE-008, TEST-001 | **Closed.** `RajaOngkirRateMapper` memetakan flat V2 rows (`code`, `service`, `cost`, `etd`). Dibuktikan `RajaOngkirDriverTest::test_calculate_rates_posts_official_cost_payload_and_maps_flat_v2_rows`. | Rate resmi dapat hilang/empty walau response sukses. | API-SC-002 mapping |
+| DRIFT-003 | CODE-008 | **Closed.** Adapter lama tidak ada. `RajaOngkirDriver` memanggil `ShippingCostClient::trackWaybill` yang ada. | Runtime failure bila binding tersebut aktif. | UC-102/103 dan API-SD contracts |
+| DRIFT-004 | CODE-009 | **Closed.** Adapter lama tidak ada. QRISLY lewat `QrislyClient` + `KomerceDriver`. | Runtime failure atau payment reference salah. | UC-301 dan API-QR-002 |
+| DRIFT-005 | CODE-006, Delivery/Qrisly controllers | **Closed (code).** Delivery dan QRISLY **tidak** mewajibkan Payment HMAC. Mereka treat webhook sebagai sinyal lalu verifikasi via API ber-key. Auth inbound resmi tetap Unknown (CON-011/016); jangan mengarang HMAC. | Webhook resmi tanpa header tersebut dapat selalu 401 dan provider terus retry. | CON-011/016; jangan patch sebelum UAT auth |
+| DRIFT-006 | CODE-009 | **Closed.** `KomerceDriver` memetakan `CANCELED` dan `CANCELLED`. | Canceled payment dapat diperlakukan pending. | API-PY-003 status mapping |
+| DRIFT-007 | CODE-002 | **Closed.** `ShippingCostClient::trackWaybill` mengirim POST `/track/waybill` + query AWB/courier. `ShippingCostClientTest::test_track_waybill_posts_official_query_with_cost_key_header`. | UC-002 tidak tersedia melalui client ini; tracking mungkin bercampur ke Delivery. | FR-004/API-SC-003 decision |
+| DRIFT-008 | CODE-003 | **Partial.** Search (`/destination/search`) dan calculate Delivery **sudah ada**. Store/Pickup/Label tetap memakai payload as-is; schema rinci masih CON-020 (jangan diisi dari internet). | Contract coverage timpang dan unit berat belum terkontrol. | CON-020 lalu API-SD-001/002/003 |
 | DRIFT-009 | TEST-001/002 | Sebagian fixture mengandung schema legacy atau membuktikan perilaku HMAC yang tidak didukung docs. | Test hijau dapat mengunci asumsi salah. | Re-derive fixtures dari API IDs |
-| DRIFT-010 | CODE-011 | README menyatakan semua webhook memakai Payment HMAC. | Operator menganggap klaim tanpa bukti sebagai contract resmi. | CON-011/016 dan validation log |
+| DRIFT-010 | CODE-011 | **Closed.** README membatasi HMAC resmi ke Payment callback saja; Delivery/QRISLY didokumentasikan tanpa signature resmi. | Operator menganggap klaim tanpa bukti sebagai contract resmi. | CON-011/016 dan validation log |
 
 Drift adalah temuan teknis, bukan izin untuk langsung mengubah semua file. Repair mengikuti running plan dan gate UAT.
 

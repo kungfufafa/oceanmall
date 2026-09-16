@@ -99,6 +99,11 @@ class StoreConfigSeeder extends Seeder
                 'country_id' => $indonesiaId,
                 // KERTAWINANGUN, KEDAWUNG, CIREBON — RajaOngkir domestic destination id
                 'rajaongkir_origin_id' => '17248',
+                // Same warehouse pin already used by Cirebon inventory fixtures/tests
+                // and the Shopper location helper example. Cost quotes need origin id;
+                // Komerce Delivery AWB fails closed without this pin.
+                'latitude' => -6.7366,
+                'longitude' => 108.5414,
             ],
         );
 

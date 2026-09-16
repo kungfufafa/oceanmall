@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Account;
 
+use App\Actions\Account\CancelOrderByCustomer;
+use App\Actions\Checkout\ReconcileUnpaidKomerceOrderOnView;
 use App\Actions\Checkout\ResolveKomercePaymentInstructions;
+use App\Actions\Shipping\RefreshShipmentTrackingOnView;
 use App\Http\Controllers\Controller;
 use App\Models\OrderShipment;
+use App\Support\BuyerShipmentPresenter;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -40,6 +44,9 @@ final class OrderController extends Controller
     {
         abort_unless($order->customer_id === auth()->id(), 403);
 
+        $order = resolve(ReconcileUnpaidKomerceOrderOnView::class)->handle($order);
+        $order = resolve(RefreshShipmentTrackingOnView::class)->handle($order);
+
         $order->load([
             'items.product.media',
             'shippingAddress',
@@ -50,28 +57,13 @@ final class OrderController extends Controller
         $order->shippingAddress?->append('full_name');
         $order->billingAddress?->append('full_name');
 
+        $presenter = resolve(BuyerShipmentPresenter::class);
         $shipments = OrderShipment::query()
             ->where('order_id', $order->id)
             ->with('inventory')
             ->orderBy('id')
             ->get()
-            ->map(static function (OrderShipment $shipment): array {
-                $history = data_get($shipment->metadata, 'komerce.tracking_history', []);
-
-                return [
-                    'id' => $shipment->id,
-                    'inventory_name' => $shipment->inventory?->name,
-                    'status' => $shipment->status,
-                    'awb' => $shipment->awb,
-                    'tracking_number' => $shipment->tracking_number,
-                    'carrier' => $shipment->carrier_name ?? $shipment->carrier_code,
-                    'service' => $shipment->service_name ?? $shipment->service_code,
-                    'carrier_logo' => \App\Support\KomerceCourierAssets::logoUrl($shipment->carrier_code),
-                    'cost' => $shipment->cost,
-                    'currency' => $shipment->currency_code,
-                    'tracking_history' => is_array($history) ? array_values($history) : [],
-                ];
-            });
+            ->map(fn (OrderShipment $shipment): array => $presenter->payload($shipment));
 
         $resolvePayment = resolve(ResolveKomercePaymentInstructions::class);
 
@@ -80,6 +72,9 @@ final class OrderController extends Controller
             'shipments' => $shipments,
             'komercePayment' => $resolvePayment->handle($order),
             'canRetryPayment' => $resolvePayment->canRetry($order),
+            'canCancel' => CancelOrderByCustomer::isCancellable($order),
+            'cancelledReason' => CancelOrderByCustomer::cancelledReason($order),
+            'cancelledReasonLabel' => CancelOrderByCustomer::cancelledReasonLabel($order),
         ]);
     }
 }

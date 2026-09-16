@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Livewire\Shopper;
 
+use App\Actions\Checkout\ReconcileUnpaidKomerceOrderOnView;
 use App\Actions\Shipping\EnsureOrderShipments;
 use App\Actions\Shipping\RefreshShipmentTracking;
+use App\Actions\Shipping\RefreshShipmentTrackingOnView;
 use App\Actions\Shipping\SyncOrderShippingFromShipments;
 use App\Actions\Warehouse\OverrideAllocation;
 use App\Jobs\CreateRajaOngkirDeliveryForShipment;
@@ -43,7 +45,8 @@ final class KomerceOrderShipping extends Component
     {
         Gate::authorize('print-shipment-label', $order);
 
-        $this->order = $order;
+        $this->order = resolve(ReconcileUnpaidKomerceOrderOnView::class)->handle($order);
+        $this->order = resolve(RefreshShipmentTrackingOnView::class)->handle($this->order);
         $this->ensureShipmentsExist();
         $this->seedOverrideDefaults();
     }
@@ -246,6 +249,8 @@ final class KomerceOrderShipping extends Component
         return view('livewire.shopper.komerce-order-shipping', [
             'shipments' => $shipments,
             'inventories' => $inventories,
+            'paymentAlert' => $presenter->paymentAlert($this->order),
+            'cancelledReasonLabel' => $presenter->cancelledReasonLabel($this->order),
             'komerceEnabled' => komerce_shipping_delivery_enabled(),
             'canPrintAnyLabel' => $printableCount > 0,
             'printableShipmentCount' => $printableCount,

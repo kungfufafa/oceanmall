@@ -11,6 +11,7 @@ use App\Services\Komerce\ShippingDeliveryClient;
 use App\Shipping\RajaOngkirCourier;
 use App\Support\KomerceFulfillmentContext;
 use App\Support\KomerceLabelResponse;
+use App\Support\KomercePinReady;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -108,6 +109,8 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         if (is_scalar($shipment->awb) && trim((string) $shipment->awb) !== '') {
             return;
         }
+
+        $this->assertDeliveryPinsReady($shipment);
 
         $metadata = $this->decodeMetadata($shipment->metadata);
         $deliveryOrderId = $this->firstScalar($metadata, [
@@ -299,8 +302,15 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
             throw new RuntimeException('Delivery rate shipping_cashback cannot exceed shipping_cost.');
         }
 
+        // The customer paid the Shipping Cost quote; the courier bills the
+        // official Delivery tariff. They can legitimately differ, so record
+        // the gap instead of blocking the AWB.
         if ((int) $shipment->cost !== $shippingCost) {
-            throw new RuntimeException('Shipment cost does not match the persisted Shipping Delivery rate.');
+            Log::warning('RajaOngkir Delivery tariff differs from the checkout Cost quote; shipping with the official tariff.', [
+                'order_shipment_id' => $shipment->getKey(),
+                'checkout_cost' => (int) $shipment->cost,
+                'delivery_tariff' => $shippingCost,
+            ]);
         }
 
         $shipperAddress = $this->formattedAddress([
@@ -811,6 +821,8 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         $fromCalculate = $this->rateFromDeliveryCalculate($shipment, is_array($rate) ? $rate : []);
 
         if ($fromCalculate !== null) {
+            $this->persistOfficialDeliveryRate($shipment, $fromCalculate, is_array($rate) ? $rate : null);
+
             return $fromCalculate;
         }
 
@@ -897,6 +909,42 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         return null;
     }
 
+    /**
+     * Stamp the official Delivery calculate tariff on the shipment so retries
+     * reuse it instead of re-quoting, keeping the original Cost quote around.
+     *
+     * @param  array<string, mixed>  $officialRate
+     * @param  array<string, mixed>|null  $checkoutRate
+     */
+    private function persistOfficialDeliveryRate(
+        OrderShipment $shipment,
+        array $officialRate,
+        ?array $checkoutRate,
+    ): void {
+        $metadata = $this->decodeMetadata($shipment->metadata);
+
+        if ($checkoutRate !== null && ! isset($metadata['checkout_rate'])) {
+            $metadata['checkout_rate'] = $checkoutRate;
+        }
+
+        $metadata['rate'] = $officialRate;
+
+        $shipment->forceFill(['metadata' => $metadata])->save();
+    }
+
+    private function assertDeliveryPinsReady(OrderShipment $shipment): void
+    {
+        $pinReady = resolve(KomercePinReady::class);
+        $message = $pinReady->message(
+            $pinReady->inventoryHasPinPoint($shipment->inventory),
+            $pinReady->orderHasDestinationPin($shipment->order instanceof Order ? $shipment->order : null),
+        );
+
+        if ($message !== null) {
+            throw new RuntimeException($message);
+        }
+    }
+
     private function originPinPoint(OrderShipment $shipment): ?string
     {
         $inventory = $shipment->inventory;
@@ -940,15 +988,40 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         return max(0.01, $grams / 1000);
     }
 
+    /**
+     * Item value of THIS shipment only (split orders ship from several
+     * warehouses); using the whole order would inflate insurance/item_value.
+     */
     private function shipmentItemValue(OrderShipment $shipment): int
     {
         $order = $shipment->order;
+
+        if (! $order instanceof Order) {
+            return 0;
+        }
+
+        $order->loadMissing('items');
+        $shipment->loadMissing('lines.purchasable');
+
         $itemsTotal = 0;
-        if ($order instanceof Order) {
-            $order->loadMissing('items');
-            foreach ($order->items as $item) {
-                $itemsTotal += (int) $item->getAttribute('unit_price_amount') * (int) $item->getAttribute('quantity');
+
+        foreach ($shipment->lines as $line) {
+            $purchasable = $line->purchasable;
+
+            if (! $purchasable instanceof Model) {
+                continue;
             }
+
+            $itemsTotal += $this->unitPriceForLine($order, $line, $purchasable) * max(1, (int) $line->qty);
+        }
+
+        if ($itemsTotal > 0) {
+            return $itemsTotal;
+        }
+
+        // Shipments without lines (legacy/backfilled) fall back to the order total.
+        foreach ($order->items as $item) {
+            $itemsTotal += (int) $item->getAttribute('unit_price_amount') * (int) $item->getAttribute('quantity');
         }
 
         return max(0, $itemsTotal);

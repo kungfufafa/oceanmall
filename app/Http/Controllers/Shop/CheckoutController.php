@@ -18,6 +18,7 @@ use App\DTO\AllocationPlan;
 use App\DTO\ShipmentDraft;
 use App\Enums\OrderNotificationType;
 use App\Http\Controllers\Controller;
+use App\Support\KomercePinReady;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -74,19 +75,11 @@ final class CheckoutController extends Controller
         if (! is_array($shippingAddress) || $shippingAddress === []) {
             $user = Auth::user();
             if ($user) {
-                $defaultAddress = $user->addresses()
-                    ->where('shipping_default', true)
-                    ->orderByDesc('updated_at')
-                    ->first()
-                    ?? $user->addresses()->orderByDesc('updated_at')->first();
-
-                if ($defaultAddress) {
-                    $applied = $persistAddress->toCheckoutShippingAddress($defaultAddress);
-                    if ($applied !== null) {
-                        session()->put(CheckoutSession::SHIPPING_ADDRESS, $applied);
-                        $shippingAddress = $applied;
-                        $checkout = session()->get(CheckoutSession::KEY, []);
-                    }
+                $applied = $persistAddress->defaultCheckoutShippingAddress($user);
+                if ($applied !== null) {
+                    session()->put(CheckoutSession::SHIPPING_ADDRESS, $applied);
+                    $shippingAddress = $applied;
+                    $checkout = session()->get(CheckoutSession::KEY, []);
                 }
             }
         }
@@ -239,9 +232,12 @@ final class CheckoutController extends Controller
             'postal_code' => ['required', 'string', 'max:20'],
             'city' => ['required', 'string', 'max:255'],
             'state' => ['nullable', 'string', 'max:255'],
-            'phone_number' => ['nullable', 'string', 'max:20'],
+            'phone_number' => ['required', 'string', 'max:20'],
             'rajaongkir_destination_id' => $destinationRule,
             'rajaongkir_destination_label' => ['nullable', 'string', 'max:255'],
+            'rajaongkir_pin_point' => ['nullable', 'string', 'max:64'],
+            'latitude' => ['nullable', 'numeric'],
+            'longitude' => ['nullable', 'numeric'],
             'destination_id' => ['nullable', 'string', 'max:50'],
         ]);
 
@@ -251,6 +247,12 @@ final class CheckoutController extends Controller
         $destinationId = $data['rajaongkir_destination_id'] ?? $data['destination_id'] ?? null;
         if ($destinationId !== null && $destinationId !== '') {
             $data['rajaongkir_destination_id'] = (string) $destinationId;
+        }
+
+        // Same pinpoint contract as the mobile API: an explicit lat,lng pin or
+        // separate coordinates. RajaOngkir Delivery needs it to issue the AWB.
+        if (filled($data['latitude'] ?? null) && filled($data['longitude'] ?? null) && blank($data['rajaongkir_pin_point'] ?? null)) {
+            $data['rajaongkir_pin_point'] = $data['latitude'].','.$data['longitude'];
         }
 
         if (! $data['country_id']) {
@@ -515,6 +517,14 @@ final class CheckoutController extends Controller
             'payment_method_id' => ['required', 'integer'],
         ]);
 
+        $shippingAddress = session()->get(CheckoutSession::SHIPPING_ADDRESS, []);
+        $pinError = resolve(KomercePinReady::class)->placeOrderDestinationError(
+            is_array($shippingAddress) ? $shippingAddress : [],
+        );
+        if ($pinError !== null) {
+            return back()->withErrors(['rajaongkir_pin_point' => $pinError]);
+        }
+
         [$selectedMethod, $error] = $this->resolveSelectedMethod((int) $data['payment_method_id']);
 
         if ($error) {
@@ -702,9 +712,16 @@ final class CheckoutController extends Controller
             ->get()
             ->keyBy('id');
 
+        $pinReady = resolve(KomercePinReady::class);
+        $destinationPinReady = $pinReady->addressHasDestinationPin($shippingAddress);
+
         foreach ($allocationArray as &$draft) {
             $inv = $inventories->get($draft['inventory_id']);
+            $originPinReady = $pinReady->inventoryHasPinPoint($inv);
             $draft['inventory_name'] = $inv?->getAttribute('name') ?? (string) $draft['inventory_id'];
+            $draft['origin_pin_ready'] = $originPinReady;
+            $draft['destination_pin_ready'] = $destinationPinReady;
+            $draft['pin_ready_message'] = $pinReady->message($originPinReady, $destinationPinReady);
         }
         unset($draft);
 

@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Cpanel;
 
+use App\Livewire\Shopper\KomerceOrderShipping;
 use App\Models\OrderShipment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
+use Shopper\Core\Enum\OrderStatus;
+use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
 use Shopper\Core\Models\PaymentMethod;
+use Shopper\Payment\Enum\TransactionStatus;
+use Shopper\Payment\Enum\TransactionType;
 use Shopper\Payment\Facades\Payment;
+use Shopper\Payment\Models\PaymentTransaction;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -76,8 +83,167 @@ final class CpanelOrderDetailTest extends TestCase
             ->assertSee('QRIS Komerce', false);
 
         Livewire::actingAs($admin)
-            ->test(\App\Livewire\Shopper\KomerceOrderShipping::class, ['order' => $order])
+            ->test(KomerceOrderShipping::class, ['order' => $order])
             ->assertSee('Gudang Jakarta');
+    }
+
+    public function test_komerce_panel_reconciles_unpaid_payment_when_admin_opens_order(): void
+    {
+        config()->set('komerce.payment_api_key', 'test-payment-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/status/KOMPAY-CPANEL-VIEW' => Http::response([
+                'success' => true,
+                'data' => [
+                    'payment_id' => 'KOMPAY-CPANEL-VIEW',
+                    'status' => 'PAID',
+                    'amount' => 77000,
+                ],
+            ]),
+        ]);
+
+        $admin = $this->admin();
+        $order = Order::factory()->create([
+            'currency_code' => 'IDR',
+            'status' => OrderStatus::New,
+            'payment_status' => PaymentStatus::Pending,
+            'price_amount' => 77000,
+            'metadata' => json_encode([
+                'komerce' => [
+                    'payment_ref' => 'KOMPAY-CPANEL-VIEW',
+                    'provider' => 'payment_api',
+                    'payment_instructions' => [
+                        'payment_id' => 'KOMPAY-CPANEL-VIEW',
+                        'payment_type' => 'bank_transfer',
+                        'provider' => 'payment_api',
+                        'amount' => 77000,
+                        'currency_code' => 'IDR',
+                    ],
+                ],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        PaymentTransaction::query()->create([
+            'order_id' => $order->id,
+            'driver' => 'komerce',
+            'reference' => 'KOMPAY-CPANEL-VIEW',
+            'type' => TransactionType::Initiate,
+            'amount' => 77000,
+            'currency_code' => 'IDR',
+            'status' => TransactionStatus::Pending,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KomerceOrderShipping::class, ['order' => $order]);
+
+        $this->assertSame(PaymentStatus::Paid, $order->refresh()->payment_status);
+    }
+
+    public function test_komerce_panel_shows_cancelled_reason_aligned_with_storefront(): void
+    {
+        $admin = $this->admin();
+        $order = Order::factory()->create([
+            'currency_code' => 'IDR',
+            'status' => OrderStatus::Cancelled,
+            'payment_status' => PaymentStatus::Voided,
+            'metadata' => json_encode([
+                'komerce' => [
+                    'cancelled_reason' => 'Payment expired',
+                ],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KomerceOrderShipping::class, ['order' => $order])
+            ->assertSee('Pesanan dibatalkan otomatis karena pembayaran kedaluwarsa.');
+    }
+
+    public function test_komerce_panel_warns_when_warehouse_or_destination_pin_is_missing(): void
+    {
+        $admin = $this->admin();
+        $order = Order::factory()->create([
+            'currency_code' => 'IDR',
+            'status' => OrderStatus::Processing,
+            'payment_status' => PaymentStatus::Paid,
+            'metadata' => json_encode([
+                'shipping_address' => [
+                    'city' => 'Jakarta',
+                ],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        $inventory = Inventory::factory()->create([
+            'name' => 'Gudang Cirebon',
+            'rajaongkir_origin_id' => '17248',
+            'latitude' => null,
+            'longitude' => null,
+        ]);
+        OrderShipment::query()->create([
+            'order_id' => $order->id,
+            'inventory_id' => $inventory->id,
+            'carrier_code' => 'jne',
+            'service_code' => 'REG',
+            'cost' => 15000,
+            'currency_code' => 'IDR',
+            'status' => 'pending',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KomerceOrderShipping::class, ['order' => $order])
+            ->assertSee('Gudang Cirebon')
+            ->assertSee('Resi Komerce membutuhkan pinpoint gudang dan tujuan.')
+            ->assertSee('Pinpoint gudang belum diisi')
+            ->assertSee('Pinpoint tujuan belum diisi');
+    }
+
+    public function test_komerce_panel_shows_shared_tracking_history_timeline(): void
+    {
+        $admin = $this->admin();
+        $order = Order::factory()->create([
+            'currency_code' => 'IDR',
+            'status' => OrderStatus::Processing,
+            'payment_status' => PaymentStatus::Paid,
+        ]);
+        $inventory = Inventory::factory()->create(['name' => 'Gudang Jakarta']);
+        OrderShipment::query()->create([
+            'order_id' => $order->id,
+            'inventory_id' => $inventory->id,
+            'carrier_code' => 'jne',
+            'carrier_name' => 'JNE',
+            'service_code' => 'REG',
+            'service_name' => 'Regular',
+            'cost' => 18000,
+            'currency_code' => 'IDR',
+            'status' => 'in_transit',
+            'awb' => 'JNE123456789',
+            'tracking_number' => 'JNE123456789',
+            'metadata' => [
+                'komerce' => [
+                    'order_no' => 'RO-ORDER-TRACK',
+                    'tracking_history' => [
+                        [
+                            'description' => 'Paket dijemput kurir',
+                            'datetime' => '2026-08-01 09:00',
+                            'location' => 'Jakarta',
+                        ],
+                        [
+                            'description' => 'Dalam perjalanan ke kota tujuan',
+                            'date' => '2026-08-02 14:30',
+                            'location' => 'Bandung',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KomerceOrderShipping::class, ['order' => $order])
+            ->assertSee('Riwayat lacak')
+            ->assertSee('Paket dijemput kurir')
+            ->assertSee('2026-08-01 09:00')
+            ->assertSee('Jakarta')
+            ->assertSee('Dalam perjalanan ke kota tujuan')
+            ->assertSee('2026-08-02 14:30')
+            ->assertSee('Bandung');
     }
 
     public function test_non_admin_cannot_print_fulfillment_label(): void

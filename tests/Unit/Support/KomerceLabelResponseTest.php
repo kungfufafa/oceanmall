@@ -9,8 +9,10 @@ use Tests\TestCase;
 
 final class KomerceLabelResponseTest extends TestCase
 {
-    public function test_absolute_https_path_is_returned_as_is(): void
+    public function test_absolute_https_path_on_delivery_host_is_returned_as_is(): void
     {
+        config()->set('komerce.rajaongkir.delivery_base_url', 'https://cdn.example.test');
+
         $url = KomerceLabelResponse::absoluteUrl([
             'data' => ['path' => 'https://cdn.example.test/label.pdf'],
         ]);
@@ -18,7 +20,18 @@ final class KomerceLabelResponseTest extends TestCase
         $this->assertSame('https://cdn.example.test/label.pdf', $url);
     }
 
-    public function test_relative_path_is_prefixed_with_delivery_base_url(): void
+    public function test_absolute_https_path_on_foreign_host_is_rejected(): void
+    {
+        config()->set('komerce.rajaongkir.delivery_base_url', 'https://api-sandbox.collaborator.komerce.id');
+
+        $url = KomerceLabelResponse::absoluteUrl([
+            'data' => ['path' => 'https://evil.example.test/label.pdf'],
+        ]);
+
+        $this->assertNull($url);
+    }
+
+    public function test_relative_path_is_prefixed_with_delivery_base_url_below_order_prefix(): void
     {
         config()->set('komerce.rajaongkir.delivery_base_url', 'https://api-sandbox.collaborator.komerce.id');
 
@@ -27,7 +40,7 @@ final class KomerceLabelResponseTest extends TestCase
         ]);
 
         $this->assertSame(
-            'https://api-sandbox.collaborator.komerce.id/storage/label-01.pdf',
+            'https://api-sandbox.collaborator.komerce.id/order/storage/label-01.pdf',
             $url,
         );
     }

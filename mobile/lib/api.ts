@@ -76,7 +76,14 @@ export type Product = {
   compare_price?: number | null;
   currency?: string;
   description?: string | null;
-  variants?: { id: number; sku?: string | null; name?: string | null; price?: number | null }[];
+  available_stock?: number | null;
+  variants?: {
+    id: number;
+    sku?: string | null;
+    name?: string | null;
+    price?: number | null;
+    available_stock?: number | null;
+  }[];
 };
 
 export type Collection = {
@@ -98,6 +105,7 @@ export type Cart = {
     name: string;
     thumbnail?: string | null;
     purchasable_id: number;
+    available_stock?: number | null;
   }[];
   totals: { subtotal: number; discount: number; tax: number; total: number };
 };
@@ -142,9 +150,35 @@ export type SavedAddress = {
   postal_code: string;
   state?: string | null;
   phone_number?: string | null;
+  country_id?: number | null;
   rajaongkir_destination_id?: string | null;
   rajaongkir_destination_label?: string | null;
+  rajaongkir_pin_point?: string | null;
   shipping_default?: boolean;
+};
+
+export type AddressCountry = {
+  id: number;
+  name: string;
+  cca2: string;
+};
+
+export type AllocationPackage = {
+  inventory_id: number;
+  inventory_name: string;
+  origin_pin_ready?: boolean;
+  destination_pin_ready?: boolean;
+  pin_ready_message?: string | null;
+  lines: {
+    purchasable_type: string;
+    purchasable_id: number;
+    qty: number;
+    name?: string;
+    thumbnail?: string | null;
+    unit_price?: number | null;
+  }[];
+  rates: ShippingRate[];
+  selected_service_code?: string | null;
 };
 
 export type Destination = {
@@ -163,10 +197,13 @@ export type CheckoutPayload = {
     street_address?: string;
     city?: string;
     postal_code?: string;
+    state?: string | null;
     phone_number?: string;
-    rajaongkir_destination_id?: string;
-    rajaongkir_destination_label?: string;
+    rajaongkir_destination_id?: string | null;
+    rajaongkir_destination_label?: string | null;
+    rajaongkir_pin_point?: string | null;
   } | null;
+  komerce_enabled?: boolean;
   shipping_option: {
     service_code?: string;
     service_name?: string;
@@ -174,6 +211,7 @@ export type CheckoutPayload = {
     carrier_name?: string | null;
   } | null;
   shipping_rates: ShippingRate[];
+  allocation: AllocationPackage[];
   payment_methods: PaymentMethodOption[];
   saved_addresses: SavedAddress[];
 };
@@ -187,20 +225,29 @@ export type OrderSummary = {
   amount: number;
   currency?: string;
   created_at?: string | null;
+  cancelled_reason?: string | null;
+  cancelled_reason_label?: string | null;
 };
 
 export type OrderDetail = OrderSummary & {
   items: { name: string; sku?: string | null; quantity: number; unit_price: number }[];
   shipments: {
     id: number;
+    inventory_name?: string | null;
     status: string;
+    status_label?: string | null;
     awb?: string | null;
     tracking_number?: string | null;
     carrier?: string | null;
     service?: string | null;
     cost?: number | null;
-    tracking_history?: { description?: string; date?: string }[];
+    currency?: string | null;
+    tracking_history?: { description?: string; datetime?: string | null; location?: string | null }[];
+    origin_pin_ready?: boolean;
+    destination_pin_ready?: boolean;
+    pin_ready_message?: string | null;
   }[];
   payment?: PaymentInstructions | null;
   can_retry_payment?: boolean;
+  can_cancel?: boolean;
 };

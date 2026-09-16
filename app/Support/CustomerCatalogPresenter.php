@@ -8,6 +8,7 @@ use App\Models\Product;
 use Illuminate\Support\Collection;
 use Shopper\Cart\Models\Cart;
 use Shopper\Cart\Models\CartLine;
+use Shopper\Core\Models\Contracts\Stockable;
 
 final class CustomerCatalogPresenter
 {
@@ -39,7 +40,21 @@ final class CustomerCatalogPresenter
             'price' => $price?->amount,
             'compare_price' => $price?->compare_amount,
             'currency' => current_currency(),
+            'available_stock' => $this->availableStock($product),
         ];
+    }
+
+    public function availableStock(mixed $purchasable): ?int
+    {
+        if (
+            $purchasable instanceof Stockable
+            && $purchasable->tracksInventory()
+            && ! $purchasable->getAttribute('allow_backorder')
+        ) {
+            return max(0, (int) $purchasable->stock);
+        }
+
+        return null;
     }
 
     /**
@@ -78,6 +93,7 @@ final class CustomerCatalogPresenter
                     'thumbnail' => $thumbnail,
                     'purchasable_type' => $line->purchasable_type,
                     'purchasable_id' => $line->purchasable_id,
+                    'available_stock' => $this->availableStock($purchasable),
                 ];
             })->values()->all(),
             'totals' => $context ? [

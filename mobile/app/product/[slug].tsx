@@ -19,6 +19,18 @@ export default function ProductScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function stockFor(item: Product, selectedId: number | null): number | null {
+    const selected = item.variants?.find((variant) => variant.id === selectedId);
+
+    return selected?.available_stock ?? item.available_stock ?? null;
+  }
+
+  function maxQtyFor(item: Product, selectedId: number | null): number {
+    const stock = stockFor(item, selectedId);
+
+    return stock == null ? Number.MAX_SAFE_INTEGER : Math.max(0, stock);
+  }
+
   useEffect(() => {
     if (!slug) {
       return;
@@ -28,6 +40,7 @@ export default function ProductScreen() {
       .then((res) => {
         setProduct(res.data);
         setVariantId(res.data.variants?.[0]?.id ?? null);
+        setQty(1);
       })
       .catch((e) => setError(errorMessage(e, 'Produk tidak ditemukan')))
       .finally(() => setLoading(false));
@@ -41,6 +54,11 @@ export default function ProductScreen() {
       router.push('/login');
       return;
     }
+    const maxQty = maxQtyFor(product, variantId);
+    if (maxQty < 1) {
+      setError('Stok habis');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -49,7 +67,7 @@ export default function ProductScreen() {
         body: JSON.stringify({
           product_id: product.id,
           ...(variantId ? { variant_id: variantId } : {}),
-          quantity: qty,
+          quantity: Math.min(qty, maxQty),
         }),
       });
       router.push('/(tabs)/cart');
@@ -79,6 +97,8 @@ export default function ProductScreen() {
   const image = mediaUrl(product.thumbnail ?? product.images?.[0]?.url);
   const selectedVariant = product.variants?.find((variant) => variant.id === variantId);
   const price = selectedVariant?.price ?? product.price;
+  const availableStock = stockFor(product, variantId);
+  const maxQty = maxQtyFor(product, variantId);
 
   return (
     <ScrollView className="flex-1 bg-background" contentContainerClassName="pb-8">
@@ -122,14 +142,22 @@ export default function ProductScreen() {
           </Pressable>
           <Text>{qty}</Text>
           <Pressable
-            onPress={() => setQty((value) => Math.min(10, value + 1))}
-            className="h-10 w-10 items-center justify-center rounded-md border border-border">
+            disabled={maxQty < 1 || qty >= maxQty}
+            onPress={() => setQty((value) => Math.min(maxQty, value + 1))}
+            className={`h-10 w-10 items-center justify-center rounded-md border border-border ${
+              maxQty < 1 || qty >= maxQty ? 'opacity-40' : ''
+            }`}>
             <Text>+</Text>
           </Pressable>
         </View>
+        {availableStock != null ? (
+          <Text className="text-xs text-muted-foreground">
+            {availableStock < 1 ? 'Stok habis' : `Stok tersedia: ${availableStock}`}
+          </Text>
+        ) : null}
 
-        <Button disabled={busy} onPress={() => void addToCart()}>
-          <Text>{busy ? 'Menambah...' : 'Tambah ke keranjang'}</Text>
+        <Button disabled={busy || maxQty < 1} onPress={() => void addToCart()}>
+          <Text>{busy ? 'Menambah...' : maxQty < 1 ? 'Stok habis' : 'Tambah ke keranjang'}</Text>
         </Button>
       </View>
     </ScrollView>

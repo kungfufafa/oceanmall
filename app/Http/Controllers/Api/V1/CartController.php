@@ -38,7 +38,7 @@ final class CartController extends Controller
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:'.shopper_table('products').',id'],
             'variant_id' => ['nullable', 'integer', 'exists:'.shopper_table('product_variants').',id'],
-            'quantity' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $product = Product::query()->scopes('publish')->findOrFail($data['product_id']);
@@ -65,7 +65,7 @@ final class CartController extends Controller
     public function update(Request $request, int $line): JsonResponse
     {
         $data = $request->validate([
-            'quantity' => ['required', 'integer', 'min:1', 'max:10'],
+            'quantity' => ['required', 'integer', 'min:1'],
         ]);
 
         $user = $this->customer($request);

@@ -224,6 +224,15 @@ final class MultiPackageCheckoutTest extends TestCase
         $this->assertCount(2, $jktOptions);
         $this->assertSame('jne:REG', $jktOptions[0]['service_code']);
         $this->assertSame(18000, $jktOptions[0]['amount']);
+
+        foreach ($data['allocation'] as $package) {
+            $this->assertFalse($package['origin_pin_ready']);
+            $this->assertFalse($package['destination_pin_ready']);
+            $this->assertSame(
+                'Resi Komerce membutuhkan pinpoint gudang dan tujuan. Pinpoint gudang belum diisi. Pinpoint tujuan belum diisi.',
+                $package['pin_ready_message'],
+            );
+        }
     }
 
     /**
@@ -339,6 +348,22 @@ final class MultiPackageCheckoutTest extends TestCase
         $this->assertStringContainsString('deliveryOptionsByShipment', $checkoutPage);
         $this->assertStringContainsString('allPackagesSelected', $checkoutPage);
         $this->assertStringContainsString('submitMultiShipping', $checkoutPage);
+        $this->assertStringContainsString('warehousePinMessage', $checkoutPage);
+        $this->assertStringContainsString('pin_ready_message', $checkoutPage);
+        $this->assertStringContainsString('destinationPinBlocked', $checkoutPage);
+        $this->assertStringContainsString('errors.rajaongkir_pin_point', $checkoutPage);
+        $this->assertStringContainsString(':readonly="komerceEnabled"', $checkoutPage);
+
+        $mobileCheckout = file_get_contents(base_path('mobile/app/checkout.tsx'));
+        $this->assertIsString($mobileCheckout);
+        $this->assertStringContainsString('pin_ready_message', $mobileCheckout);
+        $this->assertStringContainsString('destination_pin_ready', $mobileCheckout);
+        $this->assertStringContainsString('komerce_enabled', $mobileCheckout);
+        $this->assertStringContainsString('setPostalCode', $mobileCheckout);
+        $this->assertDoesNotMatchRegularExpression(
+            '/if\s*\(\s*!destination\s*\)\s*\{\s*setError\(\'Pilih kecamatan RajaOngkir dulu\.\'\);/',
+            $mobileCheckout,
+        );
     }
 
     /**

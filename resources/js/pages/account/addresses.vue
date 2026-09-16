@@ -7,7 +7,7 @@ import {
     MoreHorizontal,
     Truck,
 } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import AddressController from '@/actions/App/Http/Controllers/Account/AddressController';
 import AuthSelectField from '@/components/auth/auth-select-field.vue';
 import AuthSubmitButton from '@/components/auth/auth-submit-button.vue';
@@ -23,12 +23,27 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { AddressType  } from '@/types/shop';
-import type {Address} from '@/types/shop';
+import { AddressType } from '@/types/shop';
+import type { Address } from '@/types/shop';
 
 type CountryOption = { id: number; name: string; cca2: string };
+
+type BookAddress = Address & {
+    rajaongkir_destination_id?: string | null;
+    rajaongkir_destination_label?: string | null;
+    rajaongkir_pin_point?: string | null;
+};
+
+type DestinationResult = {
+    id: string | number;
+    label: string;
+    province_name?: string | null;
+    city_name?: string | null;
+    zip_code?: string | null;
+};
 
 type AddressForm = {
     first_name: string;
@@ -41,14 +56,18 @@ type AddressForm = {
     phone_number: string;
     country_id: number | null;
     type: AddressType;
+    rajaongkir_destination_id: string;
+    rajaongkir_destination_label: string;
+    rajaongkir_pin_point: string;
 };
 
 const props = defineProps<{
-    addresses: Address[];
+    addresses: BookAddress[];
     countries: CountryOption[];
+    komerceEnabled?: boolean;
 }>();
 
-const editing = ref<Address | null>(null);
+const editing = ref<BookAddress | null>(null);
 const open = ref<boolean>(false);
 
 const defaults: AddressForm = {
@@ -62,6 +81,9 @@ const defaults: AddressForm = {
     phone_number: '',
     country_id: null,
     type: AddressType.SHIPPING,
+    rajaongkir_destination_id: '',
+    rajaongkir_destination_label: '',
+    rajaongkir_pin_point: '',
 };
 
 const form = useForm<AddressForm>({ ...defaults });
@@ -88,6 +110,10 @@ const canSaveAddress = computed(
         form.city.trim().length > 0 &&
         form.postal_code.trim().length > 0 &&
         form.country_id !== null &&
+        !(
+            props.komerceEnabled &&
+            !String(form.rajaongkir_destination_id ?? '').trim()
+        ) &&
         !form.processing,
 );
 
@@ -95,10 +121,13 @@ function startCreate(): void {
     editing.value = null;
     form.reset();
     Object.assign(form, defaults);
+    destinationQuery.value = '';
+    destinationResults.value = [];
+    pinPointError.value = null;
     open.value = true;
 }
 
-function startEdit(address: Address): void {
+function startEdit(address: BookAddress): void {
     editing.value = address;
     form.first_name = address.first_name ?? '';
     form.last_name = address.last_name;
@@ -110,10 +139,150 @@ function startEdit(address: Address): void {
     form.phone_number = address.phone_number ?? '';
     form.country_id = address.country_id;
     form.type = address.type;
+    form.rajaongkir_destination_id = address.rajaongkir_destination_id ?? '';
+    form.rajaongkir_destination_label =
+        address.rajaongkir_destination_label ?? '';
+    form.rajaongkir_pin_point = address.rajaongkir_pin_point ?? '';
+    destinationQuery.value = address.rajaongkir_destination_label ?? '';
     open.value = true;
 }
 
+const destinationQuery = ref('');
+const destinationResults = ref<DestinationResult[]>([]);
+const destinationSearching = ref(false);
+const destinationSearchError = ref<string | null>(null);
+const pinPointLocating = ref(false);
+const pinPointError = ref<string | null>(null);
+let destinationSearchTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(destinationQuery, (value) => {
+    if (destinationSearchTimer) {
+        clearTimeout(destinationSearchTimer);
+    }
+
+    if (!props.komerceEnabled || value.trim().length < 2) {
+        destinationResults.value = [];
+        destinationSearchError.value = null;
+
+        return;
+    }
+
+    if (
+        form.rajaongkir_destination_id &&
+        value === form.rajaongkir_destination_label
+    ) {
+        return;
+    }
+
+    destinationSearchTimer = setTimeout(() => {
+        void searchDestinations(value.trim());
+    }, 300);
+});
+
+async function searchDestinations(query: string): Promise<void> {
+    destinationSearching.value = true;
+    destinationSearchError.value = null;
+
+    try {
+        const response = await fetch(
+            `/checkout/destinations?q=${encodeURIComponent(query)}&limit=10`,
+            {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            },
+        );
+
+        if (!response.ok) {
+            throw new Error('Destination search failed');
+        }
+
+        const payload = (await response.json()) as {
+            data?: DestinationResult[];
+        };
+        destinationResults.value = Array.isArray(payload.data)
+            ? payload.data
+            : [];
+    } catch {
+        destinationResults.value = [];
+        destinationSearchError.value = 'Tidak dapat mencari tujuan saat ini.';
+    } finally {
+        destinationSearching.value = false;
+    }
+}
+
+function selectDestination(result: DestinationResult): void {
+    form.rajaongkir_destination_id = String(result.id);
+    form.rajaongkir_destination_label = result.label;
+    destinationQuery.value = result.label;
+    destinationResults.value = [];
+    form.clearErrors(
+        'rajaongkir_destination_id',
+        'postal_code',
+        'city',
+        'state',
+    );
+
+    if (result.province_name) {
+        form.state = result.province_name;
+    }
+
+    if (result.city_name) {
+        form.city = result.city_name;
+    }
+
+    if (result.zip_code) {
+        form.postal_code = result.zip_code;
+    }
+}
+
+function clearDestination(): void {
+    form.rajaongkir_destination_id = '';
+    form.rajaongkir_destination_label = '';
+    destinationQuery.value = '';
+    destinationResults.value = [];
+}
+
+function useCurrentLocation(): void {
+    pinPointError.value = null;
+
+    if (!('geolocation' in navigator)) {
+        pinPointError.value =
+            'Browser tidak mendukung deteksi lokasi. Isi koordinat secara manual.';
+
+        return;
+    }
+
+    pinPointLocating.value = true;
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            form.rajaongkir_pin_point = `${position.coords.latitude.toFixed(6)},${position.coords.longitude.toFixed(6)}`;
+            pinPointLocating.value = false;
+        },
+        () => {
+            pinPointError.value =
+                'Tidak bisa mengambil lokasi. Izinkan akses lokasi atau isi koordinat manual.';
+            pinPointLocating.value = false;
+        },
+        { enableHighAccuracy: true, timeout: 10000 },
+    );
+}
+
 function submit(): void {
+    if (
+        props.komerceEnabled &&
+        !String(form.rajaongkir_destination_id ?? '').trim()
+    ) {
+        form.setError(
+            'rajaongkir_destination_id',
+            'Pilih kecamatan dari daftar pencarian.',
+        );
+
+        return;
+    }
+
     const opts = {
         preserveScroll: true,
         onSuccess: () => {
@@ -231,6 +400,20 @@ function setDefaultBilling(address: Address): void {
                             <Check aria-hidden="true" />
                             Default tagih
                         </Badge>
+                        <Badge
+                            v-if="address.rajaongkir_destination_label"
+                            variant="outline"
+                            class="text-[11px]"
+                        >
+                            {{ address.rajaongkir_destination_label }}
+                        </Badge>
+                        <Badge
+                            v-if="address.rajaongkir_pin_point"
+                            variant="outline"
+                            class="text-[11px]"
+                        >
+                            Pin {{ address.rajaongkir_pin_point }}
+                        </Badge>
                     </div>
 
                     <div class="mt-3 flex items-center gap-2">
@@ -340,26 +523,42 @@ function setDefaultBilling(address: Address): void {
                         />
                     </div>
                     <AuthTextField
+                        id="state"
+                        v-model="form.state"
+                        label="Provinsi"
+                        :placeholder="
+                            komerceEnabled
+                                ? 'Pilih dari kecamatan'
+                                : 'Contoh: DKI Jakarta'
+                        "
+                        :error="form.errors.state"
+                        :readonly="komerceEnabled"
+                    />
+                    <AuthTextField
                         id="city"
                         v-model="form.city"
                         label="Kota"
                         required
-                        placeholder="Kota *"
+                        :placeholder="
+                            komerceEnabled
+                                ? 'Pilih dari kecamatan'
+                                : 'Contoh: Jakarta Selatan'
+                        "
                         :error="form.errors.city"
+                        :readonly="komerceEnabled"
                     />
                     <AuthTextField
                         id="postal_code"
                         v-model="form.postal_code"
                         label="Kode pos"
                         required
-                        placeholder="Kode pos *"
+                        :placeholder="
+                            komerceEnabled
+                                ? 'Pilih dari kecamatan'
+                                : 'Contoh: 12190'
+                        "
                         :error="form.errors.postal_code"
-                    />
-                    <AuthTextField
-                        id="state"
-                        v-model="form.state"
-                        label="Provinsi"
-                        placeholder="Provinsi"
+                        :readonly="komerceEnabled"
                     />
                     <AuthSelectField
                         id="country_id"
@@ -378,6 +577,127 @@ function setDefaultBilling(address: Address): void {
                             placeholder="08xxxxxxxxxx"
                             :error="form.errors.phone_number"
                         />
+                    </div>
+                    <div class="col-span-2 flex flex-col gap-1.5">
+                        <Label for="destination_search">
+                            Kecamatan pengiriman
+                            <span v-if="komerceEnabled" class="text-red-500"
+                                >*</span
+                            >
+                        </Label>
+                        <div class="relative">
+                            <Input
+                                id="destination_search"
+                                v-model="destinationQuery"
+                                type="search"
+                                autocomplete="off"
+                                class="h-[var(--om-control-height)] w-full pr-14 text-[13px] [&::-webkit-search-cancel-button]:hidden"
+                                :placeholder="
+                                    komerceEnabled
+                                        ? 'Contoh: Kebayoran Baru'
+                                        : 'Opsional saat Komerce dinonaktifkan'
+                                "
+                                @focus="
+                                    komerceEnabled &&
+                                    destinationQuery.trim().length >= 2 &&
+                                    searchDestinations(destinationQuery.trim())
+                                "
+                            />
+                            <Button
+                                v-if="form.rajaongkir_destination_id"
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                class="absolute inset-y-0 right-2 h-auto px-2 text-xs text-muted-foreground"
+                                @click="clearDestination"
+                            >
+                                Ganti
+                            </Button>
+                            <Card
+                                v-if="destinationResults.length"
+                                class="absolute z-20 mt-1 max-h-56 w-full gap-0 overflow-auto rounded-md py-0 shadow-sm"
+                            >
+                                <CardContent class="p-0">
+                                    <Button
+                                        v-for="result in destinationResults"
+                                        :key="result.id"
+                                        type="button"
+                                        variant="ghost"
+                                        class="h-auto w-full justify-start rounded-none px-3 py-2.5 text-left text-[13px] font-normal"
+                                        @click="selectDestination(result)"
+                                    >
+                                        {{ result.label }}
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </div>
+                        <p
+                            v-if="destinationSearching"
+                            class="text-xs text-muted-foreground"
+                        >
+                            Mencari…
+                        </p>
+                        <p
+                            v-else-if="destinationSearchError"
+                            class="text-xs text-destructive"
+                        >
+                            {{ destinationSearchError }}
+                        </p>
+                        <p
+                            v-else-if="form.rajaongkir_destination_label"
+                            class="text-xs text-muted-foreground"
+                        >
+                            {{ form.rajaongkir_destination_label }}
+                        </p>
+                        <p
+                            v-else-if="komerceEnabled"
+                            class="text-xs text-amber-700"
+                        >
+                            Wajib pilih dari daftar pencarian (jangan ketik
+                            manual saja).
+                        </p>
+                        <p
+                            v-if="form.errors.rajaongkir_destination_id"
+                            class="text-xs text-destructive"
+                        >
+                            {{ form.errors.rajaongkir_destination_id }}
+                        </p>
+                    </div>
+                    <div
+                        v-if="komerceEnabled"
+                        class="col-span-2 flex flex-col gap-1.5"
+                    >
+                        <Label for="rajaongkir_pin_point">Pinpoint lokasi</Label>
+                        <div class="flex gap-2">
+                            <Input
+                                id="rajaongkir_pin_point"
+                                v-model="form.rajaongkir_pin_point"
+                                type="text"
+                                autocomplete="off"
+                                inputmode="decimal"
+                                class="h-[var(--om-control-height)] w-full text-[13px]"
+                                placeholder="-6.2380,106.7830"
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                class="h-[var(--om-control-height)] shrink-0 px-3 text-xs"
+                                :disabled="pinPointLocating"
+                                @click="useCurrentLocation"
+                            >
+                                {{
+                                    pinPointLocating
+                                        ? 'Mencari…'
+                                        : 'Gunakan lokasi saya'
+                                }}
+                            </Button>
+                        </div>
+                        <p
+                            v-if="pinPointError"
+                            class="text-xs text-destructive"
+                        >
+                            {{ pinPointError }}
+                        </p>
                     </div>
                     <fieldset class="col-span-2 flex flex-col gap-2">
                         <legend class="text-sm font-medium text-foreground">

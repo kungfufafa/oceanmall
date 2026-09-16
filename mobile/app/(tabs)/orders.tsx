@@ -1,18 +1,49 @@
 import { EmptyState } from '@/components/empty-state';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { api, type OrderSummary } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatIdr } from '@/lib/format';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, View } from 'react-native';
+
+type PageMeta = { current_page?: number; last_page?: number };
 
 export default function OrdersScreen() {
   const { user } = useAuth();
   const router = useRouter();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const fetchingPage = useRef<number | null>(null);
+
+  const loadPage = useCallback(async (pageNumber: number, append: boolean) => {
+    if (fetchingPage.current === pageNumber) {
+      return;
+    }
+    fetchingPage.current = pageNumber;
+    try {
+      const res = await api<{ data: OrderSummary[]; meta?: PageMeta }>(
+        `/orders?page=${pageNumber}`
+      );
+      const list = res.data ?? [];
+      setOrders((current) => {
+        if (!append) {
+          return list;
+        }
+        const known = new Set(current.map((order) => order.number));
+        return [...current, ...list.filter((order) => !known.has(order.number))];
+      });
+      setPage(res.meta?.current_page ?? pageNumber);
+      setLastPage(res.meta?.last_page ?? pageNumber);
+    } finally {
+      fetchingPage.current = null;
+    }
+  }, []);
 
   const load = useCallback(async () => {
     if (!user) {
@@ -21,14 +52,13 @@ export default function OrdersScreen() {
       return;
     }
     try {
-      const res = await api<{ data: OrderSummary[] }>('/orders');
-      setOrders(res.data ?? []);
+      await loadPage(1, false);
     } catch {
       setOrders([]);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, loadPage]);
 
   useFocusEffect(
     useCallback(() => {
@@ -36,6 +66,20 @@ export default function OrdersScreen() {
       void load();
     }, [load])
   );
+
+  async function loadMore() {
+    if (loadingMore || page >= lastPage) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      await loadPage(page + 1, true);
+    } catch {
+      // keep already-loaded orders on failure
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   if (!user) {
     return (
@@ -79,6 +123,12 @@ export default function OrdersScreen() {
         </Pressable>
       ))}
       {orders.length === 0 ? <Text className="text-muted-foreground">Belum ada pesanan.</Text> : null}
+      {loadingMore ? <ActivityIndicator className="my-2" /> : null}
+      {!loadingMore && page < lastPage ? (
+        <Button variant="outline" onPress={() => void loadMore()}>
+          <Text>Muat lebih banyak</Text>
+        </Button>
+      ) : null}
     </ScrollView>
   );
 }

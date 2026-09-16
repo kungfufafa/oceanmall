@@ -98,8 +98,12 @@ final class MarkOrderPaidFromKomerce
                 : null;
 
             if ($this->amountMismatches($lockedOrder, $lockedTransaction, $remotePayment, $provider)) {
+                $this->recordPaymentAlert($lockedOrder, $lockedTransaction, $remotePayment, $provider, $paymentId);
+
                 return ['status' => 'amount_mismatch', 'order' => $lockedOrder, 'newly_paid' => false];
             }
+
+            $this->clearPaymentAlert($lockedOrder);
 
             $orderUpdates = ['payment_status' => PaymentStatus::Paid];
 
@@ -230,6 +234,68 @@ final class MarkOrderPaidFromKomerce
         $tolerance = $provider === 'qrisly' ? 999 : 0;
 
         return abs($remoteAmount - $expected) > $tolerance;
+    }
+
+    /**
+     * Persist a visible marker on the order so admins can spot rejected
+     * callbacks (mirrors how komerce.fulfillment_error is stored on shipments).
+     *
+     * @param  array<string, mixed>  $remotePayment
+     */
+    private function recordPaymentAlert(
+        Order $order,
+        ?PaymentTransaction $transaction,
+        array $remotePayment,
+        string $provider,
+        string $paymentId,
+    ): void {
+        $metadata = $this->decodeOrderMetadata($order);
+        $komerce = is_array($metadata['komerce'] ?? null) ? $metadata['komerce'] : [];
+        $komerce['payment_alert'] = [
+            'reason' => 'amount_mismatch',
+            'payment_id' => $paymentId,
+            'provider' => $provider,
+            'expected_amount' => (int) ($transaction?->amount ?? $order->price_amount),
+            'remote_amount' => $this->remoteAmount($remotePayment, $provider),
+            'occurred_at' => now()->toIso8601String(),
+        ];
+        $metadata['komerce'] = $komerce;
+
+        $order->forceFill(['metadata' => json_encode($metadata, JSON_THROW_ON_ERROR)])->save();
+    }
+
+    private function clearPaymentAlert(Order $order): void
+    {
+        $metadata = $this->decodeOrderMetadata($order);
+        $komerce = is_array($metadata['komerce'] ?? null) ? $metadata['komerce'] : [];
+
+        if (! isset($komerce['payment_alert'])) {
+            return;
+        }
+
+        unset($komerce['payment_alert']);
+        $metadata['komerce'] = $komerce;
+        $order->forceFill(['metadata' => json_encode($metadata, JSON_THROW_ON_ERROR)])->save();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeOrderMetadata(Order $order): array
+    {
+        $metadata = $order->getAttribute('metadata');
+
+        if (is_array($metadata)) {
+            return $metadata;
+        }
+
+        if (! is_string($metadata) || trim($metadata) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($metadata, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     /**

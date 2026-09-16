@@ -22,11 +22,64 @@ final class OrderShipmentTrackingTest extends TestCase
 
         $this->assertIsString($orderShowPage);
         $this->assertStringContainsString('type Shipment', $orderShowPage);
+        $this->assertStringContainsString('status_label', $orderShowPage);
+        $this->assertStringContainsString('shipmentStatusLabel', $orderShowPage);
         $this->assertStringContainsString('formatShipmentStatus', $orderShowPage);
         $this->assertStringContainsString('shipment.tracking_number', $orderShowPage);
         $this->assertStringContainsString('Pengiriman / Paket', $orderShowPage);
         $this->assertStringContainsString('Label menunggu', $orderShowPage);
-        $this->assertStringContainsString('shipment.tracking_number', $orderShowPage);
+        $this->assertStringContainsString('pin_ready_message', $orderShowPage);
+        $this->assertStringContainsString('shipment.pin_ready_message', $orderShowPage);
+        $this->assertStringContainsString(
+            'v-if="shipment.awb || shipment.tracking_number"',
+            $orderShowPage,
+        );
+        $this->assertStringContainsString(
+            'shipment.awb ||',
+            $orderShowPage,
+        );
+        $this->assertStringContainsString('event.datetime', $orderShowPage);
+        $this->assertStringContainsString('shouldPollPayment', $orderShowPage);
+        $this->assertStringContainsString('10_000', $orderShowPage);
+    }
+
+    public function test_checkout_success_polls_unpaid_payments_every_10s_like_mobile(): void
+    {
+        $checkoutSuccess = file_get_contents(resource_path('js/pages/shop/checkout-success.vue'));
+
+        $this->assertIsString($checkoutSuccess);
+        $this->assertStringContainsString('router.reload', $checkoutSuccess);
+        $this->assertStringContainsString('10_000', $checkoutSuccess);
+        $this->assertStringContainsString('tiap 10 detik', $checkoutSuccess);
+        $this->assertStringNotContainsString('15000', $checkoutSuccess);
+        $this->assertStringNotContainsString('15 detik', $checkoutSuccess);
+        $this->assertStringContainsString('!isCancelled.value', $checkoutSuccess);
+        $this->assertStringContainsString('retryPayment', $checkoutSuccess);
+        $this->assertStringContainsString('cancelOrder', $checkoutSuccess);
+        $this->assertStringContainsString('shipment.status_label ?? shipment.status', $checkoutSuccess);
+        $this->assertStringContainsString('pin_ready_message', $checkoutSuccess);
+        $this->assertStringContainsString('Buat ulang pembayaran', $checkoutSuccess);
+        $this->assertStringContainsString('Batalkan pesanan', $checkoutSuccess);
+    }
+
+    public function test_mobile_order_screen_uses_shared_datetime_tracking_history(): void
+    {
+        $orderScreen = file_get_contents(base_path('mobile/app/order/[number].tsx'));
+        $apiTypes = file_get_contents(base_path('mobile/lib/api.ts'));
+
+        $this->assertIsString($orderScreen);
+        $this->assertIsString($apiTypes);
+        $this->assertStringContainsString('event.datetime', $orderScreen);
+        $this->assertStringContainsString('event.location', $orderScreen);
+        $this->assertStringContainsString('shipment.awb || shipment.tracking_number', $orderScreen);
+        $this->assertStringContainsString('datetime?:', $apiTypes);
+        $this->assertStringNotContainsString('event.date ?', $orderScreen);
+        $this->assertStringContainsString('cancelled_reason_label', $apiTypes);
+        $this->assertStringContainsString('order.cancelled_reason_label', $orderScreen);
+        $this->assertStringContainsString('status_label?:', $apiTypes);
+        $this->assertStringContainsString('shipment.status_label ?? shipment.status', $orderScreen);
+        $this->assertStringContainsString('pin_ready_message', $orderScreen);
+        $this->assertStringContainsString('pin_ready_message?:', $apiTypes);
     }
 
     public function test_order_show_vue_source_computes_shipping_price_from_shipments_when_present(): void
@@ -92,6 +145,7 @@ final class OrderShipmentTrackingTest extends TestCase
                     ->has('shipments', 2)
                     ->where('shipments.0.inventory_name', 'Gudang Jakarta')
                     ->where('shipments.0.status', 'label_created')
+                    ->where('shipments.0.status_label', 'Label created')
                     ->where('shipments.0.awb', 'JNE123456789')
                     ->where('shipments.0.tracking_number', 'TRK-JNE-001')
                     ->where('shipments.0.carrier', 'JNE')
@@ -100,12 +154,19 @@ final class OrderShipmentTrackingTest extends TestCase
                     ->where('shipments.0.currency', 'IDR')
                     ->where('shipments.1.inventory_name', 'Gudang Cirebon')
                     ->where('shipments.1.status', 'pending')
+                    ->where('shipments.1.status_label', 'Menunggu resi')
                     ->where('shipments.1.awb', null)
                     ->where('shipments.1.tracking_number', null)
                     ->where('shipments.1.carrier', 'J&T Express')
                     ->where('shipments.1.service', 'EZ')
                     ->where('shipments.1.cost', 13000)
-                    ->where('shipments.1.currency', 'IDR'),
+                    ->where('shipments.1.currency', 'IDR')
+                    ->where('shipments.1.origin_pin_ready', false)
+                    ->where('shipments.1.destination_pin_ready', false)
+                    ->where(
+                        'shipments.1.pin_ready_message',
+                        'Resi Komerce membutuhkan pinpoint gudang dan tujuan. Pinpoint gudang belum diisi. Pinpoint tujuan belum diisi.',
+                    ),
             );
     }
 }

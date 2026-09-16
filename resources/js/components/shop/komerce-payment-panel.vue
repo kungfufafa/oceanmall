@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Copy } from 'lucide-vue-next';
 import QRCode from 'qrcode';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,20 +43,80 @@ const methodLabel = computed(() => {
     }
 
     if (isQris.value) {
-return 'QRIS';
-}
+        return 'QRIS';
+    }
 
     return 'Pembayaran';
 });
 
-const formattedExpiry = computed(() => {
-    if (!props.payment.expiry_date) {
-return null;
+// Komerce returns "YYYY-MM-DD HH:mm:ss"; normalize to ISO-8601 so all
+// engines parse it the same way as the mobile app (payment-panel.tsx).
+function parseExpiry(value?: string | null): Date | null {
+    if (!value) {
+        return null;
+    }
+
+    const date = new Date(value.includes('T') ? value : value.replace(' ', 'T'));
+
+    return Number.isNaN(date.getTime()) ? null : date;
 }
 
-    const date = new Date(props.payment.expiry_date);
+function formatCountdown(ms: number): string {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    const pad = (n: number) => String(n).padStart(2, '0');
 
-    if (Number.isNaN(date.getTime())) {
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+
+const expiry = computed(() => parseExpiry(props.payment.expiry_date));
+const now = ref(Date.now());
+let expiryTimer: ReturnType<typeof setInterval> | null = null;
+
+watch(
+    expiry,
+    (value) => {
+        if (expiryTimer !== null) {
+            clearInterval(expiryTimer);
+            expiryTimer = null;
+        }
+
+        if (value) {
+            now.value = Date.now();
+            expiryTimer = setInterval(() => {
+                now.value = Date.now();
+            }, 1000);
+        }
+    },
+    { immediate: true },
+);
+
+onUnmounted(() => {
+    if (expiryTimer !== null) {
+        clearInterval(expiryTimer);
+    }
+});
+
+const remainingMs = computed(() =>
+    expiry.value ? expiry.value.getTime() - now.value : null,
+);
+const isExpired = computed(
+    () => remainingMs.value !== null && remainingMs.value <= 0,
+);
+const countdown = computed(() =>
+    remainingMs.value !== null ? formatCountdown(remainingMs.value) : null,
+);
+
+const formattedExpiry = computed(() => {
+    if (!props.payment.expiry_date) {
+        return null;
+    }
+
+    const date = expiry.value;
+
+    if (!date) {
         return String(props.payment.expiry_date);
     }
 
@@ -74,8 +134,8 @@ async function renderQr(value: string | null | undefined): Promise<void> {
     qrError.value = false;
 
     if (!value) {
-return;
-}
+        return;
+    }
 
     try {
         qrDataUrl.value = await QRCode.toDataURL(value, {
@@ -127,19 +187,50 @@ watch(
                         {{ formatMoney(payment.amount, payment.currency_code) }}
                     </CardTitle>
                 </div>
-                <Badge variant="warning" class="shrink-0 rounded-md">
+                <Badge
+                    v-if="isExpired"
+                    variant="destructive"
+                    class="shrink-0 rounded-md"
+                >
+                    Kedaluwarsa
+                </Badge>
+                <Badge v-else variant="warning" class="shrink-0 rounded-md">
                     Belum dibayar
                 </Badge>
             </div>
-            <p v-if="formattedExpiry" class="text-[12px] text-muted-foreground">
-                Bayar sebelum
-                <span class="font-semibold text-foreground">{{
-                    formattedExpiry
-                }}</span>
-            </p>
+            <template v-if="!isExpired">
+                <p
+                    v-if="formattedExpiry"
+                    class="text-[12px] text-muted-foreground"
+                >
+                    Bayar sebelum
+                    <span class="font-semibold text-foreground">{{
+                        formattedExpiry
+                    }}</span>
+                </p>
+                <p
+                    v-if="countdown"
+                    class="text-[12px] font-semibold text-foreground"
+                >
+                    Sisa waktu {{ countdown }}
+                </p>
+            </template>
         </CardHeader>
 
-        <CardContent class="flex flex-col gap-4 p-4">
+        <CardContent v-if="isExpired" class="flex flex-col gap-2 p-4">
+            <p class="text-[13px] font-semibold text-destructive">
+                Pembayaran kedaluwarsa
+            </p>
+            <p class="text-[13px] text-muted-foreground">
+                Batas waktu pembayaran sudah lewat. Buat pembayaran baru untuk
+                melanjutkan pesanan.
+            </p>
+            <p class="text-[10px] text-muted-foreground">
+                Ref {{ payment.payment_id }}
+            </p>
+        </CardContent>
+
+        <CardContent v-else class="flex flex-col gap-4 p-4">
             <p class="text-[13px] font-semibold text-foreground">
                 Cara bayar · {{ methodLabel }}
             </p>

@@ -16,6 +16,7 @@ use Inertia\Response;
 use Shopper\Cart\CartManager;
 use Shopper\Cart\CartSessionManager;
 use Shopper\Cart\Exceptions\InsufficientStockException;
+use Shopper\Cart\Models\CartLine;
 
 final class CartController extends Controller
 {
@@ -24,6 +25,13 @@ final class CartController extends Controller
         $cart = resolve(CartSessionManager::class)->current();
 
         $cart?->load(['lines.purchasable.media']);
+        $cart?->lines->each(function (CartLine $line): void {
+            $purchasable = $line->purchasable;
+            if (is_object($purchasable) && method_exists($purchasable, 'getStock')) {
+                $purchasable->setAttribute('real_stock', $purchasable->getStock());
+                $purchasable->append('stock');
+            }
+        });
 
         $context = $cart
             ? resolve(CartManager::class)->calculate($cart)
@@ -41,7 +49,7 @@ final class CartController extends Controller
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:'.shopper_table('products').',id'],
             'variant_id' => ['nullable', 'integer', 'exists:'.shopper_table('product_variants').',id'],
-            'quantity' => ['nullable', 'integer', 'min:1', 'max:10'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $product = Product::query()->scopes('publish')->findOrFail($data['product_id']);
@@ -84,7 +92,7 @@ final class CartController extends Controller
     public function update(Request $request, int $line): RedirectResponse
     {
         $data = $request->validate([
-            'quantity' => ['required', 'integer', 'min:1', 'max:10'],
+            'quantity' => ['required', 'integer', 'min:1'],
         ]);
 
         $cart = resolve(CartSessionManager::class)->current();

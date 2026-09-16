@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Account\CancelOrderByCustomer;
 use App\Actions\Account\ConfirmOrderReceived;
+use App\Actions\Checkout\ReconcileUnpaidKomerceOrderOnView;
 use App\Actions\Checkout\ResolveKomercePaymentInstructions;
 use App\Actions\Checkout\RetryKomercePayment;
 use App\Actions\Checkout\SyncKomercePaymentStatus;
 use App\Actions\Shipping\RefreshShipmentTracking;
+use App\Actions\Shipping\RefreshShipmentTrackingOnView;
 use App\Http\Controllers\Controller;
 use App\Models\OrderShipment;
 use App\Models\User;
-use App\Support\KomerceCourierAssets;
+use App\Support\BuyerShipmentPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -44,27 +47,17 @@ final class OrderController extends Controller
     public function show(Request $request, string $number): JsonResponse
     {
         $order = $this->ownedOrder($request, $number);
+        $order = resolve(ReconcileUnpaidKomerceOrderOnView::class)->handle($order);
+        $order = resolve(RefreshShipmentTrackingOnView::class)->handle($order);
         $order->load(['items.product.media', 'shippingAddress']);
 
+        $presenter = resolve(BuyerShipmentPresenter::class);
         $shipments = OrderShipment::query()
             ->where('order_id', $order->id)
+            ->with('inventory')
             ->orderBy('id')
             ->get()
-            ->map(static function (OrderShipment $shipment): array {
-                $history = data_get($shipment->metadata, 'komerce.tracking_history', []);
-
-                return [
-                    'id' => $shipment->id,
-                    'status' => $shipment->status,
-                    'awb' => $shipment->awb,
-                    'tracking_number' => $shipment->tracking_number,
-                    'carrier' => $shipment->carrier_name ?? $shipment->carrier_code,
-                    'service' => $shipment->service_name ?? $shipment->service_code,
-                    'carrier_logo' => KomerceCourierAssets::logoUrl($shipment->carrier_code),
-                    'cost' => $shipment->cost,
-                    'tracking_history' => is_array($history) ? array_values($history) : [],
-                ];
-            })
+            ->map(fn (OrderShipment $shipment): array => $presenter->payload($shipment))
             ->values()
             ->all();
 
@@ -82,8 +75,25 @@ final class OrderController extends Controller
                 'shipments' => $shipments,
                 'payment' => $resolve->handle($order),
                 'can_retry_payment' => $resolve->canRetry($order),
+                'can_cancel' => CancelOrderByCustomer::isCancellable($order),
             ],
         ]);
+    }
+
+    public function cancel(Request $request, string $number): JsonResponse
+    {
+        $order = $this->ownedOrder($request, $number);
+
+        try {
+            resolve(CancelOrderByCustomer::class)->handle($order);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => collect($e->errors())->flatten()->first() ?? 'Pesanan tidak bisa dibatalkan.',
+                'errors' => $e->errors(),
+            ], 422);
+        }
+
+        return $this->show($request, $number);
     }
 
     public function retryPayment(Request $request, string $number): JsonResponse
@@ -91,12 +101,14 @@ final class OrderController extends Controller
         $order = $this->ownedOrder($request, $number);
 
         try {
-            $instructions = resolve(RetryKomercePayment::class)->handle($order);
+            resolve(RetryKomercePayment::class)->handle($order);
         } catch (Throwable $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json(['data' => ['payment' => $instructions]]);
+        // Same full order as cancel/sync/track so Expo can replace state the
+        // way Vue Inertia reloads after retry-payment.
+        return $this->show($request, $number);
     }
 
     public function syncPayment(Request $request, string $number): JsonResponse
@@ -104,22 +116,14 @@ final class OrderController extends Controller
         $order = $this->ownedOrder($request, $number);
 
         try {
-            $result = resolve(SyncKomercePaymentStatus::class)->handle($order);
+            resolve(SyncKomercePaymentStatus::class)->handle($order);
         } catch (Throwable $e) {
             report($e);
 
             return response()->json(['message' => 'Belum bisa cek status pembayaran.'], 422);
         }
 
-        $order->refresh();
-
-        return response()->json([
-            'data' => [
-                'sync' => $result,
-                'payment_status' => $order->payment_status->value,
-                'payment' => resolve(ResolveKomercePaymentInstructions::class)->handle($order),
-            ],
-        ]);
+        return $this->show($request, $number);
     }
 
     public function track(Request $request, string $number, int $shipment): JsonResponse
@@ -173,6 +177,8 @@ final class OrderController extends Controller
             'amount' => (int) $order->price_amount,
             'currency' => $order->currency_code,
             'created_at' => optional($order->created_at)?->toIso8601String(),
+            'cancelled_reason' => CancelOrderByCustomer::cancelledReason($order),
+            'cancelled_reason_label' => CancelOrderByCustomer::cancelledReasonLabel($order),
         ];
     }
 

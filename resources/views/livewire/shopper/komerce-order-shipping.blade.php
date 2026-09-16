@@ -34,7 +34,7 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
-            @if ($order->payment_status !== \Shopper\Core\Enum\PaymentStatus::Paid)
+            @if ($order->status !== \Shopper\Core\Enum\OrderStatus::Cancelled && $order->payment_status !== \Shopper\Core\Enum\PaymentStatus::Paid)
                 <x-filament::button
                     type="button"
                     wire:click="markPaidAndProcessDelivery"
@@ -100,6 +100,44 @@
             </div>
         @endunless
 
+        @if ($cancelledReasonLabel)
+            <div class="flex items-start gap-2.5 rounded-lg bg-slate-50 border border-slate-200 p-3.5 text-xs text-slate-800 dark:bg-slate-500/10 dark:border-slate-500/20 dark:text-slate-200" role="status">
+                <x-heroicon-o-information-circle class="size-5 text-slate-600 dark:text-slate-300 shrink-0" />
+                <span class="font-medium">{{ $cancelledReasonLabel }}</span>
+            </div>
+        @endif
+
+        @if ($paymentAlert)
+            <div class="flex items-start gap-2.5 rounded-lg bg-rose-50 border border-rose-200 p-3.5 text-xs text-rose-900 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-300" role="alert">
+                <x-heroicon-o-exclamation-triangle class="size-5 text-rose-600 dark:text-rose-400 shrink-0" />
+                <div class="space-y-0.5">
+                    <p class="font-semibold">
+                        Callback pembayaran ditolak
+                        @if ($paymentAlert['reason'] === 'amount_mismatch')
+                            — nominal tidak sesuai
+                        @else
+                            — {{ $paymentAlert['reason'] }}
+                        @endif
+                    </p>
+                    <p>
+                        @if ($paymentAlert['expected_amount'] !== null)
+                            Tagihan Rp {{ number_format($paymentAlert['expected_amount'], 0, ',', '.') }}
+                        @endif
+                        @if ($paymentAlert['remote_amount'] !== null)
+                            · Diterima Rp {{ number_format($paymentAlert['remote_amount'], 0, ',', '.') }}
+                        @endif
+                        @if ($paymentAlert['payment_id'])
+                            · Payment ID {{ $paymentAlert['payment_id'] }}
+                        @endif
+                        @if ($paymentAlert['occurred_at'])
+                            · {{ $paymentAlert['occurred_at'] }}
+                        @endif
+                    </p>
+                    <p>Pesanan tetap belum lunas. Verifikasi manual pembayaran ini sebelum memproses pengiriman.</p>
+                </div>
+            </div>
+        @endif
+
         @if ($successMessage)
             <div class="flex items-center gap-2.5 rounded-lg bg-emerald-50 border border-emerald-200 p-3.5 text-xs text-emerald-900 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-300" role="status">
                 <x-heroicon-o-check-circle class="size-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -153,6 +191,11 @@
                         @if (! empty($shipment['fulfillment_error']))
                             <p class="text-xs text-rose-700 dark:text-rose-300">
                                 Gagal otomatis ke RajaOngkir: {{ $shipment['fulfillment_error'] }}
+                            </p>
+                        @endif
+                        @if (empty($shipment['can_print_label']) && ! empty($shipment['pin_ready_message']))
+                            <p class="text-xs text-amber-800 dark:text-amber-300">
+                                {{ $shipment['pin_ready_message'] }}
                             </p>
                         @endif
                     </div>
@@ -224,6 +267,26 @@
                         </span>
                     </div>
                 </div>
+
+                @if (! empty($shipment['tracking_history']))
+                    <div class="rounded-lg border border-gray-200 bg-white p-3.5 dark:border-gray-700/80 dark:bg-gray-900">
+                        <span class="text-gray-500 dark:text-gray-400 block text-[11px] uppercase tracking-wider font-semibold">Riwayat lacak</span>
+                        <ol class="mt-2 flex flex-col gap-2 border-l border-gray-200 pl-3 dark:border-gray-700">
+                            @foreach ($shipment['tracking_history'] as $event)
+                                <li class="text-xs text-gray-700 dark:text-gray-200">
+                                    <span class="font-medium">{{ $event['description'] }}</span>
+                                    @if (! empty($event['datetime']) || ! empty($event['location']))
+                                        <span class="mt-0.5 block text-[11px] text-gray-500 dark:text-gray-400">
+                                            @if (! empty($event['datetime'])){{ $event['datetime'] }}@endif
+                                            @if (! empty($event['datetime']) && ! empty($event['location'])) · @endif
+                                            @if (! empty($event['location'])){{ $event['location'] }}@endif
+                                        </span>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ol>
+                    </div>
+                @endif
 
                 {{-- Items --}}
                 <div class="text-xs text-gray-600 dark:text-gray-300 flex flex-wrap items-center gap-2 pt-1">

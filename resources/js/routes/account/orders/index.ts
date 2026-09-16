@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import shipments from './shipments'
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:39
+* @see app/Http/Controllers/Account/OrderController.php:41
 * @route '/account/orders/{order}'
 */
 export const show = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -17,7 +17,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:39
+* @see app/Http/Controllers/Account/OrderController.php:41
 * @route '/account/orders/{order}'
 */
 show.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -50,7 +50,7 @@ show.url = (args: { order: number | { id: number } } | [order: number | { id: nu
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:39
+* @see app/Http/Controllers/Account/OrderController.php:41
 * @route '/account/orders/{order}'
 */
 show.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -60,7 +60,7 @@ show.get = (args: { order: number | { id: number } } | [order: number | { id: nu
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:39
+* @see app/Http/Controllers/Account/OrderController.php:41
 * @route '/account/orders/{order}'
 */
 show.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -70,7 +70,7 @@ show.head = (args: { order: number | { id: number } } | [order: number | { id: n
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:39
+* @see app/Http/Controllers/Account/OrderController.php:41
 * @route '/account/orders/{order}'
 */
 const showForm = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -80,7 +80,7 @@ const showForm = (args: { order: number | { id: number } } | [order: number | { 
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:39
+* @see app/Http/Controllers/Account/OrderController.php:41
 * @route '/account/orders/{order}'
 */
 showForm.get = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -90,7 +90,7 @@ showForm.get = (args: { order: number | { id: number } } | [order: number | { id
 
 /**
 * @see \App\Http\Controllers\Account\OrderController::show
-* @see app/Http/Controllers/Account/OrderController.php:39
+* @see app/Http/Controllers/Account/OrderController.php:41
 * @route '/account/orders/{order}'
 */
 showForm.head = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -345,12 +345,93 @@ confirmReceivedForm.post = (args: { order: number | { id: number } } | [order: n
 
 confirmReceived.form = confirmReceivedForm
 
+/**
+* @see \App\Http\Controllers\Account\CancelOrderController::__invoke
+* @see app/Http/Controllers/Account/CancelOrderController.php:16
+* @route '/account/orders/{order}/cancel'
+*/
+export const cancel = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: cancel.url(args, options),
+    method: 'post',
+})
+
+cancel.definition = {
+    methods: ["post"],
+    url: '/account/orders/{order}/cancel',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Account\CancelOrderController::__invoke
+* @see app/Http/Controllers/Account/CancelOrderController.php:16
+* @route '/account/orders/{order}/cancel'
+*/
+cancel.url = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { order: args }
+    }
+
+    if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+        args = { order: args.id }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            order: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        order: typeof args.order === 'object'
+        ? args.order.id
+        : args.order,
+    }
+
+    return cancel.definition.url
+            .replace('{order}', parsedArgs.order.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Account\CancelOrderController::__invoke
+* @see app/Http/Controllers/Account/CancelOrderController.php:16
+* @route '/account/orders/{order}/cancel'
+*/
+cancel.post = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: cancel.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \App\Http\Controllers\Account\CancelOrderController::__invoke
+* @see app/Http/Controllers/Account/CancelOrderController.php:16
+* @route '/account/orders/{order}/cancel'
+*/
+const cancelForm = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: cancel.url(args, options),
+    method: 'post',
+})
+
+/**
+* @see \App\Http\Controllers\Account\CancelOrderController::__invoke
+* @see app/Http/Controllers/Account/CancelOrderController.php:16
+* @route '/account/orders/{order}/cancel'
+*/
+cancelForm.post = (args: { order: number | { id: number } } | [order: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    action: cancel.url(args, options),
+    method: 'post',
+})
+
+cancel.form = cancelForm
+
 const orders = {
     show: Object.assign(show, show),
     retryPayment: Object.assign(retryPayment, retryPayment),
     syncPayment: Object.assign(syncPayment, syncPayment),
     shipments: Object.assign(shipments, shipments),
     confirmReceived: Object.assign(confirmReceived, confirmReceived),
+    cancel: Object.assign(cancel, cancel),
 }
 
 export default orders

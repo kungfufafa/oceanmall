@@ -65,6 +65,25 @@ function confirmClear(): void {
         cartActions.clear();
     }
 }
+
+function availableStock(line: Cart['lines'][number]): number | null {
+    const purchasable = line.purchasable as {
+        stock?: number;
+        allow_backorder?: boolean;
+    };
+
+    if (purchasable.allow_backorder) {
+        return null;
+    }
+
+    return typeof purchasable.stock === 'number' ? purchasable.stock : null;
+}
+
+function lineMax(line: Cart['lines'][number]): number | null {
+    const stock = availableStock(line);
+
+    return stock === null ? null : Math.max(1, stock);
+}
 </script>
 
 <template>
@@ -202,6 +221,7 @@ function confirmClear(): void {
                                     <QtyStepper
                                         :model-value="line.quantity"
                                         :min="1"
+                                        :max="lineMax(line)"
                                         size="sm"
                                         @update:model-value="
                                             cartActions.update(line.id, $event)

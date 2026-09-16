@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Actions\Account\CancelOrderByCustomer;
 use App\Models\OrderShipment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -33,6 +34,9 @@ final class OrderShipmentOpsPresenter
                     && ! filled($shipment->tracking_number);
 
                 $inventory = $shipment->inventory;
+                $pinReady = resolve(KomercePinReady::class);
+                $originPinReady = $pinReady->inventoryHasPinPoint($inventory);
+                $destinationPinReady = $pinReady->orderHasDestinationPin($order);
                 $shipperAddress = implode(', ', array_filter([
                     $inventory?->street_address,
                     $inventory?->city,
@@ -86,6 +90,10 @@ final class OrderShipmentOpsPresenter
                     'fulfillment_error' => is_string(data_get($shipment->metadata, 'komerce.fulfillment_error'))
                         ? (string) data_get($shipment->metadata, 'komerce.fulfillment_error')
                         : null,
+                    'tracking_history' => ShipmentTrackingHistory::fromShipment($shipment),
+                    'origin_pin_ready' => $originPinReady,
+                    'destination_pin_ready' => $destinationPinReady,
+                    'pin_ready_message' => $pinReady->message($originPinReady, $destinationPinReady),
                     'can_print_label' => $canPrint,
                     'print_hint' => $canPrint
                         ? null
@@ -117,20 +125,59 @@ final class OrderShipmentOpsPresenter
     }
 
     /**
+     * Rejected/mismatched payment callback marker written by
+     * MarkOrderPaidFromKomerce (metadata.komerce.payment_alert), if any.
+     *
+     * @return array{reason: string, payment_id: ?string, expected_amount: ?int, remote_amount: ?int, occurred_at: ?string}|null
+     */
+    public function paymentAlert(Order $order): ?array
+    {
+        $metadata = $order->getAttribute('metadata');
+
+        if (is_string($metadata) && trim($metadata) !== '') {
+            $decoded = json_decode($metadata, true);
+            $metadata = is_array($decoded) ? $decoded : [];
+        }
+
+        $alert = data_get($metadata, 'komerce.payment_alert');
+
+        if (! is_array($alert) || ! is_string($alert['reason'] ?? null)) {
+            return null;
+        }
+
+        return [
+            'reason' => (string) $alert['reason'],
+            'payment_id' => is_scalar($alert['payment_id'] ?? null) ? (string) $alert['payment_id'] : null,
+            'expected_amount' => is_numeric($alert['expected_amount'] ?? null) ? (int) $alert['expected_amount'] : null,
+            'remote_amount' => is_numeric($alert['remote_amount'] ?? null) ? (int) $alert['remote_amount'] : null,
+            'occurred_at' => is_string($alert['occurred_at'] ?? null) ? $alert['occurred_at'] : null,
+        ];
+    }
+
+    public function cancelledReasonLabel(Order $order): ?string
+    {
+        return CancelOrderByCustomer::cancelledReasonLabel($order, 'admin');
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function inventories(): array
     {
+        $pinReady = resolve(KomercePinReady::class);
+
         return Inventory::query()
             ->orderByDesc('is_default')
             ->orderBy('name')
-            ->get(['id', 'name', 'is_default', 'rajaongkir_origin_id'])
-            ->map(static fn (Inventory $inventory): array => [
+            ->get(['id', 'name', 'is_default', 'rajaongkir_origin_id', 'latitude', 'longitude'])
+            ->map(fn (Inventory $inventory): array => [
                 'id' => $inventory->id,
                 'name' => $inventory->name,
                 'is_default' => (bool) $inventory->is_default,
                 'rajaongkir_origin_id' => $inventory->rajaongkir_origin_id,
-                'ready_for_shipping' => filled($inventory->rajaongkir_origin_id),
+                'has_pin_point' => $pinReady->inventoryHasPinPoint($inventory),
+                'ready_for_shipping' => filled($inventory->rajaongkir_origin_id)
+                    && $pinReady->inventoryHasPinPoint($inventory),
             ])
             ->values()
             ->all();
@@ -155,13 +202,6 @@ final class OrderShipmentOpsPresenter
 
     public function statusLabel(?string $status): string
     {
-        return match ($status) {
-            'pending', 'ready' => 'Waiting for label',
-            'labeled' => 'Labeled',
-            'picked_up' => 'Picked up',
-            'in_transit' => 'In transit',
-            'delivered' => 'Delivered',
-            default => $status ? str_replace('_', ' ', ucfirst($status)) : 'Unknown',
-        };
+        return ShipmentStatusLabel::for($status);
     }
 }

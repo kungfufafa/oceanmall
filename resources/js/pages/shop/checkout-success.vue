@@ -31,10 +31,38 @@ type Order = {
     payment_status?: string;
 };
 
+type TrackingEvent = {
+    description: string;
+    datetime: string | null;
+    location: string | null;
+};
+
+type Shipment = {
+    id: number;
+    inventory_name: string | null;
+    status: string;
+    status_label?: string | null;
+    awb: string | null;
+    tracking_number: string | null;
+    carrier: string | null;
+    service: string | null;
+    tracking_history: TrackingEvent[];
+    origin_pin_ready?: boolean;
+    destination_pin_ready?: boolean;
+    pin_ready_message?: string | null;
+};
+
 const props = defineProps<{
     order: Order;
+    shipments?: Shipment[];
     komercePayment?: KomercePaymentInstructions | null;
+    canRetryPayment?: boolean;
+    canCancel?: boolean;
+    cancelledReason?: string | null;
+    cancelledReasonLabel?: string | null;
 }>();
+
+const shipments = computed(() => props.shipments ?? []);
 
 const page = usePage();
 const flashError = computed(() => {
@@ -59,53 +87,78 @@ const paymentError = computed(
     () => (page.props.errors as Record<string, string> | undefined)?.payment,
 );
 
-const needsPayment = computed(() => Boolean(props.komercePayment));
-
-const paymentStatus = computed(() => {
-    const status = props.order.payment_status;
-
+function statusValue(status: OrderStatusLike): string | null {
     if (typeof status === 'string') {
-return status;
+        return status;
+    }
+
+    return status?.value ?? null;
 }
 
-    return null;
+const orderStatus = computed(() => statusValue(props.order.status));
+const paymentStatus = computed(() => statusValue(props.order.payment_status ?? null));
+const isCancelled = computed(() => orderStatus.value === 'cancelled');
+
+const cancelledReasonLabel = computed(() => {
+    if (props.cancelledReasonLabel) {
+        return props.cancelledReasonLabel;
+    }
+
+    if (!isCancelled.value) {
+        return null;
+    }
+
+    if (props.cancelledReason === 'Payment expired') {
+        return 'Pesanan dibatalkan otomatis karena pembayaran kedaluwarsa.';
+    }
+
+    if (props.cancelledReason === 'Cancelled by customer') {
+        return 'Pesanan dibatalkan oleh Anda.';
+    }
+
+    return props.cancelledReason
+        ? `Pesanan dibatalkan: ${props.cancelledReason}`
+        : 'Pesanan dibatalkan.';
 });
+
+const needsPayment = computed(
+    () => Boolean(props.komercePayment) && !isCancelled.value,
+);
 
 const paymentSetupFailed = computed(
     () =>
         !needsPayment.value &&
+        !isCancelled.value &&
         paymentStatus.value !== undefined &&
         paymentStatus.value !== null &&
         paymentStatus.value !== 'paid',
 );
 
 const pageTitle = computed(() => {
+    if (isCancelled.value) {
+        return 'Pesanan dibatalkan';
+    }
+
     if (needsPayment.value) {
-return 'Selesaikan pembayaran';
-}
+        return 'Selesaikan pembayaran';
+    }
 
     if (paymentSetupFailed.value) {
-return 'Pesanan dibuat';
-}
+        return 'Pesanan dibuat';
+    }
 
     return 'Pesanan dibuat';
 });
 
 const checkingPayment = ref(false);
-let pollTimer: ReturnType<typeof setInterval> | null = null;
-let pollCount = 0;
-
-function stopPolling(): void {
-    if (pollTimer) {
-        clearInterval(pollTimer);
-        pollTimer = null;
-    }
-}
+const retryingPayment = ref(false);
+const cancellingOrder = ref(false);
+const cancelError = ref<string | null>(null);
 
 function syncPayment(silent = false): void {
     if (!needsPayment.value || checkingPayment.value) {
-return;
-}
+        return;
+    }
 
     checkingPayment.value = true;
     router.post(
@@ -120,32 +173,87 @@ return;
     );
 }
 
-onMounted(() => {
-    if (!needsPayment.value) {
-return;
+function retryPayment(): void {
+    retryingPayment.value = true;
+    router.post(
+        `/account/orders/${props.order.id}/retry-payment`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                retryingPayment.value = false;
+            },
+        },
+    );
 }
 
-    pollTimer = setInterval(() => {
-        pollCount += 1;
+function cancelOrder(): void {
+    if (!window.confirm('Yakin ingin membatalkan pesanan ini?')) {
+        return;
+    }
 
-        if (pollCount > 12 || !needsPayment.value) {
-            stopPolling();
+    cancellingOrder.value = true;
+    cancelError.value = null;
+    router.post(
+        `/account/orders/${props.order.id}/cancel`,
+        {},
+        {
+            preserveScroll: true,
+            onError: (errors) => {
+                cancelError.value =
+                    errors.cancel ?? 'Pesanan tidak bisa dibatalkan saat ini.';
+            },
+            onFinish: () => {
+                cancellingOrder.value = false;
+            },
+        },
+    );
+}
+
+// Same as Vue order-show and Expo: reload the GET every 10s so a captured
+// Komerce payment reconciles (and can issue AWB) without a webhook.
+const shouldPollPayment = computed(
+    () =>
+        paymentStatus.value !== 'paid' &&
+        !isCancelled.value &&
+        Boolean(props.komercePayment),
+);
+
+let paymentPollTimer: ReturnType<typeof setInterval> | null = null;
+
+function stopPaymentPoll(): void {
+    if (paymentPollTimer) {
+        clearInterval(paymentPollTimer);
+        paymentPollTimer = null;
+    }
+}
+
+function startPaymentPoll(): void {
+    stopPaymentPoll();
+
+    if (!shouldPollPayment.value) {
+        return;
+    }
+
+    paymentPollTimer = setInterval(() => {
+        if (!shouldPollPayment.value) {
+            stopPaymentPoll();
 
             return;
         }
 
-        syncPayment(true);
-    }, 15000);
-});
-
-watch(needsPayment, (needs) => {
-    if (!needs) {
-stopPolling();
+        router.reload({ preserveScroll: true });
+    }, 10_000);
 }
-});
 
-onBeforeUnmount(() => {
-    stopPolling();
+onMounted(startPaymentPoll);
+onBeforeUnmount(stopPaymentPoll);
+watch(shouldPollPayment, (needs) => {
+    if (needs) {
+        startPaymentPoll();
+    } else {
+        stopPaymentPoll();
+    }
 });
 </script>
 
@@ -210,21 +318,59 @@ onBeforeUnmount(() => {
                     <KomercePaymentPanel :payment="komercePayment!" />
                 </div>
 
-                <Button
-                    type="button"
-                    size="xl"
-                    class="mt-4 w-full"
-                    :disabled="checkingPayment"
-                    @click="syncPayment(false)"
-                >
-                    {{
-                        checkingPayment
-                            ? 'Mengecek…'
-                            : 'Sudah bayar? Cek status'
-                    }}
-                </Button>
+                <div class="mt-4 flex flex-col gap-2">
+                    <Button
+                        type="button"
+                        size="xl"
+                        class="w-full"
+                        :disabled="checkingPayment"
+                        @click="syncPayment(false)"
+                    >
+                        {{
+                            checkingPayment
+                                ? 'Mengecek…'
+                                : 'Sudah bayar? Cek status'
+                        }}
+                    </Button>
+                    <Button
+                        v-if="canRetryPayment"
+                        type="button"
+                        variant="outline"
+                        size="xl"
+                        class="w-full"
+                        :disabled="retryingPayment"
+                        @click="retryPayment"
+                    >
+                        {{
+                            retryingPayment
+                                ? 'Memproses…'
+                                : 'Buat ulang pembayaran'
+                        }}
+                    </Button>
+                    <Button
+                        v-if="canCancel"
+                        type="button"
+                        variant="outline"
+                        size="xl"
+                        class="w-full text-destructive"
+                        :disabled="cancellingOrder"
+                        @click="cancelOrder"
+                    >
+                        {{
+                            cancellingOrder
+                                ? 'Membatalkan…'
+                                : 'Batalkan pesanan'
+                        }}
+                    </Button>
+                    <p
+                        v-if="cancelError"
+                        class="text-center text-sm text-destructive"
+                    >
+                        {{ cancelError }}
+                    </p>
+                </div>
                 <p class="mt-2 text-center text-[11px] text-muted-foreground">
-                    Status dicek otomatis tiap 15 detik. Atau ketuk tombol di
+                    Status dicek otomatis tiap 10 detik. Atau ketuk tombol di
                     atas setelah transfer/scan.
                 </p>
 
@@ -265,13 +411,13 @@ onBeforeUnmount(() => {
                         <div
                             class="flex size-16 items-center justify-center rounded-full"
                             :class="
-                                paymentSetupFailed
+                                isCancelled || paymentSetupFailed
                                     ? 'bg-amber-100 text-amber-800'
                                     : 'bg-emerald-100'
                             "
                         >
                             <Clock3
-                                v-if="paymentSetupFailed"
+                                v-if="isCancelled || paymentSetupFailed"
                                 class="size-8"
                                 aria-hidden="true"
                             />
@@ -285,11 +431,13 @@ onBeforeUnmount(() => {
                         <div class="flex flex-col gap-2">
                             <CardTitle class="text-xl sm:text-2xl">
                                 {{
-                                    flashSuccess
-                                        ? 'Pembayaran berhasil'
-                                        : paymentSetupFailed
-                                          ? 'Pesanan dibuat — bayar belum siap'
-                                          : 'Pesanan berhasil dibuat'
+                                    isCancelled
+                                        ? 'Pesanan dibatalkan'
+                                        : flashSuccess
+                                          ? 'Pembayaran berhasil'
+                                          : paymentSetupFailed
+                                            ? 'Pesanan dibuat — bayar belum siap'
+                                            : 'Pesanan berhasil dibuat'
                                 }}
                             </CardTitle>
                             <CardDescription class="text-base">
@@ -316,7 +464,13 @@ onBeforeUnmount(() => {
                     </CardHeader>
 
                     <CardContent class="flex flex-col gap-4 p-6 pt-0 sm:p-8 sm:pt-0">
-                        <Alert v-if="flashSuccess" variant="success">
+                        <Alert v-if="cancelledReasonLabel" variant="info">
+                            <AlertDescription class="text-[13px] text-current">
+                                {{ cancelledReasonLabel }}
+                            </AlertDescription>
+                        </Alert>
+
+                        <Alert v-else-if="flashSuccess" variant="success">
                             <AlertDescription class="text-[13px] text-current">
                                 {{ flashSuccess }}
                             </AlertDescription>
@@ -344,16 +498,46 @@ onBeforeUnmount(() => {
                             class="text-left"
                         >
                             <AlertDescription class="text-[13px] text-current">
-                                Instruksi pembayaran belum tersedia. Buka detail
-                                pesanan untuk mencoba bayar lagi.
-                                <Link
-                                    :href="ordersShow.url(order.id)"
-                                    class="mt-2 block font-semibold text-[var(--om-navy)]"
-                                >
-                                    Bayar di detail pesanan →
-                                </Link>
+                                Instruksi pembayaran belum tersedia. Ketuk
+                                tombol di bawah untuk membuat pembayaran baru,
+                                atau buka detail pesanan.
                             </AlertDescription>
                         </Alert>
+
+                        <Button
+                            v-if="canRetryPayment && !isCancelled"
+                            type="button"
+                            size="xl"
+                            :disabled="retryingPayment"
+                            @click="retryPayment"
+                        >
+                            {{
+                                retryingPayment
+                                    ? 'Memproses…'
+                                    : 'Bayar sekarang'
+                            }}
+                        </Button>
+                        <Button
+                            v-if="canCancel && !isCancelled"
+                            type="button"
+                            variant="outline"
+                            size="xl"
+                            class="text-destructive"
+                            :disabled="cancellingOrder"
+                            @click="cancelOrder"
+                        >
+                            {{
+                                cancellingOrder
+                                    ? 'Membatalkan…'
+                                    : 'Batalkan pesanan'
+                            }}
+                        </Button>
+                        <p
+                            v-if="cancelError"
+                            class="text-sm text-destructive"
+                        >
+                            {{ cancelError }}
+                        </p>
 
                         <div
                             class="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center"
@@ -373,6 +557,90 @@ onBeforeUnmount(() => {
                                     Lanjut belanja
                                 </Link>
                             </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card
+                    v-if="shipments.length"
+                    class="mt-5 gap-0 rounded-md border-border bg-card py-0 text-left text-card-foreground shadow-none"
+                >
+                    <CardHeader class="p-6 pb-3">
+                        <CardTitle class="text-base">Pengiriman</CardTitle>
+                        <CardDescription>
+                            Riwayat resi yang sama dengan detail pesanan.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent class="flex flex-col gap-5 p-6 pt-0">
+                        <div
+                            v-for="shipment in shipments"
+                            :key="shipment.id"
+                            class="border-t border-border pt-4 first:border-t-0 first:pt-0"
+                        >
+                            <p class="text-sm font-medium text-foreground">
+                                {{
+                                    [shipment.carrier, shipment.service]
+                                        .filter(Boolean)
+                                        .join(' / ') || 'Kurir menunggu'
+                                }}
+                                <span
+                                    v-if="shipment.inventory_name"
+                                    class="font-normal text-muted-foreground"
+                                >
+                                    · {{ shipment.inventory_name }}
+                                </span>
+                            </p>
+                            <p class="mt-1 text-sm text-muted-foreground">
+                                {{ shipment.status_label ?? shipment.status }}
+                            </p>
+                            <p class="mt-1 text-sm text-muted-foreground">
+                                {{
+                                    shipment.awb ||
+                                    shipment.tracking_number ||
+                                    'Label menunggu'
+                                }}
+                            </p>
+                            <p
+                                v-if="
+                                    !shipment.awb &&
+                                    !shipment.tracking_number &&
+                                    shipment.pin_ready_message
+                                "
+                                class="mt-1 text-sm text-amber-800"
+                            >
+                                {{ shipment.pin_ready_message }}
+                            </p>
+                            <ol
+                                v-if="shipment.tracking_history.length"
+                                class="mt-3 flex flex-col gap-2 border-l border-border pl-4"
+                            >
+                                <li
+                                    v-for="(event, eventIndex) in shipment.tracking_history"
+                                    :key="eventIndex"
+                                >
+                                    <p class="text-sm text-foreground">
+                                        {{ event.description }}
+                                    </p>
+                                    <p
+                                        v-if="event.datetime || event.location"
+                                        class="mt-0.5 text-xs text-muted-foreground"
+                                    >
+                                        <span v-if="event.datetime">{{
+                                            event.datetime
+                                        }}</span>
+                                        <span
+                                            v-if="
+                                                event.datetime && event.location
+                                            "
+                                        >
+                                            ·
+                                        </span>
+                                        <span v-if="event.location">{{
+                                            event.location
+                                        }}</span>
+                                    </p>
+                                </li>
+                            </ol>
                         </div>
                     </CardContent>
                 </Card>

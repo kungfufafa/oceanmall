@@ -79,6 +79,7 @@ final class WarehouseOpsE2ETest extends TestCase
                 'shipping_address' => [
                     'country_id' => 1,
                     'rajaongkir_destination_id' => '152',
+                    'rajaongkir_pin_point' => '-6.2380,106.7830',
                 ],
             ], JSON_THROW_ON_ERROR),
         ]);
@@ -92,6 +93,8 @@ final class WarehouseOpsE2ETest extends TestCase
             'city' => 'Cirebon',
             'postal_code' => '45111',
             'rajaongkir_origin_id' => '501',
+            'latitude' => '-6.7366',
+            'longitude' => '108.5414',
         ]);
 
         $shipment = OrderShipment::query()->create([

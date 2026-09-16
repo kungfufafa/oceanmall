@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import OrderStatusBadge from '@/components/account/order-status-badge.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
 import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
@@ -82,6 +82,7 @@ type Shipment = {
     id: number;
     inventory_name: string | null;
     status: string;
+    status_label?: string | null;
     awb: string | null;
     tracking_number: string | null;
     carrier: string | null;
@@ -90,6 +91,9 @@ type Shipment = {
     cost: number;
     currency: string;
     tracking_history: TrackingEvent[];
+    origin_pin_ready?: boolean;
+    destination_pin_ready?: boolean;
+    pin_ready_message?: string | null;
 };
 
 const props = defineProps<{
@@ -97,7 +101,33 @@ const props = defineProps<{
     shipments: Shipment[];
     komercePayment?: KomercePaymentInstructions | null;
     canRetryPayment?: boolean;
+    canCancel?: boolean;
+    cancelledReason?: string | null;
+    cancelledReasonLabel?: string | null;
 }>();
+
+// Prefer the server label so Shopper, Vue, and mobile stay on one mapping.
+const cancelledReasonLabel = computed(() => {
+    if (props.cancelledReasonLabel) {
+        return props.cancelledReasonLabel;
+    }
+
+    if (props.order.status !== 'cancelled') {
+        return null;
+    }
+
+    if (props.cancelledReason === 'Payment expired') {
+        return 'Pesanan dibatalkan otomatis karena pembayaran kedaluwarsa.';
+    }
+
+    if (props.cancelledReason === 'Cancelled by customer') {
+        return 'Pesanan dibatalkan oleh Anda.';
+    }
+
+    return props.cancelledReason
+        ? `Pesanan dibatalkan: ${props.cancelledReason}`
+        : 'Pesanan dibatalkan.';
+});
 
 const page = usePage();
 const paymentError = computed(
@@ -141,6 +171,15 @@ function formatShipmentStatus(value: string): string {
     return value
         .replace(/[-_]/g, ' ')
         .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+// Prefer the server label so Shopper, Vue, and Expo stay on one mapping.
+function shipmentStatusLabel(shipment: Shipment): string {
+    if (shipment.status_label) {
+        return shipment.status_label;
+    }
+
+    return formatShipmentStatus(shipment.status);
 }
 
 function shipmentCarrierService(shipment: Shipment): string | null {
@@ -232,6 +271,77 @@ function syncPayment(): void {
         },
     );
 }
+
+// Same as mobile order screen: refresh unpaid orders every 10s so a
+// webhook-paid state flips the page without a manual tap.
+const shouldPollPayment = computed(
+    () =>
+        props.order.payment_status !== 'paid' &&
+        props.order.status !== 'cancelled' &&
+        !!props.komercePayment,
+);
+
+let paymentPollTimer: ReturnType<typeof setInterval> | null = null;
+
+function stopPaymentPoll(): void {
+    if (paymentPollTimer) {
+        clearInterval(paymentPollTimer);
+        paymentPollTimer = null;
+    }
+}
+
+function startPaymentPoll(): void {
+    stopPaymentPoll();
+
+    if (!shouldPollPayment.value) {
+        return;
+    }
+
+    paymentPollTimer = setInterval(() => {
+        if (!shouldPollPayment.value) {
+            stopPaymentPoll();
+
+            return;
+        }
+
+        router.reload({ preserveScroll: true });
+    }, 10_000);
+}
+
+onMounted(startPaymentPoll);
+onUnmounted(stopPaymentPoll);
+watch(shouldPollPayment, (needs) => {
+    if (needs) {
+        startPaymentPoll();
+    } else {
+        stopPaymentPoll();
+    }
+});
+
+const cancellingOrder = ref(false);
+const cancelError = ref<string | null>(null);
+
+function cancelOrder(): void {
+    if (!window.confirm('Yakin ingin membatalkan pesanan ini?')) {
+        return;
+    }
+    cancellingOrder.value = true;
+    cancelError.value = null;
+    router.post(
+        `/account/orders/${props.order.id}/cancel`,
+        {},
+        {
+            preserveScroll: true,
+            onError: (errors) => {
+                cancelError.value =
+                    errors.cancel ?? 'Pesanan tidak bisa dibatalkan saat ini.';
+            },
+            onFinish: () => {
+                cancellingOrder.value = false;
+            },
+        },
+    );
+}
 </script>
 
 <template>
@@ -278,6 +388,10 @@ function syncPayment(): void {
         </template>
     </div>
 
+    <Alert v-if="cancelledReasonLabel" variant="info" class="mt-5">
+        <AlertDescription>{{ cancelledReasonLabel }}</AlertDescription>
+    </Alert>
+
     <Alert
         v-if="flashSuccess && !(komercePayment || canRetryPayment)"
         variant="success"
@@ -287,7 +401,7 @@ function syncPayment(): void {
     </Alert>
 
     <Card
-        v-if="komercePayment || canRetryPayment"
+        v-if="(komercePayment || canRetryPayment) && order.status !== 'cancelled'"
         class="mt-5 gap-0 overflow-hidden py-0 shadow-none"
     >
         <div
@@ -368,6 +482,22 @@ function syncPayment(): void {
             </div>
         </CardContent>
     </Card>
+
+    <div v-if="canCancel" class="mt-4">
+        <Button
+            type="button"
+            variant="outline"
+            size="xl"
+            class="text-destructive"
+            :disabled="cancellingOrder"
+            @click="cancelOrder"
+        >
+            {{ cancellingOrder ? 'Membatalkan…' : 'Batalkan pesanan' }}
+        </Button>
+        <p v-if="cancelError" class="mt-2 text-sm text-destructive">
+            {{ cancelError }}
+        </p>
+    </div>
 
     <div v-if="canConfirmReceived" class="mt-4">
         <Button
@@ -539,15 +669,30 @@ function syncPayment(): void {
                         </div>
                     </div>
                     <p class="text-sm font-medium text-[var(--om-navy)]">
-                        {{ formatShipmentStatus(shipment.status) }}
+                        {{ shipmentStatusLabel(shipment) }}
                     </p>
                 </div>
+
+                <p
+                    v-if="
+                        !shipment.awb &&
+                        !shipment.tracking_number &&
+                        shipment.pin_ready_message
+                    "
+                    class="mt-3 text-sm text-amber-800"
+                >
+                    {{ shipment.pin_ready_message }}
+                </p>
 
                 <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
                     <div>
                         <dt class="text-muted-foreground">AWB</dt>
                         <dd class="mt-1 text-[var(--om-navy)]">
-                            {{ shipment.awb ?? 'Label menunggu' }}
+                            {{
+                                shipment.awb ||
+                                shipment.tracking_number ||
+                                'Label menunggu'
+                            }}
                         </dd>
                     </div>
                     <div>
@@ -568,7 +713,10 @@ function syncPayment(): void {
                     </div>
                 </dl>
 
-                <div v-if="shipment.awb" class="mt-4">
+                <div
+                    v-if="shipment.awb || shipment.tracking_number"
+                    class="mt-4"
+                >
                     <Button
                         type="button"
                         :disabled="trackingShipmentId === shipment.id"
@@ -590,41 +738,41 @@ function syncPayment(): void {
                     >
                         {{ trackingError.message }}
                     </p>
-
-                    <ol
-                        v-if="shipment.tracking_history.length"
-                        class="mt-4 flex flex-col gap-3 border-l border-border pl-4"
-                    >
-                        <li
-                            v-for="(
-                                event, eventIndex
-                            ) in shipment.tracking_history"
-                            :key="eventIndex"
-                            class="relative"
-                        >
-                            <span
-                                class="absolute top-1 -left-[21px] size-2 rounded-full bg-muted-foreground/50"
-                            />
-                            <p class="text-sm text-[var(--om-navy)]">
-                                {{ event.description }}
-                            </p>
-                            <p
-                                v-if="event.datetime || event.location"
-                                class="mt-0.5 text-xs text-muted-foreground"
-                            >
-                                <span v-if="event.datetime">{{
-                                    event.datetime
-                                }}</span>
-                                <span v-if="event.datetime && event.location">
-                                    ·
-                                </span>
-                                <span v-if="event.location">{{
-                                    event.location
-                                }}</span>
-                            </p>
-                        </li>
-                    </ol>
                 </div>
+
+                <ol
+                    v-if="shipment.tracking_history.length"
+                    class="mt-4 flex flex-col gap-3 border-l border-border pl-4"
+                >
+                    <li
+                        v-for="(
+                            event, eventIndex
+                        ) in shipment.tracking_history"
+                        :key="eventIndex"
+                        class="relative"
+                    >
+                        <span
+                            class="absolute top-1 -left-[21px] size-2 rounded-full bg-muted-foreground/50"
+                        />
+                        <p class="text-sm text-[var(--om-navy)]">
+                            {{ event.description }}
+                        </p>
+                        <p
+                            v-if="event.datetime || event.location"
+                            class="mt-0.5 text-xs text-muted-foreground"
+                        >
+                            <span v-if="event.datetime">{{
+                                event.datetime
+                            }}</span>
+                            <span v-if="event.datetime && event.location">
+                                ·
+                            </span>
+                            <span v-if="event.location">{{
+                                event.location
+                            }}</span>
+                        </p>
+                    </li>
+                </ol>
             </div>
         </CardContent>
     </Card>

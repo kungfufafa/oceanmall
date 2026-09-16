@@ -52,4 +52,19 @@ final class LocaleTest extends TestCase
             ->call('switchLocale', 'fr')
             ->assertSessionMissing('shopper_locale');
     }
+
+    public function test_inventory_rajaongkir_labels_resolve_for_english_and_indonesian(): void
+    {
+        foreach (['en', 'id'] as $locale) {
+            $origin = __('shopper::pages/settings/global.location.rajaongkir_origin', [], $locale);
+            $latitude = __('shopper::pages/settings/global.location.rajaongkir_latitude', [], $locale);
+            $helper = __('shopper::pages/settings/global.location.rajaongkir_pin_point_helper', [], $locale);
+
+            $this->assertNotSame('shopper::pages/settings/global.location.rajaongkir_origin', $origin);
+            $this->assertNotSame('shopper::pages/settings/global.location.rajaongkir_latitude', $latitude);
+            $this->assertSame('Origin RajaOngkir', $origin);
+            $this->assertSame('Latitude gudang', $latitude);
+            $this->assertStringContainsString('-6.7366', $helper);
+        }
+    }
 }

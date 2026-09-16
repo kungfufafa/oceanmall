@@ -10,6 +10,16 @@ use Tests\TestCase;
 final class LocaleTranslationParityTest extends TestCase
 {
     /**
+     * App-specific keys published on top of the vendor Shopper translations
+     * (they have no English counterpart inside vendor/shopper).
+     *
+     * @var array<string, list<string>>
+     */
+    private const APP_ADDED_KEY_PREFIXES = [
+        'pages/settings/global.php' => ['location.rajaongkir_'],
+    ];
+
+    /**
      * @return array<string, array{0: string}>
      */
     public static function translationFilesProvider(): array
@@ -70,7 +80,10 @@ final class LocaleTranslationParityTest extends TestCase
         $this->assertIsArray($idData);
 
         $enKeys = array_keys($this->arrayDotKeys($enData));
-        $idKeys = array_keys($this->arrayDotKeys($idData));
+        $idKeys = $this->withoutAppAddedKeys(
+            array_keys($this->arrayDotKeys($idData)),
+            $relativePath,
+        );
 
         sort($enKeys);
         sort($idKeys);
@@ -80,13 +93,42 @@ final class LocaleTranslationParityTest extends TestCase
         // Check placeholder parity
         $enPlaceholders = $this->extractPlaceholders($enData);
         $idPlaceholders = $this->extractPlaceholders($idData);
+        $idPlaceholders = array_intersect_key(
+            $idPlaceholders,
+            array_flip($this->withoutAppAddedKeys(array_keys($idPlaceholders), $relativePath)),
+        );
 
         $this->assertSame($enPlaceholders, $idPlaceholders, "Placeholder mismatch in {$relativePath}");
     }
 
     /**
-     * @param array<string, mixed> $array
-     * @param string $prefix
+     * @param  list<string>  $keys
+     * @return list<string>
+     */
+    private function withoutAppAddedKeys(array $keys, string $relativePath): array
+    {
+        $prefixes = self::APP_ADDED_KEY_PREFIXES[$relativePath] ?? [];
+
+        if ($prefixes === []) {
+            return $keys;
+        }
+
+        return array_values(array_filter(
+            $keys,
+            static function (string $key) use ($prefixes): bool {
+                foreach ($prefixes as $prefix) {
+                    if (str_starts_with($key, $prefix)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            },
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $array
      * @return array<string, mixed>
      */
     private function arrayDotKeys(array $array, string $prefix = ''): array
@@ -105,8 +147,7 @@ final class LocaleTranslationParityTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $array
-     * @param string $prefix
+     * @param  array<string, mixed>  $array
      * @return array<string, list<string>>
      */
     private function extractPlaceholders(array $array, string $prefix = ''): array

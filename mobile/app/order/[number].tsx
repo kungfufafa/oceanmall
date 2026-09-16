@@ -6,7 +6,17 @@ import { api, errorMessage, type OrderDetail } from '@/lib/api';
 import { formatIdr } from '@/lib/format';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, View } from 'react-native';
+
+function cancelledReasonLabel(reason?: string | null): string {
+  if (reason === 'Payment expired') {
+    return 'Pesanan dibatalkan otomatis karena pembayaran kedaluwarsa.';
+  }
+  if (reason === 'Cancelled by customer') {
+    return 'Pesanan dibatalkan oleh Anda.';
+  }
+  return reason ? `Pesanan dibatalkan: ${reason}` : 'Pesanan dibatalkan.';
+}
 
 export default function OrderScreen() {
   const { number } = useLocalSearchParams<{ number: string }>();
@@ -35,6 +45,24 @@ export default function OrderScreen() {
       setLoading(true);
       void load();
     }, [load])
+  );
+
+  // While the payment panel shows pending instructions, refresh the order
+  // every 10s so the screen flips to "paid" without manual pull-to-refresh.
+  // Stops automatically once paid/cancelled and when the screen loses focus.
+  const shouldPollPayment =
+    !!order && order.payment_status !== 'paid' && order.status !== 'cancelled' && !!order.payment;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!shouldPollPayment) {
+        return;
+      }
+      const interval = setInterval(() => {
+        void load();
+      }, 10_000);
+      return () => clearInterval(interval);
+    }, [shouldPollPayment, load])
   );
 
   async function run(action: () => Promise<void>) {
@@ -66,6 +94,8 @@ export default function OrderScreen() {
   }
 
   const canConfirm =
+    order.status !== 'cancelled' &&
+    order.status !== 'completed' &&
     order.payment_status === 'paid' &&
     order.shipments.some((shipment) => Boolean(shipment.awb || shipment.tracking_number));
 
@@ -94,6 +124,14 @@ export default function OrderScreen() {
 
       {error ? <Text className="text-destructive">{error}</Text> : null}
 
+      {order.status === 'cancelled' ? (
+        <View className="rounded-xl border border-border bg-muted p-3">
+          <Text className="text-muted-foreground">
+            {order.cancelled_reason_label ?? cancelledReasonLabel(order.cancelled_reason)}
+          </Text>
+        </View>
+      ) : null}
+
       <View className="gap-1">
         <Text className="font-semibold">Barang</Text>
         {order.items.map((item, index) => (
@@ -103,28 +141,22 @@ export default function OrderScreen() {
         ))}
       </View>
 
-      {order.payment_status !== 'paid' ? <PaymentPanel payment={order.payment} /> : null}
+      {order.payment_status !== 'paid' && order.status !== 'cancelled' ? (
+        <PaymentPanel payment={order.payment} />
+      ) : null}
 
-      {order.payment_status !== 'paid' ? (
+      {order.payment_status !== 'paid' && order.status !== 'cancelled' ? (
         <View className="gap-2">
           <Button
             variant="outline"
             disabled={busy}
             onPress={() =>
               void run(async () => {
-                const res = await api<{ data: { payment_status: string; payment: OrderDetail['payment'] } }>(
+                const res = await api<{ data: OrderDetail }>(
                   `/orders/${order.number}/sync-payment`,
                   { method: 'POST' }
                 );
-                setOrder((current) =>
-                  current
-                    ? {
-                        ...current,
-                        payment_status: res.data.payment_status,
-                        payment: res.data.payment,
-                      }
-                    : current
-                );
+                setOrder(res.data);
               })
             }>
             <Text>Cek status bayar</Text>
@@ -134,16 +166,38 @@ export default function OrderScreen() {
               disabled={busy}
               onPress={() =>
                 void run(async () => {
-                  const res = await api<{ data: { payment: OrderDetail['payment'] } }>(
-                    `/orders/${order.number}/retry-payment`,
-                    { method: 'POST' }
-                  );
-                  setOrder((current) =>
-                    current ? { ...current, payment: res.data.payment } : current
-                  );
+                const res = await api<{ data: OrderDetail }>(
+                  `/orders/${order.number}/retry-payment`,
+                  { method: 'POST' }
+                );
+                setOrder(res.data);
                 })
               }>
               <Text>Buat pembayaran baru</Text>
+            </Button>
+          ) : null}
+          {order.can_cancel ? (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onPress={() =>
+                Alert.alert('Batalkan pesanan', 'Yakin ingin membatalkan pesanan ini?', [
+                  { text: 'Tidak', style: 'cancel' },
+                  {
+                    text: 'Ya, batalkan',
+                    style: 'destructive',
+                    onPress: () =>
+                      void run(async () => {
+                        const res = await api<{ data: OrderDetail }>(
+                          `/orders/${order.number}/cancel`,
+                          { method: 'POST' }
+                        );
+                        setOrder(res.data);
+                      }),
+                  },
+                ])
+              }>
+              <Text className="text-destructive">Batalkan pesanan</Text>
             </Button>
           ) : null}
         </View>
@@ -159,35 +213,46 @@ export default function OrderScreen() {
               <Text className="font-medium">
                 {shipment.carrier ?? 'Kurir'} {shipment.service ? `· ${shipment.service}` : ''}
               </Text>
-              <Text className="text-muted-foreground">{shipment.status}</Text>
+              {shipment.inventory_name ? (
+                <Text className="text-muted-foreground">{shipment.inventory_name}</Text>
+              ) : null}
+              <Text className="text-muted-foreground">
+                {shipment.status_label ?? shipment.status}
+              </Text>
               <Text selectable>{shipment.awb || shipment.tracking_number || 'AWB belum ada'}</Text>
+              {!shipment.awb && !shipment.tracking_number && shipment.pin_ready_message ? (
+                <Text className="text-amber-800">{shipment.pin_ready_message}</Text>
+              ) : null}
               {(shipment.tracking_history ?? []).slice(0, 5).map((event, index) => (
                 <Text key={index} className="text-xs text-muted-foreground">
-                  {event.date ? `${event.date} · ` : ''}
+                  {event.datetime ? `${event.datetime} · ` : ''}
                   {event.description}
+                  {event.location ? ` · ${event.location}` : ''}
                 </Text>
               ))}
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={busy}
-                onPress={() =>
-                  void run(async () => {
-                    const res = await api<{ data: OrderDetail }>(
-                      `/orders/${order.number}/shipments/${shipment.id}/track`,
-                      { method: 'POST' }
-                    );
-                    setOrder(res.data);
-                  })
-                }>
-                <Text>Lacak</Text>
-              </Button>
+              {shipment.awb || shipment.tracking_number ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  onPress={() =>
+                    void run(async () => {
+                      const res = await api<{ data: OrderDetail }>(
+                        `/orders/${order.number}/shipments/${shipment.id}/track`,
+                        { method: 'POST' }
+                      );
+                      setOrder(res.data);
+                    })
+                  }>
+                  <Text>Lacak</Text>
+                </Button>
+              ) : null}
             </View>
           ))
         )}
       </View>
 
-      {canConfirm && order.status !== 'completed' ? (
+      {canConfirm ? (
         <Button
           disabled={busy}
           onPress={() =>

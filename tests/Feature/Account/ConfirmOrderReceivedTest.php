@@ -110,4 +110,22 @@ final class ConfirmOrderReceivedTest extends TestCase
             ->post(route('account.orders.confirm-received', $order))
             ->assertForbidden();
     }
+
+    public function test_expo_hides_confirm_received_on_cancelled_orders_like_vue(): void
+    {
+        $vue = file_get_contents(resource_path('js/pages/account/order-show.vue'));
+        $expo = file_get_contents(base_path('mobile/app/order/[number].tsx'));
+
+        $this->assertIsString($vue);
+        $this->assertIsString($expo);
+        $this->assertMatchesRegularExpression(
+            '/canConfirmReceived\s*=\s*\n\s*props\.order\.status !== \'cancelled\'\s*&&\s*\n\s*props\.order\.status !== \'completed\'/',
+            $vue,
+        );
+        $this->assertMatchesRegularExpression(
+            '/canConfirm\s*=\s*\n\s*order\.status !== \'cancelled\'\s*&&\s*\n\s*order\.status !== \'completed\'\s*&&\s*\n\s*order\.payment_status === \'paid\'/',
+            $expo,
+        );
+        $this->assertStringContainsString('shipment.awb || shipment.tracking_number', $expo);
+    }
 }
