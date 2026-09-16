@@ -274,6 +274,26 @@
                     </div>
                 </div>
 
+                @if (! empty($shipment['tracking_history']))
+                    <div class="rounded-lg border border-gray-200 bg-white p-3.5 dark:border-gray-700/80 dark:bg-gray-900">
+                        <span class="text-gray-500 dark:text-gray-400 block text-[11px] uppercase tracking-wider font-semibold">Riwayat lacak</span>
+                        <ol class="mt-2 flex flex-col gap-2 border-l border-gray-200 pl-3 dark:border-gray-700">
+                            @foreach ($shipment['tracking_history'] as $event)
+                                <li class="text-xs text-gray-700 dark:text-gray-200">
+                                    <span class="font-medium">{{ $event['description'] }}</span>
+                                    @if (! empty($event['datetime']) || ! empty($event['location']))
+                                        <span class="mt-0.5 block text-[11px] text-gray-500 dark:text-gray-400">
+                                            @if (! empty($event['datetime'])){{ $event['datetime'] }}@endif
+                                            @if (! empty($event['datetime']) && ! empty($event['location'])) · @endif
+                                            @if (! empty($event['location'])){{ $event['location'] }}@endif
+                                        </span>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ol>
+                    </div>
+                @endif
+
                 {{-- Items --}}
                 <div class="text-xs text-gray-600 dark:text-gray-300 flex flex-wrap items-center gap-2 pt-1">
                     <span class="font-semibold text-gray-700 dark:text-gray-200">Item Produk dalam Paket:</span>

@@ -221,29 +221,35 @@ export default function OrderScreen() {
               <Text className="font-medium">
                 {shipment.carrier ?? 'Kurir'} {shipment.service ? `· ${shipment.service}` : ''}
               </Text>
+              {shipment.inventory_name ? (
+                <Text className="text-muted-foreground">{shipment.inventory_name}</Text>
+              ) : null}
               <Text className="text-muted-foreground">{shipment.status}</Text>
               <Text selectable>{shipment.awb || shipment.tracking_number || 'AWB belum ada'}</Text>
               {(shipment.tracking_history ?? []).slice(0, 5).map((event, index) => (
                 <Text key={index} className="text-xs text-muted-foreground">
-                  {event.date ? `${event.date} · ` : ''}
+                  {event.datetime ? `${event.datetime} · ` : ''}
                   {event.description}
+                  {event.location ? ` · ${event.location}` : ''}
                 </Text>
               ))}
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={busy}
-                onPress={() =>
-                  void run(async () => {
-                    const res = await api<{ data: OrderDetail }>(
-                      `/orders/${order.number}/shipments/${shipment.id}/track`,
-                      { method: 'POST' }
-                    );
-                    setOrder(res.data);
-                  })
-                }>
-                <Text>Lacak</Text>
-              </Button>
+              {shipment.awb || shipment.tracking_number ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  onPress={() =>
+                    void run(async () => {
+                      const res = await api<{ data: OrderDetail }>(
+                        `/orders/${order.number}/shipments/${shipment.id}/track`,
+                        { method: 'POST' }
+                      );
+                      setOrder(res.data);
+                    })
+                  }>
+                  <Text>Lacak</Text>
+                </Button>
+              ) : null}
             </View>
           ))
         )}

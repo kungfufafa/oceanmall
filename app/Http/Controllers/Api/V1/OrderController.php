@@ -13,7 +13,7 @@ use App\Actions\Shipping\RefreshShipmentTracking;
 use App\Http\Controllers\Controller;
 use App\Models\OrderShipment;
 use App\Models\User;
-use App\Support\KomerceCourierAssets;
+use App\Support\BuyerShipmentPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -47,25 +47,13 @@ final class OrderController extends Controller
         $order = $this->ownedOrder($request, $number);
         $order->load(['items.product.media', 'shippingAddress']);
 
+        $presenter = resolve(BuyerShipmentPresenter::class);
         $shipments = OrderShipment::query()
             ->where('order_id', $order->id)
+            ->with('inventory')
             ->orderBy('id')
             ->get()
-            ->map(static function (OrderShipment $shipment): array {
-                $history = data_get($shipment->metadata, 'komerce.tracking_history', []);
-
-                return [
-                    'id' => $shipment->id,
-                    'status' => $shipment->status,
-                    'awb' => $shipment->awb,
-                    'tracking_number' => $shipment->tracking_number,
-                    'carrier' => $shipment->carrier_name ?? $shipment->carrier_code,
-                    'service' => $shipment->service_name ?? $shipment->service_code,
-                    'carrier_logo' => KomerceCourierAssets::logoUrl($shipment->carrier_code),
-                    'cost' => $shipment->cost,
-                    'tracking_history' => is_array($history) ? array_values($history) : [],
-                ];
-            })
+            ->map(fn (OrderShipment $shipment): array => $presenter->payload($shipment))
             ->values()
             ->all();
 

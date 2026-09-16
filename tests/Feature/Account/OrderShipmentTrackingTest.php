@@ -27,6 +27,21 @@ final class OrderShipmentTrackingTest extends TestCase
         $this->assertStringContainsString('Pengiriman / Paket', $orderShowPage);
         $this->assertStringContainsString('Label menunggu', $orderShowPage);
         $this->assertStringContainsString('shipment.tracking_number', $orderShowPage);
+        $this->assertStringContainsString('event.datetime', $orderShowPage);
+    }
+
+    public function test_mobile_order_screen_uses_shared_datetime_tracking_history(): void
+    {
+        $orderScreen = file_get_contents(base_path('mobile/app/order/[number].tsx'));
+        $apiTypes = file_get_contents(base_path('mobile/lib/api.ts'));
+
+        $this->assertIsString($orderScreen);
+        $this->assertIsString($apiTypes);
+        $this->assertStringContainsString('event.datetime', $orderScreen);
+        $this->assertStringContainsString('event.location', $orderScreen);
+        $this->assertStringContainsString('shipment.awb || shipment.tracking_number', $orderScreen);
+        $this->assertStringContainsString('datetime?:', $apiTypes);
+        $this->assertStringNotContainsString('event.date ?', $orderScreen);
     }
 
     public function test_order_show_vue_source_computes_shipping_price_from_shipments_when_present(): void

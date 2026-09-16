@@ -87,6 +87,7 @@ final class OrderShipmentOpsPresenter
                     'fulfillment_error' => is_string(data_get($shipment->metadata, 'komerce.fulfillment_error'))
                         ? (string) data_get($shipment->metadata, 'komerce.fulfillment_error')
                         : null,
+                    'tracking_history' => ShipmentTrackingHistory::fromShipment($shipment),
                     'origin_pin_ready' => $this->inventoryHasPinPoint($inventory),
                     'destination_pin_ready' => $this->orderHasDestinationPin($order),
                     'can_print_label' => $canPrint,

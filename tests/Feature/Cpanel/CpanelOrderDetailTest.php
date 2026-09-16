@@ -138,6 +138,57 @@ final class CpanelOrderDetailTest extends TestCase
             ->assertSee('Pinpoint tujuan belum diisi');
     }
 
+    public function test_komerce_panel_shows_shared_tracking_history_timeline(): void
+    {
+        $admin = $this->admin();
+        $order = Order::factory()->create([
+            'currency_code' => 'IDR',
+            'status' => OrderStatus::Processing,
+            'payment_status' => PaymentStatus::Paid,
+        ]);
+        $inventory = Inventory::factory()->create(['name' => 'Gudang Jakarta']);
+        OrderShipment::query()->create([
+            'order_id' => $order->id,
+            'inventory_id' => $inventory->id,
+            'carrier_code' => 'jne',
+            'carrier_name' => 'JNE',
+            'service_code' => 'REG',
+            'service_name' => 'Regular',
+            'cost' => 18000,
+            'currency_code' => 'IDR',
+            'status' => 'in_transit',
+            'awb' => 'JNE123456789',
+            'tracking_number' => 'JNE123456789',
+            'metadata' => [
+                'komerce' => [
+                    'order_no' => 'RO-ORDER-TRACK',
+                    'tracking_history' => [
+                        [
+                            'description' => 'Paket dijemput kurir',
+                            'datetime' => '2026-08-01 09:00',
+                            'location' => 'Jakarta',
+                        ],
+                        [
+                            'description' => 'Dalam perjalanan ke kota tujuan',
+                            'date' => '2026-08-02 14:30',
+                            'location' => 'Bandung',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KomerceOrderShipping::class, ['order' => $order])
+            ->assertSee('Riwayat lacak')
+            ->assertSee('Paket dijemput kurir')
+            ->assertSee('2026-08-01 09:00')
+            ->assertSee('Jakarta')
+            ->assertSee('Dalam perjalanan ke kota tujuan')
+            ->assertSee('2026-08-02 14:30')
+            ->assertSee('Bandung');
+    }
+
     public function test_non_admin_cannot_print_fulfillment_label(): void
     {
         $this->configureShopperCpanel();

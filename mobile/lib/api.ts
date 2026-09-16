@@ -213,13 +213,15 @@ export type OrderDetail = OrderSummary & {
   items: { name: string; sku?: string | null; quantity: number; unit_price: number }[];
   shipments: {
     id: number;
+    inventory_name?: string | null;
     status: string;
     awb?: string | null;
     tracking_number?: string | null;
     carrier?: string | null;
     service?: string | null;
     cost?: number | null;
-    tracking_history?: { description?: string; date?: string }[];
+    currency?: string | null;
+    tracking_history?: { description?: string; datetime?: string | null; location?: string | null }[];
   }[];
   payment?: PaymentInstructions | null;
   can_retry_payment?: boolean;
