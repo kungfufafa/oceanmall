@@ -47,7 +47,8 @@ final class OrderCancellationApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', 'cancelled')
             ->assertJsonPath('data.payment_status', 'voided')
-            ->assertJsonPath('data.cancelled_reason', 'Cancelled by customer');
+            ->assertJsonPath('data.cancelled_reason', 'Cancelled by customer')
+            ->assertJsonPath('data.cancelled_reason_label', 'Pesanan dibatalkan oleh Anda.');
 
         $order->refresh();
         $this->assertSame(OrderStatus::Cancelled, $order->status);
@@ -92,6 +93,26 @@ final class OrderCancellationApiTest extends TestCase
             ->assertJsonPath('message', 'Pesanan sudah dibayar dan tidak bisa dibatalkan.');
 
         $this->assertSame(PaymentStatus::Paid, $order->fresh()->payment_status);
+    }
+
+    public function test_order_show_exposes_the_same_cancelled_reason_label_as_vue(): void
+    {
+        $customer = User::factory()->create();
+        $order = Order::factory()->create([
+            'customer_id' => $customer->id,
+            'status' => OrderStatus::Cancelled,
+            'payment_status' => PaymentStatus::Voided,
+            'metadata' => json_encode([
+                'komerce' => ['cancelled_reason' => 'Payment expired'],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+
+        Sanctum::actingAs($customer);
+
+        $this->getJson("/api/v1/orders/{$order->number}")
+            ->assertOk()
+            ->assertJsonPath('data.cancelled_reason', 'Payment expired')
+            ->assertJsonPath('data.cancelled_reason_label', 'Pesanan dibatalkan otomatis karena pembayaran kedaluwarsa.');
     }
 
     public function test_already_cancelled_order_returns_422(): void

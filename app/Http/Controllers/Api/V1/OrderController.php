@@ -182,6 +182,7 @@ final class OrderController extends Controller
             'currency' => $order->currency_code,
             'created_at' => optional($order->created_at)?->toIso8601String(),
             'cancelled_reason' => CancelOrderByCustomer::cancelledReason($order),
+            'cancelled_reason_label' => CancelOrderByCustomer::cancelledReasonLabel($order),
         ];
     }
 

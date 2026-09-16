@@ -44,6 +44,8 @@ final class OrderShipmentTrackingTest extends TestCase
         $this->assertStringContainsString('shipment.awb || shipment.tracking_number', $orderScreen);
         $this->assertStringContainsString('datetime?:', $apiTypes);
         $this->assertStringNotContainsString('event.date ?', $orderScreen);
+        $this->assertStringContainsString('cancelled_reason_label', $apiTypes);
+        $this->assertStringContainsString('order.cancelled_reason_label', $orderScreen);
     }
 
     public function test_order_show_vue_source_computes_shipping_price_from_shipments_when_present(): void

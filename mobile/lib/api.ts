@@ -207,6 +207,7 @@ export type OrderSummary = {
   currency?: string;
   created_at?: string | null;
   cancelled_reason?: string | null;
+  cancelled_reason_label?: string | null;
 };
 
 export type OrderDetail = OrderSummary & {

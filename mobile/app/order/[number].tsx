@@ -125,7 +125,7 @@ export default function OrderScreen() {
       {order.status === 'cancelled' ? (
         <View className="rounded-xl border border-border bg-muted p-3">
           <Text className="text-muted-foreground">
-            {cancelledReasonLabel(order.cancelled_reason)}
+            {order.cancelled_reason_label ?? cancelledReasonLabel(order.cancelled_reason)}
           </Text>
         </View>
       ) : null}
