@@ -110,6 +110,10 @@ const canSaveAddress = computed(
         form.city.trim().length > 0 &&
         form.postal_code.trim().length > 0 &&
         form.country_id !== null &&
+        !(
+            props.komerceEnabled &&
+            !String(form.rajaongkir_destination_id ?? '').trim()
+        ) &&
         !form.processing,
 );
 
@@ -214,6 +218,12 @@ function selectDestination(result: DestinationResult): void {
     form.rajaongkir_destination_label = result.label;
     destinationQuery.value = result.label;
     destinationResults.value = [];
+    form.clearErrors(
+        'rajaongkir_destination_id',
+        'postal_code',
+        'city',
+        'state',
+    );
 
     if (result.province_name) {
         form.state = result.province_name;
@@ -261,6 +271,18 @@ function useCurrentLocation(): void {
 }
 
 function submit(): void {
+    if (
+        props.komerceEnabled &&
+        !String(form.rajaongkir_destination_id ?? '').trim()
+    ) {
+        form.setError(
+            'rajaongkir_destination_id',
+            'Pilih kecamatan dari daftar pencarian.',
+        );
+
+        return;
+    }
+
     const opts = {
         preserveScroll: true,
         onSuccess: () => {
@@ -501,26 +523,42 @@ function setDefaultBilling(address: Address): void {
                         />
                     </div>
                     <AuthTextField
+                        id="state"
+                        v-model="form.state"
+                        label="Provinsi"
+                        :placeholder="
+                            komerceEnabled
+                                ? 'Pilih dari kecamatan'
+                                : 'Contoh: DKI Jakarta'
+                        "
+                        :error="form.errors.state"
+                        :readonly="komerceEnabled"
+                    />
+                    <AuthTextField
                         id="city"
                         v-model="form.city"
                         label="Kota"
                         required
-                        placeholder="Kota *"
+                        :placeholder="
+                            komerceEnabled
+                                ? 'Pilih dari kecamatan'
+                                : 'Contoh: Jakarta Selatan'
+                        "
                         :error="form.errors.city"
+                        :readonly="komerceEnabled"
                     />
                     <AuthTextField
                         id="postal_code"
                         v-model="form.postal_code"
                         label="Kode pos"
                         required
-                        placeholder="Kode pos *"
+                        :placeholder="
+                            komerceEnabled
+                                ? 'Pilih dari kecamatan'
+                                : 'Contoh: 12190'
+                        "
                         :error="form.errors.postal_code"
-                    />
-                    <AuthTextField
-                        id="state"
-                        v-model="form.state"
-                        label="Provinsi"
-                        placeholder="Provinsi"
+                        :readonly="komerceEnabled"
                     />
                     <AuthSelectField
                         id="country_id"
@@ -543,6 +581,9 @@ function setDefaultBilling(address: Address): void {
                     <div class="col-span-2 flex flex-col gap-1.5">
                         <Label for="destination_search">
                             Kecamatan pengiriman
+                            <span v-if="komerceEnabled" class="text-red-500"
+                                >*</span
+                            >
                         </Label>
                         <div class="relative">
                             <Input
@@ -551,8 +592,13 @@ function setDefaultBilling(address: Address): void {
                                 type="search"
                                 autocomplete="off"
                                 class="h-[var(--om-control-height)] w-full pr-14 text-[13px] [&::-webkit-search-cancel-button]:hidden"
-                                placeholder="Contoh: Kebayoran Baru"
+                                :placeholder="
+                                    komerceEnabled
+                                        ? 'Contoh: Kebayoran Baru'
+                                        : 'Opsional saat Komerce dinonaktifkan'
+                                "
                                 @focus="
+                                    komerceEnabled &&
                                     destinationQuery.trim().length >= 2 &&
                                     searchDestinations(destinationQuery.trim())
                                 "
@@ -603,8 +649,24 @@ function setDefaultBilling(address: Address): void {
                         >
                             {{ form.rajaongkir_destination_label }}
                         </p>
+                        <p
+                            v-else-if="komerceEnabled"
+                            class="text-xs text-amber-700"
+                        >
+                            Wajib pilih dari daftar pencarian (jangan ketik
+                            manual saja).
+                        </p>
+                        <p
+                            v-if="form.errors.rajaongkir_destination_id"
+                            class="text-xs text-destructive"
+                        >
+                            {{ form.errors.rajaongkir_destination_id }}
+                        </p>
                     </div>
-                    <div class="col-span-2 flex flex-col gap-1.5">
+                    <div
+                        v-if="komerceEnabled"
+                        class="col-span-2 flex flex-col gap-1.5"
+                    >
                         <Label for="rajaongkir_pin_point">Pinpoint lokasi</Label>
                         <div class="flex gap-2">
                             <Input
