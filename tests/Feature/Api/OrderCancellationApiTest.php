@@ -48,7 +48,9 @@ final class OrderCancellationApiTest extends TestCase
             ->assertJsonPath('data.status', 'cancelled')
             ->assertJsonPath('data.payment_status', 'voided')
             ->assertJsonPath('data.cancelled_reason', 'Cancelled by customer')
-            ->assertJsonPath('data.cancelled_reason_label', 'Pesanan dibatalkan oleh Anda.');
+            ->assertJsonPath('data.cancelled_reason_label', 'Pesanan dibatalkan oleh Anda.')
+            ->assertJsonPath('data.can_retry_payment', false)
+            ->assertJsonPath('data.payment', null);
 
         $order->refresh();
         $this->assertSame(OrderStatus::Cancelled, $order->status);
@@ -112,7 +114,9 @@ final class OrderCancellationApiTest extends TestCase
         $this->getJson("/api/v1/orders/{$order->number}")
             ->assertOk()
             ->assertJsonPath('data.cancelled_reason', 'Payment expired')
-            ->assertJsonPath('data.cancelled_reason_label', 'Pesanan dibatalkan otomatis karena pembayaran kedaluwarsa.');
+            ->assertJsonPath('data.cancelled_reason_label', 'Pesanan dibatalkan otomatis karena pembayaran kedaluwarsa.')
+            ->assertJsonPath('data.can_retry_payment', false)
+            ->assertJsonPath('data.payment', null);
     }
 
     public function test_already_cancelled_order_returns_422(): void

@@ -42,6 +42,11 @@ final class OrderShipmentTrackingTest extends TestCase
         $this->assertStringContainsString('tiap 10 detik', $checkoutSuccess);
         $this->assertStringNotContainsString('15000', $checkoutSuccess);
         $this->assertStringNotContainsString('15 detik', $checkoutSuccess);
+        $this->assertStringContainsString('!isCancelled.value', $checkoutSuccess);
+        $this->assertStringContainsString('retryPayment', $checkoutSuccess);
+        $this->assertStringContainsString('cancelOrder', $checkoutSuccess);
+        $this->assertStringContainsString('Buat ulang pembayaran', $checkoutSuccess);
+        $this->assertStringContainsString('Batalkan pesanan', $checkoutSuccess);
     }
 
     public function test_mobile_order_screen_uses_shared_datetime_tracking_history(): void

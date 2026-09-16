@@ -388,7 +388,7 @@ function cancelOrder(): void {
     </Alert>
 
     <Card
-        v-if="komercePayment || canRetryPayment"
+        v-if="(komercePayment || canRetryPayment) && order.status !== 'cancelled'"
         class="mt-5 gap-0 overflow-hidden py-0 shadow-none"
     >
         <div

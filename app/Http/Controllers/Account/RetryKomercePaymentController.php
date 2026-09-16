@@ -27,7 +27,7 @@ final class RetryKomercePaymentController extends Controller
         }
 
         return redirect()
-            ->route('account.orders.show', $order)
+            ->back(fallback: route('account.orders.show', $order))
             ->with('success', 'Instruksi pembayaran baru sudah siap.');
     }
 }

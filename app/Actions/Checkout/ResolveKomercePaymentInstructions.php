@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Checkout;
 
+use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Order;
 
@@ -16,7 +17,7 @@ final class ResolveKomercePaymentInstructions
      */
     public function handle(Order $order): ?array
     {
-        if ($order->payment_status === PaymentStatus::Paid) {
+        if ($order->payment_status === PaymentStatus::Paid || $order->status === OrderStatus::Cancelled) {
             return null;
         }
 
@@ -43,7 +44,11 @@ final class ResolveKomercePaymentInstructions
 
     public function canRetry(Order $order): bool
     {
-        if ($order->payment_status === PaymentStatus::Paid) {
+        if ($order->status === OrderStatus::Cancelled) {
+            return false;
+        }
+
+        if ($order->payment_status !== PaymentStatus::Pending) {
             return false;
         }
 

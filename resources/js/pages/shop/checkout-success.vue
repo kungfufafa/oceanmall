@@ -52,6 +52,10 @@ const props = defineProps<{
     order: Order;
     shipments?: Shipment[];
     komercePayment?: KomercePaymentInstructions | null;
+    canRetryPayment?: boolean;
+    canCancel?: boolean;
+    cancelledReason?: string | null;
+    cancelledReasonLabel?: string | null;
 }>();
 
 const shipments = computed(() => props.shipments ?? []);
@@ -79,39 +83,73 @@ const paymentError = computed(
     () => (page.props.errors as Record<string, string> | undefined)?.payment,
 );
 
-const needsPayment = computed(() => Boolean(props.komercePayment));
-
-const paymentStatus = computed(() => {
-    const status = props.order.payment_status;
-
+function statusValue(status: OrderStatusLike): string | null {
     if (typeof status === 'string') {
-return status;
+        return status;
+    }
+
+    return status?.value ?? null;
 }
 
-    return null;
+const orderStatus = computed(() => statusValue(props.order.status));
+const paymentStatus = computed(() => statusValue(props.order.payment_status ?? null));
+const isCancelled = computed(() => orderStatus.value === 'cancelled');
+
+const cancelledReasonLabel = computed(() => {
+    if (props.cancelledReasonLabel) {
+        return props.cancelledReasonLabel;
+    }
+
+    if (!isCancelled.value) {
+        return null;
+    }
+
+    if (props.cancelledReason === 'Payment expired') {
+        return 'Pesanan dibatalkan otomatis karena pembayaran kedaluwarsa.';
+    }
+
+    if (props.cancelledReason === 'Cancelled by customer') {
+        return 'Pesanan dibatalkan oleh Anda.';
+    }
+
+    return props.cancelledReason
+        ? `Pesanan dibatalkan: ${props.cancelledReason}`
+        : 'Pesanan dibatalkan.';
 });
+
+const needsPayment = computed(
+    () => Boolean(props.komercePayment) && !isCancelled.value,
+);
 
 const paymentSetupFailed = computed(
     () =>
         !needsPayment.value &&
+        !isCancelled.value &&
         paymentStatus.value !== undefined &&
         paymentStatus.value !== null &&
         paymentStatus.value !== 'paid',
 );
 
 const pageTitle = computed(() => {
+    if (isCancelled.value) {
+        return 'Pesanan dibatalkan';
+    }
+
     if (needsPayment.value) {
-return 'Selesaikan pembayaran';
-}
+        return 'Selesaikan pembayaran';
+    }
 
     if (paymentSetupFailed.value) {
-return 'Pesanan dibuat';
-}
+        return 'Pesanan dibuat';
+    }
 
     return 'Pesanan dibuat';
 });
 
 const checkingPayment = ref(false);
+const retryingPayment = ref(false);
+const cancellingOrder = ref(false);
+const cancelError = ref<string | null>(null);
 
 function syncPayment(silent = false): void {
     if (!needsPayment.value || checkingPayment.value) {
@@ -131,11 +169,49 @@ function syncPayment(silent = false): void {
     );
 }
 
+function retryPayment(): void {
+    retryingPayment.value = true;
+    router.post(
+        `/account/orders/${props.order.id}/retry-payment`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                retryingPayment.value = false;
+            },
+        },
+    );
+}
+
+function cancelOrder(): void {
+    if (!window.confirm('Yakin ingin membatalkan pesanan ini?')) {
+        return;
+    }
+
+    cancellingOrder.value = true;
+    cancelError.value = null;
+    router.post(
+        `/account/orders/${props.order.id}/cancel`,
+        {},
+        {
+            preserveScroll: true,
+            onError: (errors) => {
+                cancelError.value =
+                    errors.cancel ?? 'Pesanan tidak bisa dibatalkan saat ini.';
+            },
+            onFinish: () => {
+                cancellingOrder.value = false;
+            },
+        },
+    );
+}
+
 // Same as Vue order-show and Expo: reload the GET every 10s so a captured
 // Komerce payment reconciles (and can issue AWB) without a webhook.
 const shouldPollPayment = computed(
     () =>
         paymentStatus.value !== 'paid' &&
+        !isCancelled.value &&
         Boolean(props.komercePayment),
 );
 
@@ -238,19 +314,57 @@ watch(shouldPollPayment, (needs) => {
                     <KomercePaymentPanel :payment="komercePayment!" />
                 </div>
 
-                <Button
-                    type="button"
-                    size="xl"
-                    class="mt-4 w-full"
-                    :disabled="checkingPayment"
-                    @click="syncPayment(false)"
-                >
-                    {{
-                        checkingPayment
-                            ? 'Mengecek…'
-                            : 'Sudah bayar? Cek status'
-                    }}
-                </Button>
+                <div class="mt-4 flex flex-col gap-2">
+                    <Button
+                        type="button"
+                        size="xl"
+                        class="w-full"
+                        :disabled="checkingPayment"
+                        @click="syncPayment(false)"
+                    >
+                        {{
+                            checkingPayment
+                                ? 'Mengecek…'
+                                : 'Sudah bayar? Cek status'
+                        }}
+                    </Button>
+                    <Button
+                        v-if="canRetryPayment"
+                        type="button"
+                        variant="outline"
+                        size="xl"
+                        class="w-full"
+                        :disabled="retryingPayment"
+                        @click="retryPayment"
+                    >
+                        {{
+                            retryingPayment
+                                ? 'Memproses…'
+                                : 'Buat ulang pembayaran'
+                        }}
+                    </Button>
+                    <Button
+                        v-if="canCancel"
+                        type="button"
+                        variant="outline"
+                        size="xl"
+                        class="w-full text-destructive"
+                        :disabled="cancellingOrder"
+                        @click="cancelOrder"
+                    >
+                        {{
+                            cancellingOrder
+                                ? 'Membatalkan…'
+                                : 'Batalkan pesanan'
+                        }}
+                    </Button>
+                    <p
+                        v-if="cancelError"
+                        class="text-center text-sm text-destructive"
+                    >
+                        {{ cancelError }}
+                    </p>
+                </div>
                 <p class="mt-2 text-center text-[11px] text-muted-foreground">
                     Status dicek otomatis tiap 10 detik. Atau ketuk tombol di
                     atas setelah transfer/scan.
@@ -293,13 +407,13 @@ watch(shouldPollPayment, (needs) => {
                         <div
                             class="flex size-16 items-center justify-center rounded-full"
                             :class="
-                                paymentSetupFailed
+                                isCancelled || paymentSetupFailed
                                     ? 'bg-amber-100 text-amber-800'
                                     : 'bg-emerald-100'
                             "
                         >
                             <Clock3
-                                v-if="paymentSetupFailed"
+                                v-if="isCancelled || paymentSetupFailed"
                                 class="size-8"
                                 aria-hidden="true"
                             />
@@ -313,11 +427,13 @@ watch(shouldPollPayment, (needs) => {
                         <div class="flex flex-col gap-2">
                             <CardTitle class="text-xl sm:text-2xl">
                                 {{
-                                    flashSuccess
-                                        ? 'Pembayaran berhasil'
-                                        : paymentSetupFailed
-                                          ? 'Pesanan dibuat — bayar belum siap'
-                                          : 'Pesanan berhasil dibuat'
+                                    isCancelled
+                                        ? 'Pesanan dibatalkan'
+                                        : flashSuccess
+                                          ? 'Pembayaran berhasil'
+                                          : paymentSetupFailed
+                                            ? 'Pesanan dibuat — bayar belum siap'
+                                            : 'Pesanan berhasil dibuat'
                                 }}
                             </CardTitle>
                             <CardDescription class="text-base">
@@ -344,7 +460,13 @@ watch(shouldPollPayment, (needs) => {
                     </CardHeader>
 
                     <CardContent class="flex flex-col gap-4 p-6 pt-0 sm:p-8 sm:pt-0">
-                        <Alert v-if="flashSuccess" variant="success">
+                        <Alert v-if="cancelledReasonLabel" variant="info">
+                            <AlertDescription class="text-[13px] text-current">
+                                {{ cancelledReasonLabel }}
+                            </AlertDescription>
+                        </Alert>
+
+                        <Alert v-else-if="flashSuccess" variant="success">
                             <AlertDescription class="text-[13px] text-current">
                                 {{ flashSuccess }}
                             </AlertDescription>
@@ -372,16 +494,46 @@ watch(shouldPollPayment, (needs) => {
                             class="text-left"
                         >
                             <AlertDescription class="text-[13px] text-current">
-                                Instruksi pembayaran belum tersedia. Buka detail
-                                pesanan untuk mencoba bayar lagi.
-                                <Link
-                                    :href="ordersShow.url(order.id)"
-                                    class="mt-2 block font-semibold text-[var(--om-navy)]"
-                                >
-                                    Bayar di detail pesanan →
-                                </Link>
+                                Instruksi pembayaran belum tersedia. Ketuk
+                                tombol di bawah untuk membuat pembayaran baru,
+                                atau buka detail pesanan.
                             </AlertDescription>
                         </Alert>
+
+                        <Button
+                            v-if="canRetryPayment && !isCancelled"
+                            type="button"
+                            size="xl"
+                            :disabled="retryingPayment"
+                            @click="retryPayment"
+                        >
+                            {{
+                                retryingPayment
+                                    ? 'Memproses…'
+                                    : 'Bayar sekarang'
+                            }}
+                        </Button>
+                        <Button
+                            v-if="canCancel && !isCancelled"
+                            type="button"
+                            variant="outline"
+                            size="xl"
+                            class="text-destructive"
+                            :disabled="cancellingOrder"
+                            @click="cancelOrder"
+                        >
+                            {{
+                                cancellingOrder
+                                    ? 'Membatalkan…'
+                                    : 'Batalkan pesanan'
+                            }}
+                        </Button>
+                        <p
+                            v-if="cancelError"
+                            class="text-sm text-destructive"
+                        >
+                            {{ cancelError }}
+                        </p>
 
                         <div
                             class="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center"

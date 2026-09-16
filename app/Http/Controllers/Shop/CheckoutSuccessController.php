@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
+use App\Actions\Account\CancelOrderByCustomer;
 use App\Actions\Checkout\ReconcileUnpaidKomerceOrderOnView;
 use App\Actions\Checkout\ResolveKomercePaymentInstructions;
 use App\Actions\Shipping\RefreshShipmentTrackingOnView;
@@ -13,6 +14,7 @@ use App\Models\OrderShipment;
 use App\Support\BuyerShipmentPresenter;
 use Inertia\Inertia;
 use Inertia\Response;
+use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Order;
 
@@ -33,13 +35,14 @@ final class CheckoutSuccessController extends Controller
             ->get()
             ->map(fn (OrderShipment $shipment): array => $presenter->payload($shipment));
 
+        $resolvePayment = resolve(ResolveKomercePaymentInstructions::class);
         $komercePayment = null;
 
-        if ($order->payment_status !== PaymentStatus::Paid) {
-            $komercePayment = session()->pull('komerce_payment')
-                ?? resolve(ResolveKomercePaymentInstructions::class)->handle($order);
-        } else {
+        if ($order->payment_status === PaymentStatus::Paid || $order->status === OrderStatus::Cancelled) {
             session()->forget('komerce_payment');
+        } else {
+            $komercePayment = session()->pull('komerce_payment')
+                ?? $resolvePayment->handle($order);
         }
 
         // Clear leftover checkout/payment session only — do NOT wipe the live cart.
@@ -63,6 +66,10 @@ final class CheckoutSuccessController extends Controller
             ]),
             'shipments' => $shipments,
             'komercePayment' => $komercePayment,
+            'canRetryPayment' => $resolvePayment->canRetry($order),
+            'canCancel' => CancelOrderByCustomer::isCancellable($order),
+            'cancelledReason' => CancelOrderByCustomer::cancelledReason($order),
+            'cancelledReasonLabel' => CancelOrderByCustomer::cancelledReasonLabel($order),
         ]);
     }
 }
