@@ -32,12 +32,14 @@ final class InventoryRajaOngkirOriginTest extends TestCase
         $inventory = Inventory::factory()->create([
             'country_id' => $country->id,
             'name' => 'Gudang Jakarta',
+            'phone_number' => '+62231234567',
             'rajaongkir_origin_id' => null,
         ]);
 
         Livewire::actingAs($admin)
             ->test(InventoryForm::class, ['inventory' => $inventory])
             ->set('data.priority', 0)
+            ->set('data.phone_number', '+62231234567')
             ->set('data.rajaongkir_origin_id', '17248')
             ->call('store')
             ->assertHasNoErrors();
@@ -60,6 +62,7 @@ final class InventoryRajaOngkirOriginTest extends TestCase
         $inventory = Inventory::factory()->create([
             'country_id' => $country->id,
             'name' => 'Gudang Cirebon',
+            'phone_number' => '+62231234567',
             'latitude' => null,
             'longitude' => null,
         ]);
@@ -67,6 +70,7 @@ final class InventoryRajaOngkirOriginTest extends TestCase
         Livewire::actingAs($admin)
             ->test(InventoryForm::class, ['inventory' => $inventory])
             ->set('data.priority', 0)
+            ->set('data.phone_number', '+62231234567')
             ->set('data.latitude', '-6.7366')
             ->set('data.longitude', '108.5414')
             ->call('store')
