@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import OrderStatusBadge from '@/components/account/order-status-badge.vue';
 import KomercePaymentPanel from '@/components/shop/komerce-payment-panel.vue';
 import type { KomercePaymentInstructions } from '@/components/shop/komerce-payment-panel.vue';
@@ -258,6 +258,52 @@ function syncPayment(): void {
         },
     );
 }
+
+// Same as mobile order screen: refresh unpaid orders every 10s so a
+// webhook-paid state flips the page without a manual tap.
+const shouldPollPayment = computed(
+    () =>
+        props.order.payment_status !== 'paid' &&
+        props.order.status !== 'cancelled' &&
+        !!props.komercePayment,
+);
+
+let paymentPollTimer: ReturnType<typeof setInterval> | null = null;
+
+function stopPaymentPoll(): void {
+    if (paymentPollTimer) {
+        clearInterval(paymentPollTimer);
+        paymentPollTimer = null;
+    }
+}
+
+function startPaymentPoll(): void {
+    stopPaymentPoll();
+
+    if (!shouldPollPayment.value) {
+        return;
+    }
+
+    paymentPollTimer = setInterval(() => {
+        if (!shouldPollPayment.value) {
+            stopPaymentPoll();
+
+            return;
+        }
+
+        router.reload({ preserveScroll: true });
+    }, 10_000);
+}
+
+onMounted(startPaymentPoll);
+onUnmounted(stopPaymentPoll);
+watch(shouldPollPayment, (needs) => {
+    if (needs) {
+        startPaymentPoll();
+    } else {
+        stopPaymentPoll();
+    }
+});
 
 const cancellingOrder = ref(false);
 const cancelError = ref<string | null>(null);

@@ -28,6 +28,8 @@ final class OrderShipmentTrackingTest extends TestCase
         $this->assertStringContainsString('Label menunggu', $orderShowPage);
         $this->assertStringContainsString('shipment.tracking_number', $orderShowPage);
         $this->assertStringContainsString('event.datetime', $orderShowPage);
+        $this->assertStringContainsString('shouldPollPayment', $orderShowPage);
+        $this->assertStringContainsString('10_000', $orderShowPage);
     }
 
     public function test_mobile_order_screen_uses_shared_datetime_tracking_history(): void
