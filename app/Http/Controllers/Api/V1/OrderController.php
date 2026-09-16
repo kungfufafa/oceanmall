@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Actions\Account\CancelOrderByCustomer;
 use App\Actions\Account\ConfirmOrderReceived;
+use App\Actions\Checkout\ReconcileUnpaidKomerceOrderOnView;
 use App\Actions\Checkout\ResolveKomercePaymentInstructions;
 use App\Actions\Checkout\RetryKomercePayment;
 use App\Actions\Checkout\SyncKomercePaymentStatus;
@@ -45,6 +46,7 @@ final class OrderController extends Controller
     public function show(Request $request, string $number): JsonResponse
     {
         $order = $this->ownedOrder($request, $number);
+        $order = resolve(ReconcileUnpaidKomerceOrderOnView::class)->handle($order);
         $order->load(['items.product.media', 'shippingAddress']);
 
         $presenter = resolve(BuyerShipmentPresenter::class);

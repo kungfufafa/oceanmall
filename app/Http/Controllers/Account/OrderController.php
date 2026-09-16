@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Account;
 
 use App\Actions\Account\CancelOrderByCustomer;
+use App\Actions\Checkout\ReconcileUnpaidKomerceOrderOnView;
 use App\Actions\Checkout\ResolveKomercePaymentInstructions;
 use App\Http\Controllers\Controller;
 use App\Models\OrderShipment;
@@ -41,6 +42,8 @@ final class OrderController extends Controller
     public function show(Order $order): Response
     {
         abort_unless($order->customer_id === auth()->id(), 403);
+
+        $order = resolve(ReconcileUnpaidKomerceOrderOnView::class)->handle($order);
 
         $order->load([
             'items.product.media',

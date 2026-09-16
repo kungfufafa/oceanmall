@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
+use App\Livewire\Shopper\KomerceOrderShipping;
 use App\Models\OrderShipment;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Sanctum\Sanctum;
+use Livewire\Livewire;
 use Shopper\Cart\Models\Cart;
 use Shopper\Cart\Models\CartLine;
 use Shopper\Core\Enum\PaymentStatus;
@@ -21,12 +24,14 @@ use Shopper\Core\Models\Order;
 use Shopper\Core\Models\OrderShipping;
 use Shopper\Core\Models\PaymentMethod;
 use Shopper\Core\Models\Zone;
+use Spatie\Permission\Models\Role;
 use Tests\Support\SignsKomercePaymentCallbacks;
 use Tests\TestCase;
 
 /**
  * End-to-end: API v1 multi-warehouse checkout → Komerce payment webhook →
- * one RajaOngkir AWB per OrderShipment, each with its own cost and pin point.
+ * one RajaOngkir AWB per OrderShipment → delivery webhook → tracking
+ * visible on the same contract for API/Expo, Vue, and Shopper.
  */
 final class MultiShipmentFulfillmentApiTest extends TestCase
 {
@@ -244,6 +249,71 @@ final class MultiShipmentFulfillmentApiTest extends TestCase
         Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
             && $request->url() === 'https://delivery.example.test/order/api/v1/pickup/request'
             && data_get($request->data(), 'orders.0.order_no') === 'RO-JNT-1');
+
+        $this->postJson(route('webhooks.komerce.delivery'), [
+            'order_no' => 'RO-JNE-1',
+            'cnote' => 'AWB-RO-JNE-1',
+            'status' => 'ON_PROCESS',
+        ])->assertOk()->assertJson(['status' => 'handled']);
+
+        $this->getJson("/api/v1/orders/{$order->number}")
+            ->assertOk()
+            ->assertJsonPath('data.payment_status', 'paid')
+            ->assertJsonPath('data.shipments.0.awb', 'AWB-RO-JNE-1')
+            ->assertJsonPath('data.shipments.0.tracking_history.0.description', 'Kurir menuju alamat')
+            ->assertJsonPath('data.shipments.0.tracking_history.0.datetime', '2026-08-16 09:15:00');
+
+        $this->withoutVite();
+        $this->actingAs($user)
+            ->get(route('account.orders.show', $order))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('account/order-show')
+                ->where('order.payment_status', 'paid')
+                ->where('shipments.0.awb', 'AWB-RO-JNE-1')
+                ->where('shipments.0.tracking_history.0.description', 'Kurir menuju alamat')
+                ->where('shipments.0.tracking_history.0.datetime', '2026-08-16 09:15:00'));
+
+        $this->assertShopperSeesTracking($order, 'Kurir menuju alamat');
+    }
+
+    public function test_viewing_unpaid_api_order_reconciles_payment_and_issues_awb_without_inbound_webhook(): void
+    {
+        [$user, $paymentMethod] = $this->seedSplitFulfillmentScene();
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/checkout/shipping-address', [
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Melawai 1',
+            'postal_code' => '12220',
+            'city' => 'Jakarta Selatan',
+            'state' => 'DKI Jakarta',
+            'phone_number' => '081234567890',
+            'rajaongkir_destination_id' => '17547',
+            'rajaongkir_pin_point' => '-6.2380,106.7830',
+        ])->assertOk();
+
+        $this->postJson('/api/v1/checkout/shipping-option', [
+            'rates' => $this->splitRates(),
+        ])->assertOk();
+
+        $orderResponse = $this->postJson('/api/v1/checkout/place-order', [
+            'payment_method_id' => $paymentMethod->id,
+        ])->assertCreated();
+
+        $order = Order::query()->findOrFail($orderResponse->json('data.order_id'));
+        $this->assertSame(PaymentStatus::Pending, $order->payment_status);
+
+        $this->getJson("/api/v1/orders/{$order->number}")
+            ->assertOk()
+            ->assertJsonPath('data.payment_status', 'paid')
+            ->assertJsonPath('data.shipments.0.awb', 'AWB-RO-JNE-1')
+            ->assertJsonPath('data.shipments.1.awb', 'AWB-RO-JNT-1');
+
+        $this->assertSame(PaymentStatus::Paid, $order->refresh()->payment_status);
+        $this->assertCount(2, OrderShipment::query()->where('order_id', $order->id)->whereNotNull('awb')->get());
     }
 
     /**
@@ -340,6 +410,150 @@ final class MultiShipmentFulfillmentApiTest extends TestCase
                 'meta' => ['code' => 200, 'status' => 'success', 'message' => 'Generate Print Label Success'],
                 'data' => ['path' => 'https://delivery.example.test/storage/label/split.pdf'],
             ]),
+            'https://delivery.example.test/order/api/v1/orders/history-airway-bill*' => function (Request $request) {
+                $awb = (string) ($request['airway_bill'] ?? '');
+
+                return Http::response([
+                    'meta' => ['code' => 200, 'status' => 'success'],
+                    'data' => [
+                        'airway_bill' => $awb !== '' ? $awb : 'AWB-RO-JNE-1',
+                        'last_status' => 'ON_PROCESS',
+                        'history' => [[
+                            'desc' => 'Kurir menuju alamat',
+                            'date' => '2026-08-16 09:15:00',
+                            'code' => '100',
+                            'status' => 'ON_PROCESS',
+                        ]],
+                    ],
+                ]);
+            },
         ]);
     }
+
+    /**
+     * @return array{0: User, 1: PaymentMethod}
+     */
+    private function seedSplitFulfillmentScene(): array
+    {
+        config()->set('komerce.shipping_cost_api_key', 'test-cost-key');
+        config()->set('komerce.rajaongkir.cost_base_url', 'https://shipping.example.test');
+        config()->set('komerce.payment_api_key', 'test-payment-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+        config()->set('komerce.webhook_secret', 'webhook-secret');
+        config()->set('komerce.shipping_delivery_api_key', 'test-delivery-key');
+        config()->set('komerce.rajaongkir.delivery_base_url', 'https://delivery.example.test');
+        config()->set('komerce.pickup_time', '10:00:00');
+        config()->set('komerce.pickup_vehicle', 'Motor');
+
+        $country = Country::factory()->create(['cca2' => 'ID']);
+        $zone = Zone::factory()->create(['is_enabled' => true]);
+        $zone->countries()->attach($country->id);
+
+        $paymentMethod = PaymentMethod::factory()->create([
+            'title' => 'BCA Virtual Account',
+            'driver' => 'komerce',
+            'is_enabled' => true,
+            'metadata' => json_encode([
+                'channel_code' => 'BCA',
+                'payment_type' => 'bank_transfer',
+            ]),
+        ]);
+        $zone->paymentMethods()->attach($paymentMethod->id);
+
+        $jakarta = Inventory::factory()->create([
+            'name' => 'Gudang Jakarta',
+            'email' => 'jakarta@oceanmall.test',
+            'phone_number' => '02112345678',
+            'street_address' => 'Jl. Gudang Jakarta 1',
+            'street_address_plus' => null,
+            'city' => 'Jakarta',
+            'postal_code' => '10110',
+            'is_default' => true,
+            'rajaongkir_origin_id' => '501',
+            'latitude' => '-6.1751',
+            'longitude' => '106.8650',
+            'country_id' => $country->id,
+        ]);
+        $cirebon = Inventory::factory()->create([
+            'name' => 'Gudang Cirebon',
+            'email' => 'cirebon@oceanmall.test',
+            'phone_number' => '02311234567',
+            'street_address' => 'Jl. Gudang Cirebon 10',
+            'street_address_plus' => null,
+            'city' => 'Cirebon',
+            'postal_code' => '45111',
+            'is_default' => false,
+            'rajaongkir_origin_id' => '114',
+            'latitude' => '-6.7366',
+            'longitude' => '108.5414',
+            'country_id' => $country->id,
+        ]);
+
+        /** @var Product $product */
+        $product = Product::factory()->standard()->create([
+            'name' => 'Split Fulfillment Product',
+            'sku' => 'SPLIT-FULFILL-1',
+            'published_at' => now()->subDay(),
+            'weight_value' => 100,
+            'weight_unit' => 'g',
+            'width_value' => 10,
+            'width_unit' => 'cm',
+            'height_value' => 6,
+            'height_unit' => 'cm',
+            'depth_value' => 15,
+            'depth_unit' => 'cm',
+        ]);
+        $product->mutateStock($jakarta->id, 1);
+        $product->mutateStock($cirebon->id, 1);
+
+        $user = User::factory()->create();
+        $cart = Cart::query()->create([
+            'currency_code' => 'IDR',
+            'customer_id' => $user->id,
+        ]);
+        CartLine::query()->create([
+            'cart_id' => $cart->id,
+            'purchasable_type' => $product->getMorphClass(),
+            'purchasable_id' => $product->id,
+            'quantity' => 2,
+            'unit_price_amount' => 100000,
+        ]);
+
+        $this->inventories = [$jakarta, $cirebon];
+        $this->fakeKomerceEndpoints();
+
+        return [$user, $paymentMethod];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function splitRates(): array
+    {
+        [$jakarta, $cirebon] = $this->inventories;
+
+        return [
+            (string) $jakarta->id => 'jne:REG',
+            (string) $cirebon->id => 'jnt:EZ',
+        ];
+    }
+
+    private function assertShopperSeesTracking(Order $order, string $event): void
+    {
+        $this->configureShopperCpanel();
+        $admin = User::factory()->create();
+        Role::query()->firstOrCreate([
+            'name' => config('shopper.admin.roles.admin'),
+            'guard_name' => 'web',
+        ]);
+        $admin->assignRole(config('shopper.admin.roles.admin'));
+
+        Livewire::actingAs($admin)
+            ->test(KomerceOrderShipping::class, ['order' => $order->fresh()])
+            ->assertSee('Riwayat lacak')
+            ->assertSee($event);
+    }
+
+    /** @var array{0: Inventory, 1: Inventory} */
+    private array $inventories;
 }

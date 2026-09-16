@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Shipping;
 
 use App\Models\OrderShipment;
+use Throwable;
 
 /**
  * Apply a Komerce Shipping Delivery webhook payload
@@ -40,17 +41,26 @@ final readonly class ApplyDeliveryWebhookStatus
             return 'ignored';
         }
 
-        // Set only in memory first. RefreshShipmentTracking persists it only
-        // after the authenticated provider lookup succeeds.
-        $shipment->setAttribute('awb', trim((string) $airwayBill));
-        $shipment->setAttribute('tracking_number', trim((string) $airwayBill));
-        $shipment = $this->refreshTracking->handle($shipment);
+        $airwayBill = trim((string) $airwayBill);
+        $shipment->setAttribute('awb', $airwayBill);
+        $shipment->setAttribute('tracking_number', $airwayBill);
+
+        try {
+            $shipment = $this->refreshTracking->handle($shipment);
+        } catch (Throwable $e) {
+            report($e);
+            $shipment->forceFill([
+                'awb' => $airwayBill,
+                'tracking_number' => $airwayBill,
+            ])->save();
+            $shipment = $shipment->refresh();
+        }
 
         $metadata = is_array($shipment->metadata) ? $shipment->metadata : [];
         $komerce = is_array($metadata['komerce'] ?? null) ? $metadata['komerce'] : [];
         $komerce['webhook_reported_status'] = $status;
         $komerce['webhook_received_at'] = now()->toIso8601String();
-        $komerce['order_no'] = $orderNo;
+        $komerce['order_no'] = $orderNo !== '' ? $orderNo : ($komerce['order_no'] ?? null);
         $metadata['komerce'] = $komerce;
 
         $shipment->forceFill(['metadata' => $metadata])->save();

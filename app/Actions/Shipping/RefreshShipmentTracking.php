@@ -42,7 +42,12 @@ final readonly class RefreshShipmentTracking
         $this->trackingContext->setLastPhoneNumber($this->receiverPhone($shipment));
 
         try {
-            if (komerce_shipping_cost_enabled() && $costCourier !== null) {
+            // Delivery AWBs are tracked with API-SD-004. Cost tracking (API-SC-003)
+            // is a different product and must not be used just because both keys exist.
+            if (komerce_shipping_delivery_enabled() && $this->hasDeliveryReference($shipment)) {
+                $this->trackingContext->setCourier($shipping);
+                $info = Shipping::driver('komerce')->track($awb);
+            } elseif (komerce_shipping_cost_enabled() && $costCourier !== null) {
                 $this->trackingContext->setCourier($costCourier);
                 $info = Shipping::driver('rajaongkir')->track($awb);
             } elseif (komerce_shipping_delivery_enabled()) {
@@ -97,6 +102,13 @@ final readonly class RefreshShipmentTracking
         }
 
         return $shipment->refresh();
+    }
+
+    private function hasDeliveryReference(OrderShipment $shipment): bool
+    {
+        $orderNo = data_get($shipment->metadata, 'komerce.order_no');
+
+        return is_scalar($orderNo) && trim((string) $orderNo) !== '';
     }
 
     private function airwayBill(OrderShipment $shipment): ?string
