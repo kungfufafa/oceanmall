@@ -8,6 +8,7 @@ use App\Models\Product;
 use Illuminate\Support\Collection;
 use Shopper\Cart\Models\Cart;
 use Shopper\Cart\Models\CartLine;
+use Shopper\Core\Models\Contracts\Stockable;
 
 final class CustomerCatalogPresenter
 {
@@ -70,6 +71,15 @@ final class CustomerCatalogPresenter
                     $thumbnail = $purchasable->thumbnail ?? null;
                 }
 
+                $availableStock = null;
+                if (
+                    $purchasable instanceof Stockable
+                    && $purchasable->tracksInventory()
+                    && ! $purchasable->getAttribute('allow_backorder')
+                ) {
+                    $availableStock = max(0, (int) $purchasable->stock);
+                }
+
                 return [
                     'id' => $line->id,
                     'quantity' => (int) $line->quantity,
@@ -78,6 +88,7 @@ final class CustomerCatalogPresenter
                     'thumbnail' => $thumbnail,
                     'purchasable_type' => $line->purchasable_type,
                     'purchasable_id' => $line->purchasable_id,
+                    'available_stock' => $availableStock,
                 ];
             })->values()->all(),
             'totals' => $context ? [

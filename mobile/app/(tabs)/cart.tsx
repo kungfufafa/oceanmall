@@ -40,7 +40,15 @@ export default function CartScreen() {
     }, [load])
   );
 
+  // Server-side cart validation caps quantity at 10 per line.
+  const MAX_QTY_PER_LINE = 10;
+
+  function maxQty(line: Cart['lines'][number]): number {
+    return Math.min(line.available_stock ?? MAX_QTY_PER_LINE, MAX_QTY_PER_LINE);
+  }
+
   async function changeQty(lineId: number, quantity: number) {
+    setError(null);
     try {
       if (quantity < 1) {
         const res = await api<{ data: Cart }>(`/cart/items/${lineId}`, { method: 'DELETE' });
@@ -98,11 +106,19 @@ export default function CartScreen() {
               </Pressable>
               <Text>{line.quantity}</Text>
               <Pressable
+                disabled={line.quantity >= maxQty(line)}
                 onPress={() => void changeQty(line.id, line.quantity + 1)}
-                className="h-8 w-8 items-center justify-center rounded-md border border-border">
+                className={`h-8 w-8 items-center justify-center rounded-md border border-border ${
+                  line.quantity >= maxQty(line) ? 'opacity-40' : ''
+                }`}>
                 <Text>+</Text>
               </Pressable>
             </View>
+            {line.available_stock != null && line.quantity >= line.available_stock ? (
+              <Text className="text-xs text-muted-foreground">
+                Stok maksimal ({line.available_stock})
+              </Text>
+            ) : null}
           </View>
         </View>
       ))}

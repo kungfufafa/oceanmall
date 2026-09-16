@@ -98,6 +98,7 @@ export type Cart = {
     name: string;
     thumbnail?: string | null;
     purchasable_id: number;
+    available_stock?: number | null;
   }[];
   totals: { subtotal: number; discount: number; tax: number; total: number };
 };
