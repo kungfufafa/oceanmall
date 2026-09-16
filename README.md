@@ -189,7 +189,9 @@ Inventory gudang **harus** punya `rajaongkir_origin_id` — tanpa itu checkout s
 Setiap Inventory (gudang) juga **wajib** diisi **latitude/longitude (pin point)** di cpanel
 (Settings → Locations). RajaOngkir Delivery `calculate` menolak request tanpa koordinat origin,
 sehingga AWB tidak bisa terbit. Checkout (web & mobile) juga mengumpulkan pin point pelanggan
-untuk sisi tujuan.
+untuk sisi tujuan. `StoreConfigSeeder` mengisi gudang default **OceanMall Cirebon**
+(`oceanmall-cirebon`, origin `17248`) dengan pin yang sama dipakai fixture Cirebon di repo
+(`-6.7366,108.5414`). Jangan mengarang koordinat lain tanpa keputusan operator.
 
 Di Collaborator → Developer → Webhook:
 
@@ -203,7 +205,7 @@ Jangan commit `.env` atau API key asli.
 
 1. Set keempat API key dari collaborator settings + `KOMERCE_WEBHOOK_SECRET`, biarkan `PAYMENT_STRIPE_ENABLED=false`.
 2. `php artisan migrate` — pastikan kolom `rajaongkir_origin_id` ada di inventories.
-3. Di admin Shopper (`/cpanel`): buat / set **Inventory default** (mis. Gudang Jakarta) dan isi `rajaongkir_origin_id` (ID origin dari RajaOngkir destination search).
+3. Di admin Shopper (`/cpanel`): verifikasi Inventory default **OceanMall Cirebon** (seeder) punya `rajaongkir_origin_id` + latitude/longitude. Gudang tambahan wajib diisi origin + pin yang sama (Settings → Locations).
 4. Buat Payment Method dengan `driver=komerce` (metadata `payment_type` = `bank_transfer` + `channel_code` bank, atau `qris`), aktifkan di zone Indonesia.
 5. Jalankan queue worker (`composer run dev` sudah include) + scheduler (`php artisan schedule:work`) agar `komerce:fulfill-paid-orders` (AWB), `komerce:refresh-shipment-tracking`, dan `komerce:expire-unpaid-orders` jalan sesuai `routes/console.php`.
 6. Di storefront checkout: isi alamat + **cari district** (RajaOngkir destination) → pilih kurir → pilih **QRIS** (atau VA) → Place order.
