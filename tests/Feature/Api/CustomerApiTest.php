@@ -6,12 +6,14 @@ namespace Tests\Feature\Api;
 
 use App\Models\Product;
 use App\Models\User;
+use App\Support\CustomerCheckoutState;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
 use Shopper\Core\Models\Country;
 use Shopper\Core\Models\Currency;
 use Shopper\Core\Models\Inventory;
+use Shopper\Core\Models\Order;
 use Shopper\Core\Models\PaymentMethod;
 use Shopper\Core\Models\Price;
 use Shopper\Core\Models\Zone;
@@ -225,6 +227,131 @@ final class CustomerApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.payment.payment_id', 'KPAY-API-1')
             ->assertJsonPath('data.payment.virtual_account_number', '1234567890');
+    }
+
+    public function test_place_order_returns_order_when_komerce_payment_setup_fails(): void
+    {
+        config()->set('komerce.payment_api_key', 'test-payment-key');
+        config()->set('komerce.shipping_cost_api_key', 'test-cost-key');
+        config()->set('komerce.rajaongkir.cost_base_url', 'https://shipping.example.test');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+        config()->set('komerce.webhook_secret', 'webhook-secret');
+
+        $country = Country::factory()->create(['cca2' => 'ID']);
+        $zone = Zone::factory()->create(['is_enabled' => true]);
+        $zone->countries()->attach($country->id);
+
+        $paymentMethod = PaymentMethod::factory()->create([
+            'title' => 'BCA Virtual Account',
+            'driver' => 'komerce',
+            'is_enabled' => true,
+            'metadata' => json_encode([
+                'channel_code' => 'BCA',
+                'payment_type' => 'bank_transfer',
+            ]),
+        ]);
+        $zone->paymentMethods()->attach($paymentMethod->id);
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/methods' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [[
+                    'payment_type' => 'va',
+                    'bank_code' => 'BCA',
+                    'min_amount' => 10000,
+                    'max_amount' => 999999999,
+                ]],
+            ]),
+            'https://shipping.example.test/api/v1/calculate/domestic-cost' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [[
+                    'name' => 'J&T Express',
+                    'code' => 'jnt',
+                    'service' => 'EZ',
+                    'cost' => 11000,
+                    'etd' => '1-2',
+                ]],
+            ]),
+            'https://payment.example.test/user/api/v1/user/payment/create' => Http::response([
+                'meta' => ['status' => 'error', 'code' => 500, 'message' => 'Gateway unavailable.'],
+                'data' => ['payment_id' => ''],
+            ], 200),
+        ]);
+
+        $user = User::factory()->create();
+        $product = $this->stockedProduct([
+            'weight_value' => 0.05,
+            'weight_unit' => 'kg',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/cart/items', [
+            'product_id' => $product->id,
+            'quantity' => 1,
+        ])->assertOk();
+
+        $this->postJson('/api/v1/checkout/shipping-address', [
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Melawai 1',
+            'postal_code' => '12220',
+            'city' => 'Jakarta Selatan',
+            'state' => 'DKI Jakarta',
+            'phone_number' => '081234567890',
+            'rajaongkir_destination_id' => '17547',
+            'rajaongkir_pin_point' => '-6.2380,106.7830',
+        ])->assertOk();
+
+        $rates = $this->getJson('/api/v1/checkout')->json('data.shipping_rates');
+        $serviceCode = is_array($rates) && $rates !== [] ? $rates[0]['service_code'] : 'jnt:EZ';
+
+        $this->postJson('/api/v1/checkout/shipping-option', [
+            'service_code' => $serviceCode,
+        ])->assertOk();
+
+        $response = $this->postJson('/api/v1/checkout/place-order', [
+            'payment_method_id' => $paymentMethod->id,
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.payment', null)
+            ->assertJsonPath('data.can_retry_payment', true)
+            ->assertJsonPath(
+                'message',
+                'Your order was placed but payment setup failed. You can retry payment from this order page.',
+            );
+
+        $number = $response->json('data.number');
+        $this->assertIsString($number);
+        $this->assertSame(1, Order::query()->where('customer_id', $user->id)->count());
+        $this->assertSame([], resolve(CustomerCheckoutState::class)->get($user));
+
+        $this->getJson("/api/v1/orders/{$number}")
+            ->assertOk()
+            ->assertJsonPath('data.number', $number)
+            ->assertJsonPath('data.can_retry_payment', true)
+            ->assertJsonPath('data.payment', null);
+
+        $this->postJson('/api/v1/checkout/place-order', [
+            'payment_method_id' => $paymentMethod->id,
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Keranjang kosong.');
+
+        $this->assertSame(1, Order::query()->where('customer_id', $user->id)->count());
+    }
+
+    public function test_expo_checkout_opens_the_order_after_place_order_like_vue(): void
+    {
+        $page = file_get_contents(base_path('mobile/app/checkout.tsx'));
+
+        $this->assertIsString($page);
+        $this->assertStringContainsString('/checkout/place-order', $page);
+        $this->assertStringContainsString('router.replace(`/order/${res.data.number}`)', $page);
+        $this->assertStringContainsString('Alert.alert', $page);
+        $this->assertStringContainsString('res.message', $page);
     }
 
     /**

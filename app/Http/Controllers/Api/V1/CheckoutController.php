@@ -9,6 +9,7 @@ use App\Actions\Checkout\CreateKomercePayment;
 use App\Actions\Checkout\FetchDeliveryRates;
 use App\Actions\Checkout\FetchPaymentMethods;
 use App\Actions\Checkout\PersistUserShippingAddress;
+use App\Actions\Checkout\ResolveKomercePaymentInstructions;
 use App\Actions\CreateOrder;
 use App\Actions\GetCountriesByZone;
 use App\Actions\Notify\NotifyOrderCustomer;
@@ -28,6 +29,7 @@ use Shopper\Cart\CartManager;
 use Shopper\Cart\Models\Cart;
 use Shopper\Core\Enum\AddressType;
 use Shopper\Core\Models\Inventory;
+use Shopper\Core\Models\Order;
 use Shopper\Core\Models\PaymentMethod;
 use Throwable;
 
@@ -332,6 +334,11 @@ final class CheckoutController extends Controller
             return response()->json(['message' => 'Keranjang kosong.'], 422);
         }
 
+        // Mirror web placeKomerceOrder: once CreateOrder succeeds the cart is
+        // completed and reserved. Payment-setup failure must still return the
+        // order so Expo can open retry (Vue already redirects to the account order).
+        $order = null;
+
         try {
             $order = resolve(CreateOrder::class)->handle($checkout, $cart);
             resolve(NotifyOrderCustomer::class)->handle($order, OrderNotificationType::AwaitingPayment);
@@ -343,23 +350,48 @@ final class CheckoutController extends Controller
 
             $this->checkoutState->forget($user);
 
-            return response()->json([
-                'data' => [
-                    'order_id' => $order->id,
-                    'number' => $order->number,
-                    'amount' => (int) $order->price_amount,
-                    'currency' => $order->currency_code,
-                    'payment_status' => $order->payment_status->value,
-                    'payment' => $instructions,
-                ],
-            ], 201);
+            return $this->placedOrderResponse($order, $instructions);
         } catch (Throwable $e) {
             report($e);
+
+            if ($order !== null) {
+                $this->checkoutState->forget($user);
+
+                return $this->placedOrderResponse(
+                    $order->fresh() ?? $order,
+                    null,
+                    __('Your order was placed but payment setup failed. You can retry payment from this order page.'),
+                );
+            }
 
             return response()->json([
                 'message' => $e->getMessage() !== '' ? $e->getMessage() : 'Gagal membuat pesanan.',
             ], 422);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $instructions
+     */
+    private function placedOrderResponse(Order $order, ?array $instructions, ?string $message = null): JsonResponse
+    {
+        $payload = [
+            'data' => [
+                'order_id' => $order->id,
+                'number' => $order->number,
+                'amount' => (int) $order->price_amount,
+                'currency' => $order->currency_code,
+                'payment_status' => $order->payment_status->value,
+                'payment' => $instructions,
+                'can_retry_payment' => resolve(ResolveKomercePaymentInstructions::class)->canRetry($order),
+            ],
+        ];
+
+        if ($message !== null) {
+            $payload['message'] = $message;
+        }
+
+        return response()->json($payload, 201);
     }
 
     /**

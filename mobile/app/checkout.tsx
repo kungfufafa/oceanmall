@@ -21,6 +21,7 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -216,10 +217,13 @@ export default function CheckoutScreen() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api<{ data: { number: string } }>('/checkout/place-order', {
+      const res = await api<{ data: { number: string }; message?: string }>('/checkout/place-order', {
         method: 'POST',
         body: JSON.stringify({ payment_method_id: selectedPayment }),
       });
+      if (res.message) {
+        Alert.alert('Pesanan dibuat', res.message);
+      }
       router.replace(`/order/${res.data.number}`);
     } catch (e) {
       setError(errorMessage(e, 'Gagal membuat pesanan'));
