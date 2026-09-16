@@ -155,7 +155,7 @@ Stripe **tetap mati** by default.
 | `KOMERCE_PAYMENT_BASE_URL` | Default sandbox: `https://api-sandbox.collaborator.komerce.id/user` |
 | `RAJAONGKIR_COST_BASE_URL` | Default: `https://rajaongkir.komerce.id` |
 | `RAJAONGKIR_DELIVERY_BASE_URL` | Sandbox delivery / AWB base URL |
-| `RAJAONGKIR_COURIERS` | Kurir aktif, comma-separated (default: `jne,jnt,sicepat`) |
+| `RAJAONGKIR_COURIERS` | Kurir aktif, comma-separated (default: `jne,jnt,sicepat,ide,anteraja,pos,tiki,lion,ninja,wahana,rpx,ncs`) |
 | `KOMERCE_WEBHOOK_SECRET` | Secret buatan sendiri untuk **Payment callback**; dikirim sebagai `callback_API_KEY` dan diverifikasi melalui HMAC-SHA256 raw body |
 | `KOMERCE_PICKUP_VEHICLE` | Kendaraan pickup (default: `Motor`) |
 | `KOMERCE_PICKUP_TIME` | Jam pickup format `HH:mm:ss` (default: `10:00:00`) |
