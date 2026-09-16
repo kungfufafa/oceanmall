@@ -11,6 +11,7 @@ use App\Actions\Checkout\ResolveKomercePaymentInstructions;
 use App\Actions\Checkout\RetryKomercePayment;
 use App\Actions\Checkout\SyncKomercePaymentStatus;
 use App\Actions\Shipping\RefreshShipmentTracking;
+use App\Actions\Shipping\RefreshShipmentTrackingOnView;
 use App\Http\Controllers\Controller;
 use App\Models\OrderShipment;
 use App\Models\User;
@@ -47,6 +48,7 @@ final class OrderController extends Controller
     {
         $order = $this->ownedOrder($request, $number);
         $order = resolve(ReconcileUnpaidKomerceOrderOnView::class)->handle($order);
+        $order = resolve(RefreshShipmentTrackingOnView::class)->handle($order);
         $order->load(['items.product.media', 'shippingAddress']);
 
         $presenter = resolve(BuyerShipmentPresenter::class);

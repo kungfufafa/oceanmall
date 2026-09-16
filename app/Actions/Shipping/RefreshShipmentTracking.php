@@ -6,6 +6,7 @@ namespace App\Actions\Shipping;
 
 use App\Models\OrderShipment;
 use App\Support\KomerceTrackingContext;
+use App\Support\ShipmentTrackingRefreshThrottle;
 use RuntimeException;
 use Shopper\Shipping\Exceptions\ShippingException;
 use Shopper\Shipping\Facades\Shipping;
@@ -61,6 +62,7 @@ final readonly class RefreshShipmentTracking
         } finally {
             $response = $this->trackingContext->lastRaw();
             $this->trackingContext->clear();
+            ShipmentTrackingRefreshThrottle::mark((int) $shipment->id);
         }
 
         $providerAwb = data_get($response, 'data.airway_bill')
@@ -113,7 +115,7 @@ final readonly class RefreshShipmentTracking
 
     private function airwayBill(OrderShipment $shipment): ?string
     {
-        foreach ([$shipment->awb, data_get($shipment->metadata, 'komerce.awb')] as $candidate) {
+        foreach ([$shipment->awb, $shipment->tracking_number, data_get($shipment->metadata, 'komerce.awb')] as $candidate) {
             if (is_scalar($candidate) && trim((string) $candidate) !== '') {
                 return trim((string) $candidate);
             }

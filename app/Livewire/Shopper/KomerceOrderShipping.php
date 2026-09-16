@@ -7,6 +7,7 @@ namespace App\Livewire\Shopper;
 use App\Actions\Checkout\ReconcileUnpaidKomerceOrderOnView;
 use App\Actions\Shipping\EnsureOrderShipments;
 use App\Actions\Shipping\RefreshShipmentTracking;
+use App\Actions\Shipping\RefreshShipmentTrackingOnView;
 use App\Actions\Shipping\SyncOrderShippingFromShipments;
 use App\Actions\Warehouse\OverrideAllocation;
 use App\Jobs\CreateRajaOngkirDeliveryForShipment;
@@ -45,6 +46,7 @@ final class KomerceOrderShipping extends Component
         Gate::authorize('print-shipment-label', $order);
 
         $this->order = resolve(ReconcileUnpaidKomerceOrderOnView::class)->handle($order);
+        $this->order = resolve(RefreshShipmentTrackingOnView::class)->handle($this->order);
         $this->ensureShipmentsExist();
         $this->seedOverrideDefaults();
     }
