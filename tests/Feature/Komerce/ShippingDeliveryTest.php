@@ -724,6 +724,233 @@ final class ShippingDeliveryTest extends TestCase
         });
     }
 
+    public function test_delivery_calculate_item_value_only_counts_this_shipments_lines(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [$order, $shipment] = $this->createShipmentReadyForDelivery([
+            'metadata' => [
+                'rate' => [
+                    'carrier_code' => 'jne',
+                    'carrier_name' => 'JNE',
+                    'service_code' => 'jne:REG',
+                    'service_name' => 'REG',
+                    'amount' => 18000,
+                    'currency' => 'IDR',
+                ],
+            ],
+        ]);
+        $shipment->inventory?->forceFill([
+            'latitude' => '-6.7366',
+            'longitude' => '108.5414',
+        ])->save();
+        $meta = json_decode((string) $order->metadata, true) ?: [];
+        $meta['shipping_address']['rajaongkir_pin_point'] = '-6.2380,106.7830';
+        $order->forceFill(['metadata' => json_encode($meta, JSON_THROW_ON_ERROR)])->save();
+
+        // A second order item shipped from ANOTHER warehouse — must not be
+        // counted into this shipment's insurance/item_value.
+        $otherProduct = Product::factory()->standard()->create([
+            'weight_value' => 250,
+            'weight_unit' => 'g',
+        ]);
+        OrderItem::query()->create([
+            'order_id' => $order->id,
+            'name' => $otherProduct->name,
+            'sku' => $otherProduct->sku,
+            'product_type' => $otherProduct->getMorphClass(),
+            'product_id' => $otherProduct->id,
+            'quantity' => 1,
+            'unit_price_amount' => 75000,
+        ]);
+
+        $this->fakeDeliveryHttp([
+            'https://delivery.example.test/tariff/api/v1/calculate*' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [
+                    'calculate_reguler' => [[
+                        'shipping_name' => 'JNE',
+                        'service_name' => 'REG',
+                        'shipping_cost' => 18000,
+                        'shipping_cashback' => 4500,
+                        'service_fee' => 0,
+                        'grandtotal' => 118000,
+                    ]],
+                    'calculate_cargo' => [],
+                    'calculate_instant' => [],
+                ],
+            ]),
+            'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
+                'meta' => ['message' => 'Success Create New Order', 'code' => 201, 'status' => 'success'],
+                'data' => ['order_id' => 8890, 'order_no' => 'RO-ITEMVALUE-001'],
+            ]),
+            'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
+                'meta' => ['message' => 'Success Request Pickup', 'code' => 201, 'status' => 'success'],
+                'data' => [[
+                    'status' => 'success',
+                    'order_no' => 'RO-ITEMVALUE-001',
+                    'awb' => 'JNE-ITEMVALUE-AWB',
+                ]],
+            ]),
+        ]);
+
+        resolve(CreateRajaOngkirDeliveryForShipment::class, [
+            'orderShipmentId' => $shipment->id,
+        ])->handle();
+
+        // Shipment lines: 2 × 50000 = 100000. Whole order would be 175000.
+        Http::assertSent(function (Request $request): bool {
+            return $request->method() === 'GET'
+                && str_contains($request->url(), '/tariff/api/v1/calculate')
+                && (string) $request['item_value'] === '100000';
+        });
+    }
+
+    public function test_delivery_tariff_mismatch_with_checkout_cost_ships_with_official_tariff(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [, $shipment] = $this->createShipmentReadyForDelivery([
+            // Customer paid the Cost quote of 18000 at checkout.
+            'cost' => 18000,
+            'metadata' => [
+                'rate' => [
+                    'carrier_code' => 'jne',
+                    'carrier_name' => 'JNE',
+                    'service_code' => 'jne:REG',
+                    'service_name' => 'REG',
+                    'amount' => 18000,
+                    'currency' => 'IDR',
+                ],
+            ],
+        ]);
+        $shipment->inventory?->forceFill([
+            'latitude' => '-6.7366',
+            'longitude' => '108.5414',
+        ])->save();
+        $order = $shipment->order;
+        $meta = json_decode((string) $order->metadata, true) ?: [];
+        $meta['shipping_address']['rajaongkir_pin_point'] = '-6.2380,106.7830';
+        $order->forceFill(['metadata' => json_encode($meta, JSON_THROW_ON_ERROR)])->save();
+
+        $this->fakeDeliveryHttp([
+            'https://delivery.example.test/tariff/api/v1/calculate*' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [
+                    // Official Delivery tariff differs from the Cost quote.
+                    'calculate_reguler' => [[
+                        'shipping_name' => 'JNE',
+                        'service_name' => 'REG',
+                        'shipping_cost' => 19500,
+                        'shipping_cashback' => 4875,
+                        'service_fee' => 0,
+                        'grandtotal' => 119500,
+                    ]],
+                    'calculate_cargo' => [],
+                    'calculate_instant' => [],
+                ],
+            ]),
+            'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
+                'meta' => ['message' => 'Success Create New Order', 'code' => 201, 'status' => 'success'],
+                'data' => ['order_id' => 8891, 'order_no' => 'RO-MISMATCH-001'],
+            ]),
+            'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
+                'meta' => ['message' => 'Success Request Pickup', 'code' => 201, 'status' => 'success'],
+                'data' => [[
+                    'status' => 'success',
+                    'order_no' => 'RO-MISMATCH-001',
+                    'awb' => 'JNE-MISMATCH-AWB',
+                ]],
+            ]),
+        ]);
+
+        resolve(CreateRajaOngkirDeliveryForShipment::class, [
+            'orderShipmentId' => $shipment->id,
+        ])->handle();
+
+        $shipment->refresh();
+        $this->assertSame('JNE-MISMATCH-AWB', $shipment->awb);
+        // Customer-paid cost is immutable; the courier bills the official tariff.
+        $this->assertSame(18000, (int) $shipment->cost);
+
+        Http::assertSent(function (Request $request): bool {
+            $payload = $request->data();
+
+            return $request->method() === 'POST'
+                && $request->url() === 'https://delivery.example.test/order/api/v1/orders/store'
+                && data_get($payload, 'shipping_cost') === 19500
+                && data_get($payload, 'shipping_cashback') === 4875;
+        });
+    }
+
+    public function test_delivery_calculate_result_is_persisted_as_official_shipment_rate(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [, $shipment] = $this->createShipmentReadyForDelivery([
+            'metadata' => [
+                'rate' => [
+                    'carrier_code' => 'jne',
+                    'carrier_name' => 'JNE',
+                    'service_code' => 'jne:REG',
+                    'service_name' => 'REG',
+                    'amount' => 18000,
+                    'currency' => 'IDR',
+                ],
+            ],
+        ]);
+        $shipment->inventory?->forceFill([
+            'latitude' => '-6.7366',
+            'longitude' => '108.5414',
+        ])->save();
+        $order = $shipment->order;
+        $meta = json_decode((string) $order->metadata, true) ?: [];
+        $meta['shipping_address']['rajaongkir_pin_point'] = '-6.2380,106.7830';
+        $order->forceFill(['metadata' => json_encode($meta, JSON_THROW_ON_ERROR)])->save();
+
+        $this->fakeDeliveryHttp([
+            'https://delivery.example.test/tariff/api/v1/calculate*' => Http::response([
+                'meta' => ['code' => 200, 'status' => 'success'],
+                'data' => [
+                    'calculate_reguler' => [[
+                        'shipping_name' => 'JNE',
+                        'service_name' => 'REG',
+                        'shipping_cost' => 18000,
+                        'shipping_cashback' => 4500,
+                        'service_fee' => 0,
+                        'grandtotal' => 118000,
+                    ]],
+                    'calculate_cargo' => [],
+                    'calculate_instant' => [],
+                ],
+            ]),
+            'https://delivery.example.test/order/api/v1/orders/store' => Http::response([
+                'meta' => ['message' => 'Success Create New Order', 'code' => 201, 'status' => 'success'],
+                'data' => ['order_id' => 8892, 'order_no' => 'RO-PERSIST-001'],
+            ]),
+            'https://delivery.example.test/order/api/v1/pickup/request' => Http::response([
+                'meta' => ['message' => 'Success Request Pickup', 'code' => 201, 'status' => 'success'],
+                'data' => [[
+                    'status' => 'success',
+                    'order_no' => 'RO-PERSIST-001',
+                    'awb' => 'JNE-PERSIST-AWB',
+                ]],
+            ]),
+        ]);
+
+        resolve(CreateRajaOngkirDeliveryForShipment::class, [
+            'orderShipmentId' => $shipment->id,
+        ])->handle();
+
+        $shipment->refresh();
+        $this->assertSame('shipping_delivery', data_get($shipment->metadata, 'rate.provider'));
+        $this->assertSame(18000, (int) data_get($shipment->metadata, 'rate.shipping_cost'));
+        $this->assertSame(4500, (int) data_get($shipment->metadata, 'rate.shipping_cashback'));
+        // Original Cost quote is preserved for auditing.
+        $this->assertSame('jne:REG', data_get($shipment->metadata, 'checkout_rate.service_code'));
+        $this->assertSame(18000, (int) data_get($shipment->metadata, 'checkout_rate.amount'));
+    }
+
     public function test_cost_checkout_display_name_is_sent_as_official_delivery_courier(): void
     {
         $this->fakeDeliveryConfig();
