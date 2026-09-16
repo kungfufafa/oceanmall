@@ -273,6 +273,13 @@ final class CreateOrder
             $rate = $this->rateForShipment($shipmentDraft, $checkout, $shipmentCount);
             $cost = $this->rateCost($rate);
             $total += $cost;
+
+            // Customer-facing display names from the Cost quote; the Delivery
+            // courier/service names live in metadata.rate after stamping below.
+            $displayCarrierName = $this->rateString($rate, 'carrier_name')
+                ?? $this->rateString($rate, 'shipping_name');
+            $displayServiceName = $this->rateString($rate, 'service_name');
+
             $rate = $this->officialDeliveryRate($rate, $cost);
 
             $carrierCode = $this->rateString($rate, 'carrier_code');
@@ -283,11 +290,10 @@ final class CreateOrder
                 'order_id' => $order->id,
                 'inventory_id' => $shipmentDraft->inventory_id,
                 'carrier_code' => $carrierCode,
-                'carrier_name' => $this->rateString($rate, 'shipping_name')
-                    ?? $this->rateString($rate, 'carrier_name')
+                'carrier_name' => $displayCarrierName
                     ?? RajaOngkirCourier::deliveryName($carrierCode),
                 'service_code' => $serviceCode,
-                'service_name' => $this->rateString($rate, 'service_name')
+                'service_name' => $displayServiceName
                     ?? RajaOngkirCourier::deliveryService($serviceCode),
                 'cost' => $cost,
                 'currency_code' => $this->rateString($rate, 'currency_code')
