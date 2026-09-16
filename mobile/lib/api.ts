@@ -197,11 +197,13 @@ export type CheckoutPayload = {
     street_address?: string;
     city?: string;
     postal_code?: string;
+    state?: string | null;
     phone_number?: string;
-    rajaongkir_destination_id?: string;
-    rajaongkir_destination_label?: string;
+    rajaongkir_destination_id?: string | null;
+    rajaongkir_destination_label?: string | null;
     rajaongkir_pin_point?: string | null;
   } | null;
+  komerce_enabled?: boolean;
   shipping_option: {
     service_code?: string;
     service_name?: string;

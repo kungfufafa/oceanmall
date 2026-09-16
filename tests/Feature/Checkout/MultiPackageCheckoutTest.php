@@ -358,6 +358,12 @@ final class MultiPackageCheckoutTest extends TestCase
         $this->assertIsString($mobileCheckout);
         $this->assertStringContainsString('pin_ready_message', $mobileCheckout);
         $this->assertStringContainsString('destination_pin_ready', $mobileCheckout);
+        $this->assertStringContainsString('komerce_enabled', $mobileCheckout);
+        $this->assertStringContainsString('setPostalCode', $mobileCheckout);
+        $this->assertDoesNotMatchRegularExpression(
+            '/if\s*\(\s*!destination\s*\)\s*\{\s*setError\(\'Pilih kecamatan RajaOngkir dulu\.\'\);/',
+            $mobileCheckout,
+        );
     }
 
     /**

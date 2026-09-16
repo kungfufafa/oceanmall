@@ -123,6 +123,12 @@ final class CheckoutDefaultAddressApiTest extends TestCase
         $this->assertStringContainsString('rajaongkir_pin_point', $page);
         $this->assertStringContainsString('/checkout/destinations', $page);
         $this->assertStringContainsString('Gunakan lokasi', $page);
+        $this->assertStringContainsString('komerce_enabled', $page);
+        $this->assertStringContainsString('setPostalCode', $page);
+        $this->assertDoesNotMatchRegularExpression(
+            '/if\s*\(\s*!destination\s*\)\s*\{\s*setError\(\'Pilih kecamatan RajaOngkir dulu\.\'\);/',
+            $page,
+        );
     }
 
     public function test_address_book_api_edits_deletes_and_sets_default_while_keeping_pin(): void

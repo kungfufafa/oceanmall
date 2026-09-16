@@ -65,6 +65,59 @@ final class CustomerApiTest extends TestCase
             ->assertJsonStructure(['data' => ['slug', 'reviews']]);
     }
 
+    public function test_checkout_and_addresses_accept_typed_city_when_cost_key_empty(): void
+    {
+        config()->set('komerce.shipping_cost_api_key', '');
+        config()->set('komerce.enabled', true);
+
+        $user = User::factory()->create();
+        $country = Country::factory()->create(['cca2' => 'ID']);
+        $zone = Zone::factory()->create(['is_enabled' => true]);
+        $zone->countries()->attach($country->id);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/checkout')
+            ->assertOk()
+            ->assertJsonPath('data.komerce_enabled', false);
+
+        $this->getJson('/api/v1/addresses')
+            ->assertOk()
+            ->assertJsonPath('komerce_enabled', false);
+
+        $this->postJson('/api/v1/checkout/shipping-address', [
+            'first_name' => 'Budi',
+            'last_name' => 'Santoso',
+            'street_address' => 'Jl. Merdeka 1',
+            'postal_code' => '10110',
+            'city' => 'Jakarta',
+            'state' => 'DKI Jakarta',
+            'phone_number' => '081234567890',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.shipping_address.city', 'Jakarta')
+            ->assertJsonPath('data.shipping_address.state', 'DKI Jakarta')
+            ->assertJsonPath('data.shipping_address.postal_code', '10110')
+            ->assertJsonPath('data.shipping_address.rajaongkir_destination_id', null)
+            ->assertJsonPath('data.komerce_enabled', false);
+
+        $this->postJson('/api/v1/addresses', [
+            'first_name' => 'Siti',
+            'last_name' => 'Aminah',
+            'street_address' => 'Jl. Asia Afrika 2',
+            'postal_code' => '40111',
+            'city' => 'Bandung',
+            'state' => 'Jawa Barat',
+            'phone_number' => '081298765432',
+            'country_id' => $country->id,
+            'type' => 'shipping',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.city', 'Bandung')
+            ->assertJsonPath('data.postal_code', '40111')
+            ->assertJsonPath('data.rajaongkir_destination_id', null);
+    }
+
     public function test_customer_can_manage_address_book_and_profile(): void
     {
         $user = User::factory()->create();

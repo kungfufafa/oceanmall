@@ -88,6 +88,7 @@ final class CheckoutController extends Controller
                 'payment_methods' => $methods,
                 'payment' => $state['payment'][0] ?? null,
                 'saved_addresses' => resolve(PersistUserShippingAddress::class)->mapSavedAddressesForCheckout($user),
+                'komerce_enabled' => komerce_shipping_cost_enabled(),
             ],
         ]);
     }

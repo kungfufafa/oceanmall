@@ -41,6 +41,9 @@ export default function CheckoutScreen() {
   const [lastName, setLastName] = useState('');
   const [street, setStreet] = useState('');
   const [phone, setPhone] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [postalCode, setPostalCode] = useState('');
   const [destinationQuery, setDestinationQuery] = useState('');
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [destination, setDestination] = useState<Destination | null>(null);
@@ -58,11 +61,17 @@ export default function CheckoutScreen() {
       setLastName(address.last_name ?? '');
       setStreet(address.street_address ?? '');
       setPhone(address.phone_number ?? '');
+      setCity(address.city ?? '');
+      setState(address.state ?? '');
+      setPostalCode(address.postal_code ?? '');
       setPinPoint(address.rajaongkir_pin_point ?? '');
       if (address.rajaongkir_destination_id) {
         setDestination({
           id: address.rajaongkir_destination_id,
           label: address.rajaongkir_destination_label ?? address.city ?? address.rajaongkir_destination_id,
+          city_name: address.city,
+          province_name: address.state,
+          zip_code: address.postal_code,
         });
       }
     }
@@ -96,7 +105,7 @@ export default function CheckoutScreen() {
   }, [load]);
 
   useEffect(() => {
-    if (destinationQuery.trim().length < 2) {
+    if (!checkout?.komerce_enabled || destinationQuery.trim().length < 2) {
       setDestinations([]);
       return;
     }
@@ -108,7 +117,7 @@ export default function CheckoutScreen() {
         .catch(() => setDestinations([]));
     }, 350);
     return () => clearTimeout(handle);
-  }, [destinationQuery]);
+  }, [checkout?.komerce_enabled, destinationQuery]);
 
   async function useCurrentLocation() {
     setLocating(true);
@@ -131,8 +140,15 @@ export default function CheckoutScreen() {
   }
 
   async function saveAddress() {
-    if (!destination) {
+    const komerceEnabled = Boolean(checkout?.komerce_enabled);
+    if (komerceEnabled && !destination) {
       setError('Pilih kecamatan RajaOngkir dulu.');
+      return;
+    }
+    const nextCity = (destination?.city_name ?? destination?.label ?? city).trim();
+    const nextPostal = (destination?.zip_code ?? postalCode).trim();
+    if (!nextCity || !nextPostal) {
+      setError('Isi kota dan kode pos.');
       return;
     }
     setBusy(true);
@@ -144,12 +160,12 @@ export default function CheckoutScreen() {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           street_address: street.trim(),
-          postal_code: destination.zip_code ?? checkout?.shipping_address?.postal_code ?? '00000',
-          city: destination.city_name ?? destination.label,
-          state: destination.province_name,
+          postal_code: nextPostal,
+          city: nextCity,
+          state: (destination?.province_name ?? state).trim() || null,
           phone_number: phone.trim(),
-          rajaongkir_destination_id: destination.id,
-          rajaongkir_destination_label: destination.label,
+          rajaongkir_destination_id: destination?.id ?? null,
+          rajaongkir_destination_label: destination?.label ?? null,
           rajaongkir_pin_point: pinPoint.trim() || null,
         }),
       });
@@ -268,6 +284,7 @@ export default function CheckoutScreen() {
   }
 
   const packages: AllocationPackage[] = checkout.allocation ?? [];
+  const komerceEnabled = Boolean(checkout.komerce_enabled);
   const destinationBlocked = packages.some((pkg) => pkg.destination_pin_ready === false);
   const isMultiPackage = packages.length > 1;
   const allPackagesSelected =
@@ -363,7 +380,9 @@ export default function CheckoutScreen() {
         <View className="gap-1.5">
           <Text className="text-sm font-medium">Kecamatan (RajaOngkir)</Text>
           <Input
-            placeholder="Cari kecamatan / kode pos..."
+            placeholder={
+              komerceEnabled ? 'Cari kecamatan / kode pos...' : 'Opsional saat Komerce dinonaktifkan'
+            }
             value={destination ? destination.label : destinationQuery}
             onChangeText={(value) => {
               setDestination(null);
@@ -377,30 +396,66 @@ export default function CheckoutScreen() {
                 setDestination(row);
                 setDestinationQuery('');
                 setDestinations([]);
+                setCity(row.city_name ?? row.label);
+                setState(row.province_name ?? '');
+                setPostalCode(row.zip_code ?? '');
               }}
               className="rounded-md border border-border p-2">
               <Text>{row.label}</Text>
             </Pressable>
           ))}
         </View>
-        <View className="gap-1.5">
-          <Text className="text-sm font-medium">Pin point (lat,long)</Text>
-          <Input
-            placeholder="-6.238000,106.783000"
-            value={pinPoint}
-            onChangeText={setPinPoint}
-            autoCapitalize="none"
-          />
-          <Button variant="outline" disabled={locating} onPress={() => void useCurrentLocation()}>
-            <Text>{locating ? 'Membaca lokasi...' : 'Gunakan lokasi saat ini'}</Text>
-          </Button>
-          <Text className="text-xs text-muted-foreground">
-            Titik antar dipakai kurir instan & penerbitan resi RajaOngkir.
-          </Text>
-        </View>
+        {komerceEnabled ? (
+          <View className="gap-1.5">
+            <Text className="text-sm font-medium">Pin point (lat,long)</Text>
+            <Input
+              placeholder="-6.238000,106.783000"
+              value={pinPoint}
+              onChangeText={setPinPoint}
+              autoCapitalize="none"
+            />
+            <Button variant="outline" disabled={locating} onPress={() => void useCurrentLocation()}>
+              <Text>{locating ? 'Membaca lokasi...' : 'Gunakan lokasi saat ini'}</Text>
+            </Button>
+            <Text className="text-xs text-muted-foreground">
+              Titik antar dipakai kurir instan & penerbitan resi RajaOngkir.
+            </Text>
+          </View>
+        ) : null}
+        <Field
+          label="Provinsi"
+          value={state}
+          onChangeText={setState}
+          editable={!komerceEnabled}
+          placeholder={komerceEnabled ? 'Pilih dari kecamatan' : 'Contoh: DKI Jakarta'}
+        />
+        <Field
+          label="Kota"
+          value={city}
+          onChangeText={setCity}
+          editable={!komerceEnabled}
+          placeholder={komerceEnabled ? 'Pilih dari kecamatan' : 'Contoh: Jakarta Selatan'}
+        />
+        <Field
+          label="Kode pos"
+          value={postalCode}
+          onChangeText={setPostalCode}
+          editable={!komerceEnabled}
+          keyboardType="number-pad"
+          placeholder={komerceEnabled ? 'Pilih dari kecamatan' : 'Contoh: 12190'}
+        />
         <Button
           variant="outline"
-          disabled={busy || !firstName || !lastName || !street || !phone || !destination}
+          disabled={
+            busy ||
+            !firstName ||
+            !lastName ||
+            !street ||
+            !phone ||
+            !city.trim() ||
+            !postalCode.trim() ||
+            (komerceEnabled && !destination)
+          }
           onPress={() => void saveAddress()}>
           <Text>Simpan alamat & hitung ongkir</Text>
         </Button>

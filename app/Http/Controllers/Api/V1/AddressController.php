@@ -28,6 +28,7 @@ final class AddressController extends Controller
                 ->whereIn('id', resolve(GetCountriesByZone::class)->handle()->pluck('countryId'))
                 ->orderBy('name')
                 ->get(['id', 'name', 'cca2']),
+            'komerce_enabled' => komerce_shipping_cost_enabled(),
         ]);
     }
 

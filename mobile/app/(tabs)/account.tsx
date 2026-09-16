@@ -30,11 +30,15 @@ export default function AccountScreen() {
   const [lastName, setLastName] = useState('');
   const [street, setStreet] = useState('');
   const [phone, setPhone] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [postalCode, setPostalCode] = useState('');
   const [destinationQuery, setDestinationQuery] = useState('');
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [destination, setDestination] = useState<Destination | null>(null);
   const [pinPoint, setPinPoint] = useState('');
   const [locating, setLocating] = useState(false);
+  const [komerceEnabled, setKomerceEnabled] = useState(false);
 
   const loadAddresses = useCallback(async () => {
     if (!user) {
@@ -42,9 +46,14 @@ export default function AccountScreen() {
       return;
     }
     try {
-      const res = await api<{ data: SavedAddress[]; countries: AddressCountry[] }>('/addresses');
+      const res = await api<{
+        data: SavedAddress[];
+        countries: AddressCountry[];
+        komerce_enabled?: boolean;
+      }>('/addresses');
       setAddresses(res.data ?? []);
       setCountries(res.countries ?? []);
+      setKomerceEnabled(Boolean(res.komerce_enabled));
     } catch {
       setAddresses([]);
     }
@@ -57,7 +66,7 @@ export default function AccountScreen() {
   );
 
   useEffect(() => {
-    if (destinationQuery.trim().length < 2) {
+    if (!komerceEnabled || destinationQuery.trim().length < 2) {
       setDestinations([]);
       return;
     }
@@ -69,7 +78,7 @@ export default function AccountScreen() {
         .catch(() => setDestinations([]));
     }, 350);
     return () => clearTimeout(handle);
-  }, [destinationQuery]);
+  }, [destinationQuery, komerceEnabled]);
 
   function resetForm() {
     setEditingId(null);
@@ -77,6 +86,9 @@ export default function AccountScreen() {
     setLastName(user?.last_name ?? '');
     setStreet('');
     setPhone(user?.phone_number ?? '');
+    setCity('');
+    setState('');
+    setPostalCode('');
     setDestinationQuery('');
     setDestinations([]);
     setDestination(null);
@@ -90,6 +102,9 @@ export default function AccountScreen() {
     setLastName(address.last_name);
     setStreet(address.street_address);
     setPhone(address.phone_number ?? '');
+    setCity(address.city ?? '');
+    setState(address.state ?? '');
+    setPostalCode(address.postal_code ?? '');
     setPinPoint(address.rajaongkir_pin_point ?? '');
     setDestinationQuery('');
     setDestinations([]);
@@ -129,8 +144,14 @@ export default function AccountScreen() {
   }
 
   async function saveAddress() {
-    if (!destination) {
+    if (komerceEnabled && !destination) {
       setError('Pilih kecamatan RajaOngkir dulu.');
+      return;
+    }
+    const nextCity = (destination?.city_name ?? destination?.label ?? city).trim();
+    const nextPostal = (destination?.zip_code ?? postalCode).trim();
+    if (!nextCity || !nextPostal) {
+      setError('Isi kota dan kode pos.');
       return;
     }
     const countryId =
@@ -149,14 +170,14 @@ export default function AccountScreen() {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         street_address: street.trim(),
-        postal_code: destination.zip_code ?? '00000',
-        city: destination.city_name ?? destination.label,
-        state: destination.province_name,
+        postal_code: nextPostal,
+        city: nextCity,
+        state: (destination?.province_name ?? state).trim() || null,
         phone_number: phone.trim(),
         country_id: countryId,
         type: 'shipping',
-        rajaongkir_destination_id: destination.id,
-        rajaongkir_destination_label: destination.label,
+        rajaongkir_destination_id: destination?.id ?? null,
+        rajaongkir_destination_label: destination?.label ?? null,
         rajaongkir_pin_point: pinPoint.trim() || null,
       };
       if (editingId) {
@@ -312,7 +333,9 @@ export default function AccountScreen() {
           <View className="gap-1.5">
             <Text className="text-sm font-medium">Kecamatan (RajaOngkir)</Text>
             <Input
-              placeholder="Cari kecamatan / kode pos..."
+              placeholder={
+                komerceEnabled ? 'Cari kecamatan / kode pos...' : 'Opsional saat Komerce dinonaktifkan'
+              }
               value={destination ? destination.label : destinationQuery}
               onChangeText={(value) => {
                 setDestination(null);
@@ -326,26 +349,62 @@ export default function AccountScreen() {
                   setDestination(row);
                   setDestinationQuery('');
                   setDestinations([]);
+                  setCity(row.city_name ?? row.label);
+                  setState(row.province_name ?? '');
+                  setPostalCode(row.zip_code ?? '');
                 }}
                 className="rounded-md border border-border p-2">
                 <Text>{row.label}</Text>
               </Pressable>
             ))}
           </View>
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium">Pin point (lat,long)</Text>
-            <Input
-              placeholder="-6.238000,106.783000"
-              value={pinPoint}
-              onChangeText={setPinPoint}
-              autoCapitalize="none"
-            />
-            <Button variant="outline" disabled={locating} onPress={() => void useCurrentLocation()}>
-              <Text>{locating ? 'Membaca lokasi...' : 'Gunakan lokasi saat ini'}</Text>
-            </Button>
-          </View>
+          {komerceEnabled ? (
+            <View className="gap-1.5">
+              <Text className="text-sm font-medium">Pin point (lat,long)</Text>
+              <Input
+                placeholder="-6.238000,106.783000"
+                value={pinPoint}
+                onChangeText={setPinPoint}
+                autoCapitalize="none"
+              />
+              <Button variant="outline" disabled={locating} onPress={() => void useCurrentLocation()}>
+                <Text>{locating ? 'Membaca lokasi...' : 'Gunakan lokasi saat ini'}</Text>
+              </Button>
+            </View>
+          ) : null}
+          <Field
+            label="Provinsi"
+            value={state}
+            onChangeText={setState}
+            editable={!komerceEnabled}
+            placeholder={komerceEnabled ? 'Pilih dari kecamatan' : 'Contoh: DKI Jakarta'}
+          />
+          <Field
+            label="Kota"
+            value={city}
+            onChangeText={setCity}
+            editable={!komerceEnabled}
+            placeholder={komerceEnabled ? 'Pilih dari kecamatan' : 'Contoh: Jakarta Selatan'}
+          />
+          <Field
+            label="Kode pos"
+            value={postalCode}
+            onChangeText={setPostalCode}
+            editable={!komerceEnabled}
+            keyboardType="number-pad"
+            placeholder={komerceEnabled ? 'Pilih dari kecamatan' : 'Contoh: 12190'}
+          />
           <Button
-            disabled={busy || !firstName || !lastName || !street || !phone || !destination}
+            disabled={
+              busy ||
+              !firstName ||
+              !lastName ||
+              !street ||
+              !phone ||
+              !city.trim() ||
+              !postalCode.trim() ||
+              (komerceEnabled && !destination)
+            }
             onPress={() => void saveAddress()}>
             <Text>{busy ? 'Menyimpan...' : editingId ? 'Simpan perubahan' : 'Simpan alamat'}</Text>
           </Button>

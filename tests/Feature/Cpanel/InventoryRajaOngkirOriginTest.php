@@ -82,4 +82,33 @@ final class InventoryRajaOngkirOriginTest extends TestCase
         $this->assertEqualsWithDelta(-6.7366, (float) $fresh->getAttribute('latitude'), 0.0001);
         $this->assertEqualsWithDelta(108.5414, (float) $fresh->getAttribute('longitude'), 0.0001);
     }
+
+    public function test_shopper_location_form_renders_translated_rajaongkir_labels_in_english_locale(): void
+    {
+        $this->configureShopperCpanel();
+        app()->setLocale('en');
+
+        $admin = User::factory()->create();
+        Role::query()->firstOrCreate([
+            'name' => config('shopper.admin.roles.admin'),
+            'guard_name' => 'web',
+        ]);
+        $admin->assignRole(config('shopper.admin.roles.admin'));
+
+        $country = Country::factory()->create(['cca2' => 'ID']);
+        $inventory = Inventory::factory()->create([
+            'country_id' => $country->id,
+            'name' => 'Gudang Cirebon',
+            'phone_number' => '+62231234567',
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(InventoryForm::class, ['inventory' => $inventory])
+            ->assertDontSee('shopper::pages/settings/global.location.rajaongkir_origin', false)
+            ->assertDontSee('shopper::pages/settings/global.location.rajaongkir_origin_id', false)
+            ->assertSee('Origin RajaOngkir', false)
+            ->assertSee('ID origin RajaOngkir', false)
+            ->assertSee('Latitude gudang', false)
+            ->assertSee('-6.7366', false);
+    }
 }
