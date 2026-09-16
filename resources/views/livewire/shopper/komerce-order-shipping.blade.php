@@ -100,6 +100,37 @@
             </div>
         @endunless
 
+        @if ($paymentAlert)
+            <div class="flex items-start gap-2.5 rounded-lg bg-rose-50 border border-rose-200 p-3.5 text-xs text-rose-900 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-300" role="alert">
+                <x-heroicon-o-exclamation-triangle class="size-5 text-rose-600 dark:text-rose-400 shrink-0" />
+                <div class="space-y-0.5">
+                    <p class="font-semibold">
+                        Callback pembayaran ditolak
+                        @if ($paymentAlert['reason'] === 'amount_mismatch')
+                            — nominal tidak sesuai
+                        @else
+                            — {{ $paymentAlert['reason'] }}
+                        @endif
+                    </p>
+                    <p>
+                        @if ($paymentAlert['expected_amount'] !== null)
+                            Tagihan Rp {{ number_format($paymentAlert['expected_amount'], 0, ',', '.') }}
+                        @endif
+                        @if ($paymentAlert['remote_amount'] !== null)
+                            · Diterima Rp {{ number_format($paymentAlert['remote_amount'], 0, ',', '.') }}
+                        @endif
+                        @if ($paymentAlert['payment_id'])
+                            · Payment ID {{ $paymentAlert['payment_id'] }}
+                        @endif
+                        @if ($paymentAlert['occurred_at'])
+                            · {{ $paymentAlert['occurred_at'] }}
+                        @endif
+                    </p>
+                    <p>Pesanan tetap belum lunas. Verifikasi manual pembayaran ini sebelum memproses pengiriman.</p>
+                </div>
+            </div>
+        @endif
+
         @if ($successMessage)
             <div class="flex items-center gap-2.5 rounded-lg bg-emerald-50 border border-emerald-200 p-3.5 text-xs text-emerald-900 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-300" role="status">
                 <x-heroicon-o-check-circle class="size-5 text-emerald-600 dark:text-emerald-400 shrink-0" />

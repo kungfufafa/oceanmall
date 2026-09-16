@@ -117,6 +117,36 @@ final class OrderShipmentOpsPresenter
     }
 
     /**
+     * Rejected/mismatched payment callback marker written by
+     * MarkOrderPaidFromKomerce (metadata.komerce.payment_alert), if any.
+     *
+     * @return array{reason: string, payment_id: ?string, expected_amount: ?int, remote_amount: ?int, occurred_at: ?string}|null
+     */
+    public function paymentAlert(Order $order): ?array
+    {
+        $metadata = $order->getAttribute('metadata');
+
+        if (is_string($metadata) && trim($metadata) !== '') {
+            $decoded = json_decode($metadata, true);
+            $metadata = is_array($decoded) ? $decoded : [];
+        }
+
+        $alert = data_get($metadata, 'komerce.payment_alert');
+
+        if (! is_array($alert) || ! is_string($alert['reason'] ?? null)) {
+            return null;
+        }
+
+        return [
+            'reason' => (string) $alert['reason'],
+            'payment_id' => is_scalar($alert['payment_id'] ?? null) ? (string) $alert['payment_id'] : null,
+            'expected_amount' => is_numeric($alert['expected_amount'] ?? null) ? (int) $alert['expected_amount'] : null,
+            'remote_amount' => is_numeric($alert['remote_amount'] ?? null) ? (int) $alert['remote_amount'] : null,
+            'occurred_at' => is_string($alert['occurred_at'] ?? null) ? $alert['occurred_at'] : null,
+        ];
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function inventories(): array

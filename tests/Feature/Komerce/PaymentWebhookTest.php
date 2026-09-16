@@ -175,6 +175,15 @@ final class PaymentWebhookTest extends TestCase
 
         $order->refresh();
         $this->assertSame(PaymentStatus::Pending, $order->payment_status);
+
+        $metadata = json_decode((string) $order->getAttribute('metadata'), true);
+        $alert = data_get($metadata, 'komerce.payment_alert');
+        $this->assertIsArray($alert);
+        $this->assertSame('amount_mismatch', $alert['reason']);
+        $this->assertSame('KOMPAY-AMOUNT', $alert['payment_id']);
+        $this->assertSame(100000, $alert['expected_amount']);
+        $this->assertSame(1, $alert['remote_amount']);
+        $this->assertNotEmpty($alert['occurred_at']);
     }
 
     public function test_paid_callback_can_find_order_by_komerce_payment_ref_metadata(): void
