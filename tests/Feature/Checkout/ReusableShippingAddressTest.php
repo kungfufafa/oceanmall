@@ -99,6 +99,69 @@ final class ReusableShippingAddressTest extends TestCase
         );
     }
 
+    public function test_saving_checkout_address_persists_pin_point_for_komerce_delivery(): void
+    {
+        [$user, , $cart] = $this->customerWithCart();
+
+        $this->actingAs($user)
+            ->withSession([
+                config('shopper.cart.session.key', 'shopper_cart') => $cart->id,
+                'zone_country_code' => 'ID',
+            ])
+            ->post(route('shop.checkout.shipping-address'), [
+                'first_name' => 'Budi',
+                'last_name' => 'Santoso',
+                'street_address' => 'Jl. Melawai Raya No. 1',
+                'postal_code' => '12240',
+                'city' => 'Jakarta Selatan',
+                'state' => 'DKI Jakarta',
+                'phone_number' => '081234567890',
+                'rajaongkir_destination_id' => '17549',
+                'rajaongkir_destination_label' => 'KEBAYORAN LAMA SELATAN, JAKARTA SELATAN',
+                'rajaongkir_pin_point' => '-6.2380,106.7830',
+            ])
+            ->assertRedirect(route('shop.checkout.index'));
+
+        $this->assertSame(
+            '-6.2380,106.7830',
+            session(CheckoutSession::SHIPPING_ADDRESS.'.rajaongkir_pin_point'),
+        );
+
+        $address = Address::query()->where('user_id', $user->id)->firstOrFail();
+        $metadata = is_string($address->metadata)
+            ? json_decode($address->metadata, true)
+            : $address->metadata;
+        $this->assertSame('-6.2380,106.7830', data_get($metadata, 'rajaongkir_pin_point'));
+    }
+
+    public function test_saving_checkout_address_composes_pin_point_from_latitude_and_longitude(): void
+    {
+        [$user, , $cart] = $this->customerWithCart();
+
+        $this->actingAs($user)
+            ->withSession([
+                config('shopper.cart.session.key', 'shopper_cart') => $cart->id,
+                'zone_country_code' => 'ID',
+            ])
+            ->post(route('shop.checkout.shipping-address'), [
+                'first_name' => 'Budi',
+                'last_name' => 'Santoso',
+                'street_address' => 'Jl. Melawai Raya No. 1',
+                'postal_code' => '12240',
+                'city' => 'Jakarta Selatan',
+                'phone_number' => '081234567890',
+                'rajaongkir_destination_id' => '17549',
+                'latitude' => '-6.2380',
+                'longitude' => '106.7830',
+            ])
+            ->assertRedirect(route('shop.checkout.index'));
+
+        $this->assertSame(
+            '-6.2380,106.7830',
+            session(CheckoutSession::SHIPPING_ADDRESS.'.rajaongkir_pin_point'),
+        );
+    }
+
     public function test_saving_same_checkout_address_updates_existing_instead_of_duplicating(): void
     {
         [$user, $country, $cart] = $this->customerWithCart();

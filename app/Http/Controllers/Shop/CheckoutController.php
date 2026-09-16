@@ -242,6 +242,9 @@ final class CheckoutController extends Controller
             'phone_number' => ['nullable', 'string', 'max:20'],
             'rajaongkir_destination_id' => $destinationRule,
             'rajaongkir_destination_label' => ['nullable', 'string', 'max:255'],
+            'rajaongkir_pin_point' => ['nullable', 'string', 'max:64'],
+            'latitude' => ['nullable', 'numeric'],
+            'longitude' => ['nullable', 'numeric'],
             'destination_id' => ['nullable', 'string', 'max:50'],
         ]);
 
@@ -251,6 +254,12 @@ final class CheckoutController extends Controller
         $destinationId = $data['rajaongkir_destination_id'] ?? $data['destination_id'] ?? null;
         if ($destinationId !== null && $destinationId !== '') {
             $data['rajaongkir_destination_id'] = (string) $destinationId;
+        }
+
+        // Same pinpoint contract as the mobile API: an explicit lat,lng pin or
+        // separate coordinates. RajaOngkir Delivery needs it to issue the AWB.
+        if (filled($data['latitude'] ?? null) && filled($data['longitude'] ?? null) && blank($data['rajaongkir_pin_point'] ?? null)) {
+            $data['rajaongkir_pin_point'] = $data['latitude'].','.$data['longitude'];
         }
 
         if (! $data['country_id']) {

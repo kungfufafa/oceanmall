@@ -44,6 +44,9 @@ return [
         'rajaongkir_origin_summary' => 'ID destinasi yang dipakai sebagai origin gudang saat menghitung ongkir RajaOngkir Cost dan membuat order Komerce Delivery. Kosongkan untuk diisi otomatis dari alamat lokasi.',
         'rajaongkir_origin_id' => 'ID origin RajaOngkir',
         'rajaongkir_origin_helper' => 'ID subdistrict dari pencarian destinasi RajaOngkir. Wajib agar checkout menampilkan tarif dari gudang ini.',
+        'rajaongkir_latitude' => 'Latitude gudang',
+        'rajaongkir_longitude' => 'Longitude gudang',
+        'rajaongkir_pin_point_helper' => 'Koordinat pinpoint gudang (contoh: -6.7366). Wajib bersama longitude agar Komerce Delivery dapat menerbitkan resi (AWB).',
     ],
 
     'analytics' => [

@@ -49,11 +49,13 @@ type ShippingAddressForm = {
     phone_number: string;
     rajaongkir_destination_id: string;
     rajaongkir_destination_label: string;
+    rajaongkir_pin_point: string;
 };
 
 type SavedCheckoutAddress = Address & {
     rajaongkir_destination_id?: string | null;
     rajaongkir_destination_label?: string | null;
+    rajaongkir_pin_point?: string | null;
 };
 
 type DestinationResult = {
@@ -148,7 +150,42 @@ const addressForm = useForm<ShippingAddressForm>({
         props.shippingAddress?.rajaongkir_destination_id ?? '',
     rajaongkir_destination_label:
         props.shippingAddress?.rajaongkir_destination_label ?? '',
+    rajaongkir_pin_point: props.shippingAddress?.rajaongkir_pin_point ?? '',
 });
+
+const pinPointLocating = ref(false);
+const pinPointError = ref<string | null>(null);
+
+function useCurrentLocation(): void {
+    pinPointError.value = null;
+
+    if (!('geolocation' in navigator)) {
+        pinPointError.value =
+            'Browser tidak mendukung deteksi lokasi. Isi koordinat secara manual.';
+
+        return;
+    }
+
+    pinPointLocating.value = true;
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            addressForm.rajaongkir_pin_point = `${position.coords.latitude.toFixed(6)},${position.coords.longitude.toFixed(6)}`;
+            pinPointLocating.value = false;
+        },
+        () => {
+            pinPointError.value =
+                'Tidak bisa mengambil lokasi. Izinkan akses lokasi atau isi koordinat manual (contoh: -6.2380,106.7830).';
+            pinPointLocating.value = false;
+        },
+        { enableHighAccuracy: true, timeout: 10000 },
+    );
+}
+
+function clearPinPoint(): void {
+    addressForm.rajaongkir_pin_point = '';
+    pinPointError.value = null;
+}
 
 const destinationQuery = ref(
     props.shippingAddress?.rajaongkir_destination_label ?? '',
@@ -223,8 +260,8 @@ function formatCourierTitle(option: DeliveryOption): string {
         (option.carrier_code ? option.carrier_code.toUpperCase() : '');
 
     if (!carrier) {
-return option.service_name;
-}
+        return option.service_name;
+    }
 
     if (option.service_name.toLowerCase().includes(carrier.toLowerCase())) {
         return option.service_name;
@@ -238,7 +275,12 @@ function selectDestination(result: DestinationResult): void {
     addressForm.rajaongkir_destination_label = result.label;
     destinationQuery.value = result.label;
     destinationResults.value = [];
-    addressForm.clearErrors('rajaongkir_destination_id', 'postal_code', 'city', 'state');
+    addressForm.clearErrors(
+        'rajaongkir_destination_id',
+        'postal_code',
+        'city',
+        'state',
+    );
 
     // Always sync city/zip from RajaOngkir so typed placeholders don't
     // leave the form looking filled while Inertia still posts blanks.
@@ -294,8 +336,8 @@ const multiShippingTotal = computed<number>(() => {
         const code = ratesByShipment.value[pkg.inventory_id];
 
         if (!code) {
-continue;
-}
+            continue;
+        }
 
         const options = props.deliveryOptionsByShipment[pkg.inventory_id] ?? [];
         const opt = options.find(
@@ -303,8 +345,8 @@ continue;
         );
 
         if (opt) {
-sum += opt.amount;
-}
+            sum += opt.amount;
+        }
     }
 
     return sum;
@@ -315,8 +357,8 @@ const multiShippingCurrency = computed<string>(() => {
         const code = ratesByShipment.value[pkg.inventory_id];
 
         if (!code) {
-continue;
-}
+            continue;
+        }
 
         const options = props.deliveryOptionsByShipment[pkg.inventory_id] ?? [];
         const opt = options.find(
@@ -324,8 +366,8 @@ continue;
         );
 
         if (opt?.currency) {
-return opt.currency;
-}
+            return opt.currency;
+        }
     }
 
     return 'IDR';
@@ -444,6 +486,9 @@ function selectAddress(address: SavedCheckoutAddress): void {
     addressForm.city = address.city;
     addressForm.state = address.state ?? '';
     addressForm.phone_number = address.phone_number ?? '';
+    addressForm.rajaongkir_pin_point = String(
+        address.rajaongkir_pin_point ?? '',
+    ).trim();
 
     const destinationId = String(
         address.rajaongkir_destination_id ?? '',
@@ -519,6 +564,9 @@ function submitAddress(): void {
             ).trim(),
             rajaongkir_destination_label: String(
                 data.rajaongkir_destination_label ?? '',
+            ).trim(),
+            rajaongkir_pin_point: String(
+                data.rajaongkir_pin_point ?? '',
             ).trim(),
             postal_code: String(data.postal_code ?? '').trim(),
             city: String(data.city ?? '').trim(),
@@ -843,6 +891,67 @@ const steps = [
                             </p>
                         </div>
 
+                        <div
+                            v-if="komerceEnabled"
+                            class="flex flex-col gap-1.5"
+                        >
+                            <Label for="rajaongkir_pin_point">
+                                Pinpoint lokasi (opsional)
+                            </Label>
+                            <p
+                                class="text-[11px] leading-snug text-muted-foreground"
+                            >
+                                Koordinat alamat membantu kurir mengantar lebih
+                                akurat. Gunakan tombol lokasi atau isi manual
+                                (format: latitude,longitude).
+                            </p>
+                            <div class="flex gap-2">
+                                <Input
+                                    id="rajaongkir_pin_point"
+                                    v-model="addressForm.rajaongkir_pin_point"
+                                    type="text"
+                                    autocomplete="off"
+                                    inputmode="decimal"
+                                    class="h-[var(--om-control-height)] w-full text-[13px]"
+                                    placeholder="-6.2380,106.7830"
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    class="h-[var(--om-control-height)] shrink-0 px-3 text-xs"
+                                    :disabled="pinPointLocating"
+                                    @click="useCurrentLocation"
+                                >
+                                    {{
+                                        pinPointLocating
+                                            ? 'Mencari…'
+                                            : 'Gunakan lokasi saya'
+                                    }}
+                                </Button>
+                                <Button
+                                    v-if="addressForm.rajaongkir_pin_point"
+                                    type="button"
+                                    variant="ghost"
+                                    class="h-[var(--om-control-height)] shrink-0 px-2 text-xs text-muted-foreground"
+                                    @click="clearPinPoint"
+                                >
+                                    Hapus
+                                </Button>
+                            </div>
+                            <p
+                                v-if="pinPointError"
+                                class="text-xs text-red-600"
+                            >
+                                {{ pinPointError }}
+                            </p>
+                            <p
+                                v-if="addressForm.errors.rajaongkir_pin_point"
+                                class="text-xs text-red-600"
+                            >
+                                {{ addressForm.errors.rajaongkir_pin_point }}
+                            </p>
+                        </div>
+
                         <div class="grid grid-cols-3 gap-4">
                             <AuthTextField
                                 id="state"
@@ -968,31 +1077,56 @@ const steps = [
                                 {{ shippingForm.errors.service_code }}
                             </p>
 
-                        <RadioGroup
-                            v-model="selectedShippingServiceValue"
-                            class="flex flex-col gap-2"
-                        >
-                            <label
-                                v-for="option in deliveryOptions"
-                                :key="option.service_code"
-                                class="flex items-center justify-between p-3 border rounded-md cursor-pointer hover:bg-muted/50"
-                                :class="selectedShippingServiceValue === String(option.service_code) ? 'border-primary bg-primary/5' : 'border-border'"
+                            <RadioGroup
+                                v-model="selectedShippingServiceValue"
+                                class="flex flex-col gap-2"
                             >
-                                <div class="flex items-center gap-3">
-                                    <input
-                                        type="radio"
-                                        class="sr-only"
-                                        v-model="selectedShippingServiceValue"
-                                        :value="String(option.service_code)"
-                                    />
-                                    <div class="flex flex-col">
-                                        <span class="text-sm font-medium text-foreground">{{ formatCourierTitle(option) }}</span>
-                                        <span class="text-xs text-muted-foreground">{{ option.estimated_days ? option.estimated_days + ' hari' : '' }}</span>
+                                <label
+                                    v-for="option in deliveryOptions"
+                                    :key="option.service_code"
+                                    class="flex cursor-pointer items-center justify-between rounded-md border p-3 hover:bg-muted/50"
+                                    :class="
+                                        selectedShippingServiceValue ===
+                                        String(option.service_code)
+                                            ? 'border-primary bg-primary/5'
+                                            : 'border-border'
+                                    "
+                                >
+                                    <div class="flex items-center gap-3">
+                                        <input
+                                            type="radio"
+                                            class="sr-only"
+                                            v-model="
+                                                selectedShippingServiceValue
+                                            "
+                                            :value="String(option.service_code)"
+                                        />
+                                        <div class="flex flex-col">
+                                            <span
+                                                class="text-sm font-medium text-foreground"
+                                                >{{
+                                                    formatCourierTitle(option)
+                                                }}</span
+                                            >
+                                            <span
+                                                class="text-xs text-muted-foreground"
+                                                >{{
+                                                    option.estimated_days
+                                                        ? option.estimated_days +
+                                                          ' hari'
+                                                        : ''
+                                                }}</span
+                                            >
+                                        </div>
                                     </div>
-                                </div>
-                                <span class="text-sm font-semibold">{{ formatMoney(option.amount, option.currency) }}</span>
-                            </label>
-                        </RadioGroup>
+                                    <span class="text-sm font-semibold">{{
+                                        formatMoney(
+                                            option.amount,
+                                            option.currency,
+                                        )
+                                    }}</span>
+                                </label>
+                            </RadioGroup>
 
                             <div class="flex">
                                 <Button
