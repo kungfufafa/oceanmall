@@ -10,7 +10,7 @@ use Shopper\Core\Models\Order;
 use Throwable;
 
 /**
- * Vue account order-show, API GET order, and Shopper Komerce panel.
+ * Vue account order-show, Vue checkout-success, API GET order, and Shopper Komerce panel.
  * When a shipment already has AWB/tracking_number, refresh via
  * RefreshShipmentTracking (Delivery history-airway-bill). Provider
  * errors are swallowed the same way ApplyDeliveryWebhookStatus acks

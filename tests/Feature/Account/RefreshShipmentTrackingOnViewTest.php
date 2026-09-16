@@ -22,8 +22,9 @@ use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * Vue account order, API GET order, and Shopper Komerce panel must refresh
- * tracking on view once a shipment already has AWB/tracking_number.
+ * Vue account order, Vue checkout-success, API GET order, and Shopper
+ * Komerce panel must refresh tracking on view once a shipment already has
+ * AWB/tracking_number.
  *
  * Expo/Vue already GET the order every 10s while unpaid. Automatic refresh
  * is throttled by app policy (60s per shipment) so those polls cannot hammer
@@ -122,6 +123,30 @@ final class RefreshShipmentTrackingOnViewTest extends TestCase
         Http::assertSent(fn ($request): bool => str_contains($request->url(), '/order/api/v1/orders/history-airway-bill'));
     }
 
+    public function test_vue_checkout_success_refreshes_tracking_when_shipment_has_awb(): void
+    {
+        $this->withoutVite();
+        $this->fakeDeliveryConfig();
+        $this->fakeTrackingResponse();
+
+        [$customer, $order, $shipment] = $this->customerOrderShipment();
+
+        $this->actingAs($customer)
+            ->get(route('shop.checkout.success', ['order' => $order->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('shop/checkout-success')
+                ->has('shipments.0.tracking_history', 1)
+                ->where('shipments.0.tracking_history.0.description', 'Kurir menuju alamat')
+                ->where('shipments.0.tracking_history.0.datetime', '2026-08-16 09:15:00'));
+
+        $shipment->refresh();
+        $this->assertSame('Kurir menuju alamat', data_get($shipment->metadata, 'komerce.tracking_history.0.description'));
+        $this->assertSame(NormalizeShipmentStatus::IN_TRANSIT, $shipment->status);
+
+        Http::assertSent(fn ($request): bool => str_contains($request->url(), '/order/api/v1/orders/history-airway-bill'));
+    }
+
     public function test_api_order_show_refreshes_tracking_when_shipment_has_awb(): void
     {
         $this->fakeDeliveryConfig();
@@ -171,6 +196,9 @@ final class RefreshShipmentTrackingOnViewTest extends TestCase
         $this->actingAs($customer)
             ->get(route('account.orders.show', $order))
             ->assertOk();
+        $this->actingAs($customer)
+            ->get(route('shop.checkout.success', ['order' => $order->id]))
+            ->assertOk();
 
         Http::assertSentCount(1);
 
@@ -179,6 +207,12 @@ final class RefreshShipmentTrackingOnViewTest extends TestCase
         $this->getJson("/api/v1/orders/{$order->number}")
             ->assertOk()
             ->assertJsonPath('data.shipments.0.tracking_history.0.description', 'Kurir menuju alamat');
+
+        Http::assertSentCount(2);
+
+        $this->actingAs($customer)
+            ->get(route('shop.checkout.success', ['order' => $order->id]))
+            ->assertOk();
 
         Http::assertSentCount(2);
     }
@@ -211,6 +245,15 @@ final class RefreshShipmentTrackingOnViewTest extends TestCase
             ->assertJsonPath('data.shipments.0.awb', 'JNE123456789')
             ->assertJsonPath('data.shipments.0.tracking_number', 'JNE123456789');
 
+        $this->actingAs($customer)
+            ->get(route('shop.checkout.success', ['order' => $order->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('shop/checkout-success')
+                ->where('shipments.0.awb', 'JNE123456789')
+                ->where('shipments.0.tracking_number', 'JNE123456789')
+                ->where('shipments.0.tracking_history', []));
+
         $shipment->refresh();
         $this->assertSame('JNE123456789', $shipment->awb);
         $this->assertSame('JNE123456789', $shipment->tracking_number);
@@ -237,6 +280,9 @@ final class RefreshShipmentTrackingOnViewTest extends TestCase
 
         $this->actingAs($customer)
             ->get(route('account.orders.show', $order))
+            ->assertOk();
+        $this->actingAs($customer)
+            ->get(route('shop.checkout.success', ['order' => $order->id]))
             ->assertOk();
 
         Http::assertNothingSent();
@@ -289,6 +335,20 @@ final class RefreshShipmentTrackingOnViewTest extends TestCase
         $this->assertStringContainsString('shouldPollPayment', $orderShowPage);
         $this->assertStringNotContainsString('shouldPollTracking', $orderShowPage);
         $this->assertStringNotContainsString('setInterval(() => {\n        void trackShipment', $orderShowPage);
+    }
+
+    public function test_vue_checkout_success_shows_on_view_history_and_does_not_add_a_tracking_poll(): void
+    {
+        $checkoutSuccess = file_get_contents(resource_path('js/pages/shop/checkout-success.vue'));
+
+        $this->assertIsString($checkoutSuccess);
+        $this->assertStringContainsString('shipments', $checkoutSuccess);
+        $this->assertStringContainsString('tracking_history', $checkoutSuccess);
+        $this->assertStringContainsString('event.datetime', $checkoutSuccess);
+        $this->assertStringContainsString('shouldPollPayment', $checkoutSuccess);
+        $this->assertSame(1, substr_count($checkoutSuccess, 'setInterval(()'));
+        $this->assertStringNotContainsString('shouldPollTracking', $checkoutSuccess);
+        $this->assertStringNotContainsString('void trackShipment', $checkoutSuccess);
     }
 
     private function admin(): User
