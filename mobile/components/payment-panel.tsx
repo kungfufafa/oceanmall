@@ -3,6 +3,7 @@ import { Text } from '@/components/ui/text';
 import type { PaymentInstructions } from '@/lib/api';
 import { formatIdr } from '@/lib/format';
 import { Linking, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 export function PaymentPanel({ payment }: { payment?: PaymentInstructions | null }) {
   if (!payment) {
@@ -23,9 +24,17 @@ export function PaymentPanel({ payment }: { payment?: PaymentInstructions | null
         </Text>
       ) : null}
       {payment.qris_string ? (
-        <Text selectable className="text-xs text-muted-foreground">
-          QRIS: {payment.qris_string}
-        </Text>
+        <View className="gap-2">
+          <View className="items-center rounded-xl bg-white p-4">
+            <QRCode value={payment.qris_string} size={200} />
+          </View>
+          <Text className="text-center text-sm text-muted-foreground">
+            Scan QRIS di atas dengan aplikasi pembayaran.
+          </Text>
+          <Text selectable className="text-xs text-muted-foreground">
+            QRIS: {payment.qris_string}
+          </Text>
+        </View>
       ) : null}
       {payment.expiry_date ? (
         <Text className="text-sm text-muted-foreground">Berlaku sampai {payment.expiry_date}</Text>
