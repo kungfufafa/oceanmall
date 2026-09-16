@@ -1,5 +1,6 @@
 import { EmptyState } from '@/components/empty-state';
 import { Field } from '@/components/field';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
@@ -259,6 +260,16 @@ export default function CheckoutScreen() {
   const isMultiPackage = packages.length > 1;
   const allPackagesSelected =
     packages.length > 0 && packages.every((pkg) => !!ratesByPackage[String(pkg.inventory_id)]);
+  const selectedPackageRates = packages.map((pkg) => ({
+    pkg,
+    rate: pkg.rates.find(
+      (rate) => rate.service_code === ratesByPackage[String(pkg.inventory_id)]
+    ),
+  }));
+  const shippingTotal = selectedPackageRates.reduce(
+    (sum, entry) => sum + (entry.rate?.amount ?? 0),
+    0
+  );
 
   return (
     <KeyboardAvoidingView
@@ -289,6 +300,17 @@ export default function CheckoutScreen() {
                 <Text className="text-sm text-muted-foreground">
                   {address.street_address}, {address.city}
                 </Text>
+                <View className="mt-1.5 flex-row">
+                  {address.rajaongkir_pin_point ? (
+                    <Badge variant="secondary">
+                      <Text>Pin point tersimpan</Text>
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">
+                      <Text>Belum ada pin point</Text>
+                    </Badge>
+                  )}
+                </View>
               </Pressable>
             ))}
           </View>
@@ -391,6 +413,26 @@ export default function CheckoutScreen() {
                 ) : null}
               </View>
             ))}
+            {allPackagesSelected ? (
+              <View className="gap-1.5 rounded-xl border border-border p-3">
+                <Text className="font-semibold">Rincian ongkir</Text>
+                {selectedPackageRates.map(({ pkg, rate }, index) =>
+                  rate ? (
+                    <View key={pkg.inventory_id} className="flex-row items-center justify-between gap-2">
+                      <Text className="flex-1 text-sm text-muted-foreground">
+                        Paket {index + 1} · {rate.carrier_name ?? rate.carrier_code} ·{' '}
+                        {rate.service_name}
+                      </Text>
+                      <Text className="text-sm">{formatIdr(rate.amount)}</Text>
+                    </View>
+                  ) : null
+                )}
+                <View className="mt-1 flex-row items-center justify-between border-t border-border pt-2">
+                  <Text className="font-medium">Total ongkir</Text>
+                  <Text className="font-medium">{formatIdr(shippingTotal)}</Text>
+                </View>
+              </View>
+            ) : null}
             <Button
               variant="outline"
               disabled={busy || !allPackagesSelected}

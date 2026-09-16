@@ -37,6 +37,24 @@ export default function OrderScreen() {
     }, [load])
   );
 
+  // While the payment panel shows pending instructions, refresh the order
+  // every 10s so the screen flips to "paid" without manual pull-to-refresh.
+  // Stops automatically once paid/cancelled and when the screen loses focus.
+  const shouldPollPayment =
+    !!order && order.payment_status !== 'paid' && order.status !== 'cancelled' && !!order.payment;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!shouldPollPayment) {
+        return;
+      }
+      const interval = setInterval(() => {
+        void load();
+      }, 10_000);
+      return () => clearInterval(interval);
+    }, [shouldPollPayment, load])
+  );
+
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError(null);
