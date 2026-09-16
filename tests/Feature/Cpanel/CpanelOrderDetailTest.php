@@ -190,6 +190,7 @@ final class CpanelOrderDetailTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KomerceOrderShipping::class, ['order' => $order])
             ->assertSee('Gudang Cirebon')
+            ->assertSee('Resi Komerce membutuhkan pinpoint gudang dan tujuan.')
             ->assertSee('Pinpoint gudang belum diisi')
             ->assertSee('Pinpoint tujuan belum diisi');
     }

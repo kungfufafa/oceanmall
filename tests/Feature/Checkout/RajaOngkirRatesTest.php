@@ -168,7 +168,13 @@ final class RajaOngkirRatesTest extends TestCase
             ->assertJsonPath('props.deliveryOptions.0.carrier_code', 'jne')
             ->assertJsonPath('props.deliveryOptions.0.carrier_name', 'JNE Express')
             ->assertJsonPath('props.deliveryOptions.0.estimated_days', '2-3')
-            ->assertJsonPath('props.deliveryOptions.1.service_code', 'jnt:EZ');
+            ->assertJsonPath('props.deliveryOptions.1.service_code', 'jnt:EZ')
+            ->assertJsonPath('props.allocation.0.origin_pin_ready', false)
+            ->assertJsonPath('props.allocation.0.destination_pin_ready', false)
+            ->assertJsonPath(
+                'props.allocation.0.pin_ready_message',
+                'Resi Komerce membutuhkan pinpoint gudang dan tujuan. Pinpoint gudang belum diisi. Pinpoint tujuan belum diisi.',
+            );
 
         Http::assertSent(function (ClientRequest $request): bool {
             return $request->method() === 'POST'

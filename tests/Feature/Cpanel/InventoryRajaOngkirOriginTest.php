@@ -38,6 +38,8 @@ final class InventoryRajaOngkirOriginTest extends TestCase
 
         Livewire::actingAs($admin)
             ->test(InventoryForm::class, ['inventory' => $inventory])
+            ->assertSee('Resi Komerce membutuhkan pinpoint gudang dan tujuan.', false)
+            ->assertSee('Pinpoint gudang belum diisi.', false)
             ->set('data.priority', 0)
             ->set('data.phone_number', '+62231234567')
             ->set('data.rajaongkir_origin_id', '17248')

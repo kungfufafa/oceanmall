@@ -222,6 +222,9 @@ export default function OrderScreen() {
                 {shipment.status_label ?? shipment.status}
               </Text>
               <Text selectable>{shipment.awb || shipment.tracking_number || 'AWB belum ada'}</Text>
+              {!shipment.awb && !shipment.tracking_number && shipment.pin_ready_message ? (
+                <Text className="text-amber-800">{shipment.pin_ready_message}</Text>
+              ) : null}
               {(shipment.tracking_history ?? []).slice(0, 5).map((event, index) => (
                 <Text key={index} className="text-xs text-muted-foreground">
                   {event.datetime ? `${event.datetime} · ` : ''}

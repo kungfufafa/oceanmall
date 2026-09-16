@@ -28,6 +28,8 @@ final class OrderShipmentTrackingTest extends TestCase
         $this->assertStringContainsString('shipment.tracking_number', $orderShowPage);
         $this->assertStringContainsString('Pengiriman / Paket', $orderShowPage);
         $this->assertStringContainsString('Label menunggu', $orderShowPage);
+        $this->assertStringContainsString('pin_ready_message', $orderShowPage);
+        $this->assertStringContainsString('shipment.pin_ready_message', $orderShowPage);
         $this->assertStringContainsString(
             'v-if="shipment.awb || shipment.tracking_number"',
             $orderShowPage,
@@ -55,6 +57,7 @@ final class OrderShipmentTrackingTest extends TestCase
         $this->assertStringContainsString('retryPayment', $checkoutSuccess);
         $this->assertStringContainsString('cancelOrder', $checkoutSuccess);
         $this->assertStringContainsString('shipment.status_label ?? shipment.status', $checkoutSuccess);
+        $this->assertStringContainsString('pin_ready_message', $checkoutSuccess);
         $this->assertStringContainsString('Buat ulang pembayaran', $checkoutSuccess);
         $this->assertStringContainsString('Batalkan pesanan', $checkoutSuccess);
     }
@@ -75,6 +78,8 @@ final class OrderShipmentTrackingTest extends TestCase
         $this->assertStringContainsString('order.cancelled_reason_label', $orderScreen);
         $this->assertStringContainsString('status_label?:', $apiTypes);
         $this->assertStringContainsString('shipment.status_label ?? shipment.status', $orderScreen);
+        $this->assertStringContainsString('pin_ready_message', $orderScreen);
+        $this->assertStringContainsString('pin_ready_message?:', $apiTypes);
     }
 
     public function test_order_show_vue_source_computes_shipping_price_from_shipments_when_present(): void
@@ -155,7 +160,13 @@ final class OrderShipmentTrackingTest extends TestCase
                     ->where('shipments.1.carrier', 'J&T Express')
                     ->where('shipments.1.service', 'EZ')
                     ->where('shipments.1.cost', 13000)
-                    ->where('shipments.1.currency', 'IDR'),
+                    ->where('shipments.1.currency', 'IDR')
+                    ->where('shipments.1.origin_pin_ready', false)
+                    ->where('shipments.1.destination_pin_ready', false)
+                    ->where(
+                        'shipments.1.pin_ready_message',
+                        'Resi Komerce membutuhkan pinpoint gudang dan tujuan. Pinpoint gudang belum diisi. Pinpoint tujuan belum diisi.',
+                    ),
             );
     }
 }

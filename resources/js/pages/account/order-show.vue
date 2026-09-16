@@ -91,6 +91,9 @@ type Shipment = {
     cost: number;
     currency: string;
     tracking_history: TrackingEvent[];
+    origin_pin_ready?: boolean;
+    destination_pin_ready?: boolean;
+    pin_ready_message?: string | null;
 };
 
 const props = defineProps<{
@@ -669,6 +672,17 @@ function cancelOrder(): void {
                         {{ shipmentStatusLabel(shipment) }}
                     </p>
                 </div>
+
+                <p
+                    v-if="
+                        !shipment.awb &&
+                        !shipment.tracking_number &&
+                        shipment.pin_ready_message
+                    "
+                    class="mt-3 text-sm text-amber-800"
+                >
+                    {{ shipment.pin_ready_message }}
+                </p>
 
                 <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
                     <div>

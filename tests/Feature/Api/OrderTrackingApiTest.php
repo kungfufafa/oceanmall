@@ -62,7 +62,13 @@ final class OrderTrackingApiTest extends TestCase
             ->assertJsonPath('data.shipments.0.awb', 'JNE123456789')
             ->assertJsonPath('data.shipments.0.tracking_history.0.description', 'Paket dijemput kurir')
             ->assertJsonPath('data.shipments.0.tracking_history.0.datetime', '2026-08-01 09:00')
-            ->assertJsonPath('data.shipments.0.tracking_history.0.location', 'Jakarta');
+            ->assertJsonPath('data.shipments.0.tracking_history.0.location', 'Jakarta')
+            ->assertJsonPath('data.shipments.0.origin_pin_ready', false)
+            ->assertJsonPath('data.shipments.0.destination_pin_ready', false)
+            ->assertJsonPath(
+                'data.shipments.0.pin_ready_message',
+                'Resi Komerce membutuhkan pinpoint gudang dan tujuan. Pinpoint gudang belum diisi. Pinpoint tujuan belum diisi.',
+            );
     }
 
     public function test_track_refreshes_history_and_returns_datetime_not_raw_date(): void

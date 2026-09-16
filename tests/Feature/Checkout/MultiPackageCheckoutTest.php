@@ -339,6 +339,12 @@ final class MultiPackageCheckoutTest extends TestCase
         $this->assertStringContainsString('deliveryOptionsByShipment', $checkoutPage);
         $this->assertStringContainsString('allPackagesSelected', $checkoutPage);
         $this->assertStringContainsString('submitMultiShipping', $checkoutPage);
+        $this->assertStringContainsString('warehousePinMessage', $checkoutPage);
+        $this->assertStringContainsString('pin_ready_message', $checkoutPage);
+
+        $mobileCheckout = file_get_contents(base_path('mobile/app/checkout.tsx'));
+        $this->assertIsString($mobileCheckout);
+        $this->assertStringContainsString('pin_ready_message', $mobileCheckout);
     }
 
     /**

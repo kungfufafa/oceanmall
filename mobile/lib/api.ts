@@ -166,6 +166,9 @@ export type AddressCountry = {
 export type AllocationPackage = {
   inventory_id: number;
   inventory_name: string;
+  origin_pin_ready?: boolean;
+  destination_pin_ready?: boolean;
+  pin_ready_message?: string | null;
   lines: {
     purchasable_type: string;
     purchasable_id: number;
@@ -238,6 +241,9 @@ export type OrderDetail = OrderSummary & {
     cost?: number | null;
     currency?: string | null;
     tracking_history?: { description?: string; datetime?: string | null; location?: string | null }[];
+    origin_pin_ready?: boolean;
+    destination_pin_ready?: boolean;
+    pin_ready_message?: string | null;
   }[];
   payment?: PaymentInstructions | null;
   can_retry_payment?: boolean;

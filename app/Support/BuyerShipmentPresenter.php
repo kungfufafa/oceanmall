@@ -16,6 +16,12 @@ final class BuyerShipmentPresenter
      */
     public function payload(OrderShipment $shipment): array
     {
+        $shipment->loadMissing(['inventory', 'order.shippingAddress']);
+
+        $pinReady = resolve(KomercePinReady::class);
+        $originPinReady = $pinReady->inventoryHasPinPoint($shipment->inventory);
+        $destinationPinReady = $pinReady->orderHasDestinationPin($shipment->order);
+
         return [
             'id' => $shipment->id,
             'inventory_name' => $shipment->inventory?->name,
@@ -31,6 +37,9 @@ final class BuyerShipmentPresenter
             'cost' => $shipment->cost,
             'currency' => $shipment->currency_code,
             'tracking_history' => ShipmentTrackingHistory::fromShipment($shipment),
+            'origin_pin_ready' => $originPinReady,
+            'destination_pin_ready' => $destinationPinReady,
+            'pin_ready_message' => $pinReady->message($originPinReady, $destinationPinReady),
         ];
     }
 }

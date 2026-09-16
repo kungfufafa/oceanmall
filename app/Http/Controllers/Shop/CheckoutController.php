@@ -18,6 +18,7 @@ use App\DTO\AllocationPlan;
 use App\DTO\ShipmentDraft;
 use App\Enums\OrderNotificationType;
 use App\Http\Controllers\Controller;
+use App\Support\KomercePinReady;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -703,9 +704,16 @@ final class CheckoutController extends Controller
             ->get()
             ->keyBy('id');
 
+        $pinReady = resolve(KomercePinReady::class);
+        $destinationPinReady = $pinReady->addressHasDestinationPin($shippingAddress);
+
         foreach ($allocationArray as &$draft) {
             $inv = $inventories->get($draft['inventory_id']);
+            $originPinReady = $pinReady->inventoryHasPinPoint($inv);
             $draft['inventory_name'] = $inv?->getAttribute('name') ?? (string) $draft['inventory_id'];
+            $draft['origin_pin_ready'] = $originPinReady;
+            $draft['destination_pin_ready'] = $destinationPinReady;
+            $draft['pin_ready_message'] = $pinReady->message($originPinReady, $destinationPinReady);
         }
         unset($draft);
 

@@ -410,6 +410,9 @@ export default function CheckoutScreen() {
                 <Text className="font-medium">
                   Paket {index + 1} · {pkg.inventory_name}
                 </Text>
+                {pkg.pin_ready_message ? (
+                  <Text className="text-sm text-amber-800">{pkg.pin_ready_message}</Text>
+                ) : null}
                 {pkg.lines.map((line, lineIndex) => (
                   <Text key={lineIndex} className="text-sm text-muted-foreground">
                     {line.name || `Produk #${line.purchasable_id}`} × {line.qty}
@@ -474,6 +477,9 @@ export default function CheckoutScreen() {
           </View>
         ) : (
           <>
+            {packages[0]?.pin_ready_message ? (
+              <Text className="text-sm text-amber-800">{packages[0].pin_ready_message}</Text>
+            ) : null}
             {(checkout.shipping_rates ?? []).map((rate) => (
               <Pressable
                 key={rate.service_code}

@@ -47,6 +47,9 @@ type Shipment = {
     carrier: string | null;
     service: string | null;
     tracking_history: TrackingEvent[];
+    origin_pin_ready?: boolean;
+    destination_pin_ready?: boolean;
+    pin_ready_message?: string | null;
 };
 
 const props = defineProps<{
@@ -596,6 +599,16 @@ watch(shouldPollPayment, (needs) => {
                                     shipment.tracking_number ||
                                     'Label menunggu'
                                 }}
+                            </p>
+                            <p
+                                v-if="
+                                    !shipment.awb &&
+                                    !shipment.tracking_number &&
+                                    shipment.pin_ready_message
+                                "
+                                class="mt-1 text-sm text-amber-800"
+                            >
+                                {{ shipment.pin_ready_message }}
                             </p>
                             <ol
                                 v-if="shipment.tracking_history.length"

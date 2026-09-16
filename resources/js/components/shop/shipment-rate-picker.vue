@@ -17,6 +17,9 @@ import type { DeliveryOption } from '@/types/shop';
 type ShipmentPackage = {
     inventory_id: number;
     inventory_name: string;
+    origin_pin_ready?: boolean;
+    destination_pin_ready?: boolean;
+    pin_ready_message?: string | null;
     lines: Array<{
         purchasable_type: string;
         purchasable_id: number;
@@ -136,6 +139,16 @@ return option.service_name;
             </CardHeader>
 
             <CardContent class="p-4">
+                <Alert
+                    v-if="pkg.pin_ready_message"
+                    variant="warning"
+                    class="mb-3"
+                >
+                    <AlertDescription class="text-sm text-current">
+                        {{ pkg.pin_ready_message }}
+                    </AlertDescription>
+                </Alert>
+
                 <Alert
                     v-if="!optionsFor(pkg.inventory_id).length"
                     variant="warning"

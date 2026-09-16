@@ -11,6 +11,7 @@ use App\Services\Komerce\ShippingDeliveryClient;
 use App\Shipping\RajaOngkirCourier;
 use App\Support\KomerceFulfillmentContext;
 use App\Support\KomerceLabelResponse;
+use App\Support\KomercePinReady;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -108,6 +109,8 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         if (is_scalar($shipment->awb) && trim((string) $shipment->awb) !== '') {
             return;
         }
+
+        $this->assertDeliveryPinsReady($shipment);
 
         $metadata = $this->decodeMetadata($shipment->metadata);
         $deliveryOrderId = $this->firstScalar($metadata, [
@@ -927,6 +930,19 @@ final class CreateRajaOngkirDeliveryForShipment implements ShouldBeUnique, Shoul
         $metadata['rate'] = $officialRate;
 
         $shipment->forceFill(['metadata' => $metadata])->save();
+    }
+
+    private function assertDeliveryPinsReady(OrderShipment $shipment): void
+    {
+        $pinReady = resolve(KomercePinReady::class);
+        $message = $pinReady->message(
+            $pinReady->inventoryHasPinPoint($shipment->inventory),
+            $pinReady->orderHasDestinationPin($shipment->order instanceof Order ? $shipment->order : null),
+        );
+
+        if ($message !== null) {
+            throw new RuntimeException($message);
+        }
     }
 
     private function originPinPoint(OrderShipment $shipment): ?string

@@ -533,6 +533,7 @@ final class ShippingDeliveryTest extends TestCase
                 'shipping_address' => [
                     'country_id' => 1,
                     'rajaongkir_destination_id' => '152',
+                    'rajaongkir_pin_point' => '-6.2380,106.7830',
                 ],
             ], JSON_THROW_ON_ERROR),
         ]);
@@ -546,6 +547,8 @@ final class ShippingDeliveryTest extends TestCase
             'city' => 'Cirebon',
             'postal_code' => '45111',
             'rajaongkir_origin_id' => '501',
+            'latitude' => '-6.7366',
+            'longitude' => '108.5414',
         ]);
 
         $shipment = OrderShipment::query()->create(array_merge([
@@ -604,6 +607,37 @@ final class ShippingDeliveryTest extends TestCase
         ]);
 
         return [$order, $shipment];
+    }
+
+    public function test_delivery_job_fails_closed_when_warehouse_pin_is_missing(): void
+    {
+        $this->fakeDeliveryConfig();
+
+        [, $shipment] = $this->createShipmentReadyForDelivery();
+        $shipment->inventory?->forceFill([
+            'latitude' => null,
+            'longitude' => null,
+        ])->save();
+
+        Http::fake();
+
+        try {
+            (new CreateRajaOngkirDeliveryForShipment((int) $shipment->id))->handle();
+            $this->fail('Expected delivery job to fail when warehouse pin is missing.');
+        } catch (Throwable $e) {
+            $this->assertSame(
+                'Resi Komerce membutuhkan pinpoint gudang dan tujuan. Pinpoint gudang belum diisi.',
+                $e->getMessage(),
+            );
+        }
+
+        $shipment->refresh();
+        $this->assertNull($shipment->awb);
+        $this->assertSame(
+            'Resi Komerce membutuhkan pinpoint gudang dan tujuan. Pinpoint gudang belum diisi.',
+            data_get($shipment->metadata, 'komerce.fulfillment_error'),
+        );
+        Http::assertNothingSent();
     }
 
     public function test_delivery_job_fails_safely_when_official_tariff_data_is_unavailable(): void

@@ -23,6 +23,7 @@ use App\Models\User;
 use App\Support\CustomerCart;
 use App\Support\CustomerCatalogPresenter;
 use App\Support\CustomerCheckoutState;
+use App\Support\KomercePinReady;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Shopper\Cart\CartManager;
@@ -449,6 +450,8 @@ final class CheckoutController extends Controller
 
         $buildPackages = resolve(BuildShippingPackages::class);
         $fetchRates = resolve(FetchDeliveryRates::class);
+        $pinReady = resolve(KomercePinReady::class);
+        $destinationPinReady = $pinReady->addressHasDestinationPin($address);
 
         $allocation = [];
 
@@ -466,9 +469,15 @@ final class CheckoutController extends Controller
                 $selectedServiceCode = $singleSelected;
             }
 
+            $inventory = $inventories->get($inventoryId);
+            $originPinReady = $pinReady->inventoryHasPinPoint($inventory);
+
             $allocation[] = [
                 'inventory_id' => $inventoryId,
-                'inventory_name' => $inventories->get($inventoryId)?->getAttribute('name') ?? (string) $inventoryId,
+                'inventory_name' => $inventory?->getAttribute('name') ?? (string) $inventoryId,
+                'origin_pin_ready' => $originPinReady,
+                'destination_pin_ready' => $destinationPinReady,
+                'pin_ready_message' => $pinReady->message($originPinReady, $destinationPinReady),
                 'lines' => array_map(
                     static function (array $line) use ($linePresentation): array {
                         $presentation = $linePresentation[$line['purchasable_type'].':'.$line['purchasable_id']] ?? [];

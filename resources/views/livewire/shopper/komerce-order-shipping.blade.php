@@ -193,15 +193,9 @@
                                 Gagal otomatis ke RajaOngkir: {{ $shipment['fulfillment_error'] }}
                             </p>
                         @endif
-                        @if (empty($shipment['can_print_label']) && (empty($shipment['origin_pin_ready']) || empty($shipment['destination_pin_ready'])))
+                        @if (empty($shipment['can_print_label']) && ! empty($shipment['pin_ready_message']))
                             <p class="text-xs text-amber-800 dark:text-amber-300">
-                                Resi Komerce membutuhkan pinpoint gudang dan tujuan.
-                                @if (empty($shipment['origin_pin_ready']))
-                                    Pinpoint gudang belum diisi.
-                                @endif
-                                @if (empty($shipment['destination_pin_ready']))
-                                    Pinpoint tujuan belum diisi.
-                                @endif
+                                {{ $shipment['pin_ready_message'] }}
                             </p>
                         @endif
                     </div>

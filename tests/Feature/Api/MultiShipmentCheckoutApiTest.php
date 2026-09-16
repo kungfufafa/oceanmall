@@ -171,6 +171,12 @@ final class MultiShipmentCheckoutApiTest extends TestCase
             $this->assertSame('Split API Product', $package['lines'][0]['name']);
             $this->assertSame($product->id, $package['lines'][0]['purchasable_id']);
             $this->assertSame(1, $package['lines'][0]['qty']);
+            $this->assertFalse($package['origin_pin_ready']);
+            $this->assertTrue($package['destination_pin_ready']);
+            $this->assertSame(
+                'Resi Komerce membutuhkan pinpoint gudang dan tujuan. Pinpoint gudang belum diisi.',
+                $package['pin_ready_message'],
+            );
 
             $serviceCodes = array_column($package['rates'], 'service_code');
             $this->assertContains('jne:REG', $serviceCodes);

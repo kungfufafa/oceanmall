@@ -31,6 +31,9 @@ const StripePaymentForm = defineAsyncComponent(
 type ShipmentPackage = {
     inventory_id: number;
     inventory_name: string;
+    origin_pin_ready?: boolean;
+    destination_pin_ready?: boolean;
+    pin_ready_message?: string | null;
     lines: Array<{
         purchasable_type: string;
         purchasable_id: number;
@@ -324,6 +327,16 @@ const selectedShippingServiceValue = computed<string>({
 const isMultiPackage = computed<boolean>(
     () => (props.allocation?.length ?? 0) > 1,
 );
+
+const warehousePinMessage = computed<string | null>(() => {
+    for (const pkg of props.allocation ?? []) {
+        if (pkg.pin_ready_message) {
+            return pkg.pin_ready_message;
+        }
+    }
+
+    return null;
+});
 
 const ratesByShipment = ref<Record<number | string, string>>({
     ...props.selectedRatesByShipment,
@@ -1013,6 +1026,12 @@ const steps = [
                                 </AlertDescription>
                             </Alert>
 
+                            <Alert v-if="warehousePinMessage" variant="warning">
+                                <AlertDescription class="text-sm text-current">
+                                    {{ warehousePinMessage }}
+                                </AlertDescription>
+                            </Alert>
+
                             <ShipmentRatePicker
                                 v-model="ratesByShipment"
                                 :packages="allocation!"
@@ -1070,6 +1089,11 @@ const steps = [
                             >
                                 Metode pengiriman
                             </h2>
+                            <Alert v-if="warehousePinMessage" variant="warning">
+                                <AlertDescription class="text-sm text-current">
+                                    {{ warehousePinMessage }}
+                                </AlertDescription>
+                            </Alert>
                             <p
                                 v-if="shippingForm.errors.service_code"
                                 class="text-xs text-red-600"
