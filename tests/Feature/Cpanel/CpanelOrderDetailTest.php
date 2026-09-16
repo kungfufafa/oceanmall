@@ -8,13 +8,17 @@ use App\Livewire\Shopper\KomerceOrderShipping;
 use App\Models\OrderShipment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Shopper\Core\Enum\OrderStatus;
 use Shopper\Core\Enum\PaymentStatus;
 use Shopper\Core\Models\Inventory;
 use Shopper\Core\Models\Order;
 use Shopper\Core\Models\PaymentMethod;
+use Shopper\Payment\Enum\TransactionStatus;
+use Shopper\Payment\Enum\TransactionType;
 use Shopper\Payment\Facades\Payment;
+use Shopper\Payment\Models\PaymentTransaction;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -81,6 +85,58 @@ final class CpanelOrderDetailTest extends TestCase
         Livewire::actingAs($admin)
             ->test(KomerceOrderShipping::class, ['order' => $order])
             ->assertSee('Gudang Jakarta');
+    }
+
+    public function test_komerce_panel_reconciles_unpaid_payment_when_admin_opens_order(): void
+    {
+        config()->set('komerce.payment_api_key', 'test-payment-key');
+        config()->set('komerce.payment_base_url', 'https://payment.example.test/user');
+
+        Http::fake([
+            'https://payment.example.test/user/api/v1/user/payment/status/KOMPAY-CPANEL-VIEW' => Http::response([
+                'success' => true,
+                'data' => [
+                    'payment_id' => 'KOMPAY-CPANEL-VIEW',
+                    'status' => 'PAID',
+                    'amount' => 77000,
+                ],
+            ]),
+        ]);
+
+        $admin = $this->admin();
+        $order = Order::factory()->create([
+            'currency_code' => 'IDR',
+            'status' => OrderStatus::New,
+            'payment_status' => PaymentStatus::Pending,
+            'price_amount' => 77000,
+            'metadata' => json_encode([
+                'komerce' => [
+                    'payment_ref' => 'KOMPAY-CPANEL-VIEW',
+                    'provider' => 'payment_api',
+                    'payment_instructions' => [
+                        'payment_id' => 'KOMPAY-CPANEL-VIEW',
+                        'payment_type' => 'bank_transfer',
+                        'provider' => 'payment_api',
+                        'amount' => 77000,
+                        'currency_code' => 'IDR',
+                    ],
+                ],
+            ], JSON_THROW_ON_ERROR),
+        ]);
+        PaymentTransaction::query()->create([
+            'order_id' => $order->id,
+            'driver' => 'komerce',
+            'reference' => 'KOMPAY-CPANEL-VIEW',
+            'type' => TransactionType::Initiate,
+            'amount' => 77000,
+            'currency_code' => 'IDR',
+            'status' => TransactionStatus::Pending,
+        ]);
+
+        Livewire::actingAs($admin)
+            ->test(KomerceOrderShipping::class, ['order' => $order]);
+
+        $this->assertSame(PaymentStatus::Paid, $order->refresh()->payment_status);
     }
 
     public function test_komerce_panel_shows_cancelled_reason_aligned_with_storefront(): void
